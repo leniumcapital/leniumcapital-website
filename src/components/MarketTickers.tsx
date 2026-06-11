@@ -69,7 +69,7 @@ export function MarketTickers() {
   }, [markets]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between pt-20 pb-4 opacity-70 sm:pt-24 sm:pb-6">
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between pt-20 pb-4 opacity-[0.82] sm:pt-24 sm:pb-6">
       {rows.map((row, i) => (
         <div key={i} className="marquee-row marquee-mask overflow-hidden">
           <div
