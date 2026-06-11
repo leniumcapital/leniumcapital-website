@@ -1,0 +1,187 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f6f7f9;
+  --border: #e6e8ec;
+  --foreground: #0a0c10;
+  --muted: #5b6473;
+  --brand: #0bbf6a;
+  --brand-strong: #079a54;
+  --brand-soft: #e6faf0;
+}
+
+.dark {
+  --background: #07080a;
+  --surface: #0e1014;
+  --surface-muted: #14171d;
+  --border: #23272f;
+  --foreground: #f2f4f8;
+  --muted: #98a1b1;
+  --brand: #1ee089;
+  --brand-strong: #14c976;
+  --brand-soft: #0f2a1e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--brand);
+  color: #04130b;
+}
+
+.grain {
+  background-image: radial-gradient(
+    var(--border) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 22px 22px;
+}
+
+/* ---- Flowing aurora hero background ---- */
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+@keyframes aurora-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(7%, -6%, 0) scale(1.18);
+  }
+  66% {
+    transform: translate3d(-5%, 8%, 0) scale(0.92);
+  }
+}
+
+@keyframes aurora-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-9%, 6%, 0) scale(0.85);
+  }
+}
+
+@keyframes aurora-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.95);
+  }
+  40% {
+    transform: translate3d(8%, 7%, 0) scale(1.2);
+  }
+  75% {
+    transform: translate3d(-6%, -5%, 0) scale(1.05);
+  }
+}
+
+.anim-aurora-a {
+  animation: aurora-a 22s ease-in-out infinite;
+}
+.anim-aurora-b {
+  animation: aurora-b 28s ease-in-out infinite;
+}
+.anim-aurora-c {
+  animation: aurora-c 34s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-aurora-a,
+  .anim-aurora-b,
+  .anim-aurora-c {
+    animation: none;
+  }
+}
+
+/* ---- Floating market tickers (marquee) ---- */
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 7%,
+    #000 93%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 7%,
+    #000 93%,
+    transparent
+  );
+}
+
+/* Pause the scroll while hovering a row so cards are easy to click. */
+.marquee-row:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none !important;
+  }
+}
