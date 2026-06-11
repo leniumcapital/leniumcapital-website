@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Container, CtaButton, Card, PillBadge } from "@/components/ui";
 import { MarketTickers } from "@/components/MarketTickers";
+import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { TIERS, STATS, usd } from "@/lib/data";
 
 const FOUNDATION = [
@@ -206,6 +207,9 @@ export default function HomePage() {
           <h2 className="text-3xl font-semibold tracking-tight">
             Funded in three steps
           </h2>
+
+          <FundingVisualizer />
+
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {[
               {
