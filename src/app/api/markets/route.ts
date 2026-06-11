@@ -3,10 +3,17 @@ import { FALLBACK_TICKERS, type TickerMarket } from "@/lib/data";
 
 // Always run on each request; we cache the upstream Kalshi call briefly below.
 export const dynamic = "force-dynamic";
+// Give the function enough headroom for the upstream Kalshi calls.
+export const maxDuration = 20;
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
   "https://api.elections.kalshi.com/trade-api/v2";
+
+// Some upstreams 403 bare datacenter requests with no UA — look like a browser.
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 type KalshiMarketRaw = {
   ticker?: string;
@@ -34,6 +41,29 @@ type KalshiEventMetadata = {
   market_details?: { image_url?: string; color_code?: string }[];
 };
 
+/** fetch() with a hard timeout so a slow/hanging upstream can never stall us. */
+async function fetchJson<T>(
+  url: string,
+  ms: number,
+  init?: RequestInit & { next?: { revalidate?: number } },
+): Promise<T | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: ctrl.signal,
+      headers: { Accept: "application/json", "User-Agent": UA, ...(init?.headers ?? {}) },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Make a Kalshi image path absolute so an <img> can load it directly. */
 function absoluteImage(url: string | undefined, base: string): string | undefined {
   if (!url) return undefined;
@@ -47,32 +77,24 @@ function absoluteImage(url: string | undefined, base: string): string | undefine
   return url;
 }
 
-/** Fetch the real Kalshi icon + color for one event. Best-effort. */
+/** Fetch the real Kalshi icon + color for one event. Best-effort, time-boxed. */
 async function fetchEventIcon(
   eventTicker: string,
 ): Promise<{ image?: string; color?: string }> {
-  try {
-    const res = await fetch(
-      `${KALSHI_BASE}/events/${encodeURIComponent(eventTicker)}/metadata`,
-      {
-        headers: { Accept: "application/json" },
-        // Icons rarely change — cache them for 5 minutes.
-        next: { revalidate: 300 },
-      },
-    );
-    if (!res.ok) return {};
-    const meta = (await res.json()) as KalshiEventMetadata;
-    const raw =
-      meta.image_url ||
-      meta.featured_image_url ||
-      meta.market_details?.find((m) => m.image_url)?.image_url;
-    return {
-      image: absoluteImage(raw, KALSHI_BASE),
-      color: meta.market_details?.find((m) => m.color_code)?.color_code,
-    };
-  } catch {
-    return {};
-  }
+  const meta = await fetchJson<KalshiEventMetadata>(
+    `${KALSHI_BASE}/events/${encodeURIComponent(eventTicker)}/metadata`,
+    2500,
+    { next: { revalidate: 300 } }, // icons rarely change — cache 5 min
+  );
+  if (!meta) return {};
+  const raw =
+    meta.image_url ||
+    meta.featured_image_url ||
+    meta.market_details?.find((m) => m.image_url)?.image_url;
+  return {
+    image: absoluteImage(raw, KALSHI_BASE),
+    color: meta.market_details?.find((m) => m.color_code)?.color_code,
+  };
 }
 
 function formatClose(t?: string): string {
@@ -97,9 +119,7 @@ function mapEvents(events: KalshiEventRaw[]): TickerMarket[] {
     if (!markets.length) continue;
 
     // Headline price comes from the most-traded market in the event.
-    const top = [...markets].sort(
-      (a, b) => (b.volume ?? 0) - (a.volume ?? 0),
-    )[0];
+    const top = [...markets].sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))[0];
     const cents = priceCents(top);
     if (cents == null) continue;
 
@@ -125,31 +145,27 @@ function mapEvents(events: KalshiEventRaw[]): TickerMarket[] {
 }
 
 export async function GET() {
-  try {
-    const url = `${KALSHI_BASE}/events?limit=100&status=open&with_nested_markets=true`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      // Cache the upstream call for a few seconds so many clients don't hammer Kalshi.
-      next: { revalidate: 5 },
-    });
-    if (!res.ok) throw new Error(`Kalshi responded ${res.status}`);
+  const data = await fetchJson<{ events?: KalshiEventRaw[] }>(
+    `${KALSHI_BASE}/events?limit=60&status=open&with_nested_markets=true`,
+    8000,
+    { next: { revalidate: 5 } }, // cache so many clients don't hammer Kalshi
+  );
 
-    const data = (await res.json()) as { events?: KalshiEventRaw[] };
-    const mapped = mapEvents(data.events ?? [])
-      .filter((m) => m.title && m.vol >= 0)
-      .sort((a, b) => b.vol - a.vol)
-      .slice(0, 16);
+  const mapped = mapEvents(data?.events ?? [])
+    .filter((m) => m.title && m.vol >= 0)
+    .sort((a, b) => b.vol - a.vol)
+    .slice(0, 12);
 
-    if (!mapped.length) throw new Error("No usable markets from Kalshi");
-
-    // Pull the real Kalshi icon for each selected event (cached, in parallel).
-    const withIcons = await Promise.all(
-      mapped.map(async (m) => ({ ...m, ...(await fetchEventIcon(m.id)) })),
-    );
-
-    return NextResponse.json({ source: "kalshi", markets: withIcons });
-  } catch {
-    // Network blocked, rate-limited, or shape changed — keep the hero alive.
+  // No live data available — keep the hero alive with the static set.
+  if (!mapped.length) {
     return NextResponse.json({ source: "fallback", markets: FALLBACK_TICKERS });
   }
+
+  // Pull real Kalshi icons in parallel. Each call is time-boxed and best-effort,
+  // so missing/slow icons can never block (or fail) the live prices.
+  const withIcons = await Promise.all(
+    mapped.map(async (m) => ({ ...m, ...(await fetchEventIcon(m.id)) })),
+  );
+
+  return NextResponse.json({ source: "kalshi", markets: withIcons });
 }
