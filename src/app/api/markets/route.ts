@@ -19,13 +19,18 @@ type KalshiMarketRaw = {
   ticker?: string;
   title?: string;
   yes_sub_title?: string;
+  close_time?: string;
+  // Current Kalshi API: prices are USD strings, volume is a fixed-point string.
+  last_price_dollars?: string;
+  yes_bid_dollars?: string;
+  yes_ask_dollars?: string;
+  volume_fp?: string;
+  volume_24h_fp?: string;
+  // Legacy integer-cent fields (kept for backward compatibility).
   last_price?: number;
   yes_bid?: number;
   yes_ask?: number;
   volume?: number;
-  volume_24h?: number;
-  dollar_volume?: number;
-  close_time?: string;
 };
 
 type KalshiEventRaw = {
@@ -109,12 +114,37 @@ function formatClose(t?: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** Parse a numeric value that Kalshi may send as a number or a string. */
+function num(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/** Headline Yes price in cents (0–100) from either dollar-string or cent fields. */
 function priceCents(m: KalshiMarketRaw): number | null {
+  const lpUsd = num(m.last_price_dollars);
+  if (lpUsd > 0) return Math.round(lpUsd * 100);
+
+  const ybUsd = num(m.yes_bid_dollars);
+  const yaUsd = num(m.yes_ask_dollars);
+  if (ybUsd > 0 && yaUsd > 0) return Math.round(((ybUsd + yaUsd) / 2) * 100);
+  if (ybUsd > 0) return Math.round(ybUsd * 100);
+
+  // Legacy integer-cent fallback.
   if (typeof m.last_price === "number" && m.last_price > 0) return m.last_price;
   if (typeof m.yes_bid === "number" && typeof m.yes_ask === "number" && m.yes_ask > 0)
     return Math.round((m.yes_bid + m.yes_ask) / 2);
   if (typeof m.yes_bid === "number" && m.yes_bid > 0) return m.yes_bid;
   return null;
+}
+
+/** Total traded volume for a market, across old/new field names. */
+function marketVolume(m: KalshiMarketRaw): number {
+  return num(m.volume_fp) || num(m.volume);
 }
 
 function mapEvents(events: KalshiEventRaw[]): TickerMarket[] {
@@ -124,11 +154,11 @@ function mapEvents(events: KalshiEventRaw[]): TickerMarket[] {
     if (!markets.length) continue;
 
     // Headline price comes from the most-traded market in the event.
-    const top = [...markets].sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))[0];
+    const top = [...markets].sort((a, b) => marketVolume(b) - marketVolume(a))[0];
     const cents = priceCents(top);
     if (cents == null) continue;
 
-    const vol = markets.reduce((s, m) => s + (m.volume ?? 0), 0);
+    const vol = markets.reduce((s, m) => s + marketVolume(m), 0);
     const closes = formatClose(
       markets
         .map((m) => m.close_time)
