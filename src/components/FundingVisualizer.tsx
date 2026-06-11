@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { animate, useMotionValue } from "framer-motion";
 import { TIERS, usd } from "@/lib/data";
 
@@ -10,47 +10,37 @@ const STEPS = TIERS.map((t) => ({ size: t.size, fee: t.baseFee })).sort(
 );
 
 export function FundingVisualizer() {
-  const ref = useRef<HTMLDivElement>(null);
-  const played = useRef(false);
   const progress = useMotionValue(0);
-
   const [index, setIndex] = useState(0);
   const [pct, setPct] = useState(0);
 
   // Map the animated 0→1 progress onto the stepped tier index + bar fill.
   useEffect(() => {
     const unsub = progress.on("change", (v) => {
-      setPct(Math.min(100, Math.max(0, v * 100)));
-      setIndex(Math.min(STEPS.length - 1, Math.floor(v * STEPS.length)));
+      const clamped = Math.min(1, Math.max(0, v));
+      setPct(clamped * 100);
+      setIndex(Math.min(STEPS.length - 1, Math.floor(clamped * STEPS.length)));
     });
     return () => unsub();
   }, [progress]);
 
-  // Fire once, when the block is 30% into the viewport.
+  // Continuous back-and-forth, no matter what. ease-in-out on every leg, so it
+  // accelerates out of each end, peaks through the middle, and eases to a stop
+  // before reversing — $5K → $100K → $5K → … forever.
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting) && !played.current) {
-          played.current = true;
-          obs.disconnect();
-          // ease-in-out cubic — accelerates in, decelerates out (not linear).
-          animate(progress, 1, { duration: 1.5, ease: [0.65, 0, 0.35, 1] });
-        }
-      },
-      { threshold: 0.3 },
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
+    const controls = animate(progress, 1, {
+      duration: 3.4,
+      ease: "easeInOut",
+      repeat: Infinity,
+      repeatType: "reverse",
+    });
+    return () => controls.stop();
   }, [progress]);
 
   const step = STEPS[index];
 
   return (
-    <div ref={ref} className="py-14 text-center">
+    <div className="py-14 text-center">
       <p className="text-sm font-medium text-brand">Get funded with up to</p>
 
       <div className="mt-2 text-6xl font-bold tracking-tight tabular-nums text-white sm:text-8xl">
