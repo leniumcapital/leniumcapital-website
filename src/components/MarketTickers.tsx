@@ -9,10 +9,10 @@ import {
 } from "@/lib/data";
 
 const ROW_CONFIG = [
-  { dir: "left" as const, duration: 52 },
-  { dir: "right" as const, duration: 64 },
-  { dir: "left" as const, duration: 58 },
-  { dir: "right" as const, duration: 70 },
+  { dir: "left" as const, duration: 85 },
+  { dir: "right" as const, duration: 104 },
+  { dir: "left" as const, duration: 94 },
+  { dir: "right" as const, duration: 114 },
 ];
 
 export function MarketTickers() {
