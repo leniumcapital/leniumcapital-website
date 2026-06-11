@@ -124,6 +124,13 @@ export default function HomePage() {
         </Container>
       </section>
 
+      {/* Funding visualizer */}
+      <section className="py-16">
+        <Container>
+          <FundingVisualizer />
+        </Container>
+      </section>
+
       {/* Stats strip */}
       <section className="border-y border-border bg-surface">
         <Container className="grid grid-cols-2 gap-6 py-10 sm:grid-cols-4">
@@ -207,9 +214,6 @@ export default function HomePage() {
           <h2 className="text-3xl font-semibold tracking-tight">
             Funded in three steps
           </h2>
-
-          <FundingVisualizer />
-
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {[
               {
