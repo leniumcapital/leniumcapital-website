@@ -46,9 +46,6 @@ type KalshiEventMetadata = {
   market_details?: { image_url?: string; color_code?: string }[];
 };
 
-// Last upstream diagnostic, surfaced via ?debug=1 so we can see why on Vercel.
-let lastDiag = "";
-
 /** fetch() with a hard timeout so a slow/hanging upstream can never stall us. */
 async function fetchJson<T>(
   url: string,
@@ -63,11 +60,9 @@ async function fetchJson<T>(
       signal: ctrl.signal,
       headers: { Accept: "application/json", "User-Agent": UA, ...(init?.headers ?? {}) },
     });
-    lastDiag = `status=${res.status}`;
     if (!res.ok) return null;
     return (await res.json()) as T;
-  } catch (e) {
-    lastDiag = `error=${(e as Error)?.name}:${(e as Error)?.message}`;
+  } catch {
     return null;
   } finally {
     clearTimeout(timer);
@@ -179,30 +174,17 @@ function mapEvents(events: KalshiEventRaw[]): TickerMarket[] {
   return out;
 }
 
-export async function GET(req: Request) {
-  const debug = new URL(req.url).searchParams.get("debug");
-
+export async function GET() {
   const data = await fetchJson<{ events?: KalshiEventRaw[] }>(
     `${KALSHI_BASE}/events?limit=60&status=open&with_nested_markets=true`,
     8000,
     { next: { revalidate: 5 } }, // cache so many clients don't hammer Kalshi
   );
 
-  const eventCount = data?.events?.length ?? 0;
   const mapped = mapEvents(data?.events ?? [])
     .filter((m) => m.title && m.vol >= 0)
     .sort((a, b) => b.vol - a.vol)
     .slice(0, 12);
-
-  if (debug) {
-    return NextResponse.json({
-      base: KALSHI_BASE,
-      upstream: lastDiag,
-      eventCount,
-      mappedCount: mapped.length,
-      sampleEvent: data?.events?.[0] ?? null,
-    });
-  }
 
   // No live data available — keep the hero alive with the static set.
   if (!mapped.length) {
