@@ -170,6 +170,7 @@ export async function GET(req: Request) {
       upstream: lastDiag,
       eventCount,
       mappedCount: mapped.length,
+      sampleEvent: data?.events?.[0] ?? null,
     });
   }
 
