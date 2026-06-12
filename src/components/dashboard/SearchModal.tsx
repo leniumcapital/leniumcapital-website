@@ -56,7 +56,7 @@ export function SearchModal() {
         position: "absolute",
         top: 42,
         left: 0,
-        width: 420,
+        width: "max(100%, min(420px, 80vw))",
         maxHeight: 400,
         overflowY: "auto",
         background: T.bgTertiary,

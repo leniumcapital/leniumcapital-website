@@ -131,14 +131,16 @@ function CenterSection({
     <div
       style={{
         flex: 1,
+        minWidth: 0,
         display: "flex",
         justifyContent: "center",
+        padding: "0 16px",
       }}
     >
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", width: "min(420px, 100%)" }}>
         <div
           style={{
-            width: "min(420px, 30vw)",
+            width: "100%",
             height: 34,
             background: T.bgTertiary,
             border: T.hairline(focused ? T.borderHover : T.border),
