@@ -19,14 +19,21 @@ import { T } from "@/lib/tokens";
 
 const UNDERLINE_COLORS = [T.green, "#3B82F6"] as const;
 
-function formatCloseTime(iso: string): string {
+function formatCloseTime(iso: string, now: number): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const time = d
     .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
     .replace(" ", "");
+  if (now > 0) {
+    const today = new Date(now);
+    const tomorrow = new Date(now + 86_400_000);
+    if (d.toDateString() === today.toDateString()) return `Today @ ${time}`;
+    if (d.toDateString() === tomorrow.toDateString())
+      return `Tomorrow @ ${time}`;
+  }
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return `${date} @ ${time}`;
 }
 
@@ -68,7 +75,9 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
   };
 
   const closeMs = event.closeTime ? new Date(event.closeTime).getTime() : 0;
-  const isLive = now > 0 && closeMs > now && closeMs - now < 24 * 3_600_000;
+  // "Happening now" proxy: resolves within a few hours (live games, hourly
+  // strikes). Same-day events get the "Today @ ..." label instead.
+  const isLive = now > 0 && closeMs > now && closeMs - now < 4 * 3_600_000;
 
   if (variant === "row") {
     const top = event.outcomes[0];
@@ -226,7 +235,7 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
             </span>
           </>
         )}
-        <span>{formatCloseTime(event.closeTime)}</span>
+        <span>{formatCloseTime(event.closeTime, now)}</span>
       </div>
 
       {/* Favored outcome rows */}

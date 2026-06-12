@@ -81,6 +81,7 @@ async function fetchJson<T>(
   url: string,
   ms: number,
   init?: RequestInit & { next?: { revalidate?: number } },
+  retried = false,
 ): Promise<T | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -95,6 +96,11 @@ async function fetchJson<T>(
         ...(init?.headers ?? {}),
       },
     });
+    if (res.status === 429 && !retried) {
+      clearTimeout(timer);
+      await new Promise((r) => setTimeout(r, 700));
+      return fetchJson<T>(url, ms, init, true);
+    }
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
@@ -150,11 +156,28 @@ export function normalizeCategory(raw: string | undefined): string {
   return "Culture";
 }
 
-// The events endpoint returns pages in arbitrary order and is full of brand
-// new zero-volume markets, so one page isn't enough for a quality grid. Page
-// through several and cache the computed result in-memory between polls.
+// The events endpoint returns pages in roughly *farthest-expiry-first* order
+// and is full of brand new zero-volume markets, so one page isn't enough for
+// a quality grid. Page through several and cache the result between polls.
 const EVENT_PAGES = 4;
 const OUTCOMES_PER_EVENT_CARD = 2;
+
+// Today's / live events (games, daily climate + crypto strikes, weekly TV)
+// live at the very END of the events pagination — over 5000 events deep — so
+// they are fetched separately through /markets close-time filters, which the
+// events endpoint does not support.
+// Bucket boundaries in hours from now. The markets endpoint returns
+// farthest-close-FIRST within a window capped at 1000 rows, and a single
+// hourly crypto strike ladder alone is ~1000 markets — so the first six
+// hours are sampled hour-by-hour to guarantee live games, daily strikes,
+// and today's events are all captured.
+const NEAR_TERM_BUCKETS_H = [0, 1, 2, 3, 4, 5, 6, 12, 24, 48];
+const NEAR_TERM_EVENT_LIMIT = 40;
+const NEAR_TERM_MIN_VOL24H = 500;
+// Kalshi rate-limits aggressive parallelism — fetch metadata in small,
+// spaced batches (only uncached events cost anything).
+const META_BATCH_SIZE = 8;
+const META_BATCH_GAP_MS = 300;
 
 export type DashboardData = {
   markets: DashboardMarket[];
@@ -192,6 +215,123 @@ function validContracts(ev: KalshiEventRaw): ValidContract[] {
   return out;
 }
 
+/** Cached event metadata (title/category/series) — changes ~never. */
+const eventMetaCache = new Map<
+  string,
+  { at: number; meta: { title: string; category?: string; series?: string } | null }
+>();
+const EVENT_META_TTL_MS = 6 * 3600_000;
+
+async function fetchEventMeta(
+  eventTicker: string,
+): Promise<{ title: string; category?: string; series?: string } | null> {
+  const hit = eventMetaCache.get(eventTicker);
+  if (hit && Date.now() - hit.at < EVENT_META_TTL_MS) return hit.meta;
+  const data = await fetchJson<{ event?: KalshiEventRaw }>(
+    `${KALSHI_BASE}/events/${encodeURIComponent(eventTicker)}`,
+    5000,
+    { next: { revalidate: 3600 } },
+  );
+  const ev = data?.event;
+  if (!ev?.title) return null; // transient failure — never negative-cache
+  const meta = {
+    title: ev.title,
+    category: ev.category,
+    series: ev.series_ticker,
+  };
+  eventMetaCache.set(eventTicker, { at: Date.now(), meta });
+  return meta;
+}
+
+/**
+ * Markets closing within the near-term window, grouped by event. Uses the
+ * /markets endpoint — the only one supporting close-time filters. Buckets are
+ * needed because results come farthest-close-first: one big window would only
+ * ever surface its far edge.
+ */
+async function fetchNearTermMarketsByEvent(): Promise<
+  Map<string, KalshiMarketRaw[]>
+> {
+  const nowS = Math.floor(Date.now() / 1000);
+  const windows = NEAR_TERM_BUCKETS_H.slice(0, -1).map((startH, i) => ({
+    startH,
+    endH: NEAR_TERM_BUCKETS_H[i + 1],
+  }));
+
+  // Two waves instead of one burst — stays under Kalshi's rate limit while
+  // the events pagination runs concurrently.
+  const buckets: ({ markets?: KalshiMarketRaw[] } | null)[] = [];
+  const WAVE = 4;
+  for (let i = 0; i < windows.length; i += WAVE) {
+    const wave = await Promise.all(
+      windows.slice(i, i + WAVE).map(({ startH, endH }) =>
+        fetchJson<{ markets?: KalshiMarketRaw[] }>(
+          `${KALSHI_BASE}/markets?limit=1000&status=open` +
+            `&min_close_ts=${nowS + startH * 3600}&max_close_ts=${nowS + endH * 3600}`,
+          8000,
+          { next: { revalidate: 30 } },
+        ),
+      ),
+    );
+    buckets.push(...wave);
+    if (i + WAVE < windows.length) {
+      await new Promise((r) => setTimeout(r, 350));
+    }
+  }
+
+  const byEvent = new Map<string, KalshiMarketRaw[]>();
+  const seen = new Set<string>();
+  for (const bucket of buckets) {
+    for (const m of bucket?.markets ?? []) {
+      if (!m.event_ticker || !m.ticker || seen.has(m.ticker)) continue;
+      seen.add(m.ticker);
+      const list = byEvent.get(m.event_ticker) ?? [];
+      list.push(m);
+      byEvent.set(m.event_ticker, list);
+    }
+  }
+  return byEvent;
+}
+
+/** Rank near-term events by 24h volume and attach cached event metadata. */
+async function buildNearTermEvents(
+  byEvent: Map<string, KalshiMarketRaw[]>,
+  skip: Set<string | undefined>,
+): Promise<KalshiEventRaw[]> {
+  const ranked = [...byEvent.entries()]
+    .filter(([eventTicker]) => !skip.has(eventTicker))
+    .map(([eventTicker, markets]) => ({
+      eventTicker,
+      markets,
+      vol24h: markets.reduce((sum, m) => sum + num(m.volume_24h_fp), 0),
+    }))
+    .filter((e) => e.vol24h >= NEAR_TERM_MIN_VOL24H)
+    .sort((a, b) => b.vol24h - a.vol24h)
+    .slice(0, NEAR_TERM_EVENT_LIMIT);
+
+  const out: KalshiEventRaw[] = [];
+  for (let i = 0; i < ranked.length; i += META_BATCH_SIZE) {
+    const batch = ranked.slice(i, i + META_BATCH_SIZE);
+    await Promise.all(
+      batch.map(async ({ eventTicker, markets }) => {
+        const meta = await fetchEventMeta(eventTicker);
+        if (!meta) return;
+        out.push({
+          event_ticker: eventTicker,
+          series_ticker: meta.series,
+          title: meta.title,
+          category: meta.category,
+          markets,
+        });
+      }),
+    );
+    if (i + META_BATCH_SIZE < ranked.length) {
+      await new Promise((r) => setTimeout(r, META_BATCH_GAP_MS));
+    }
+  }
+  return out;
+}
+
 /**
  * Fetch open Kalshi events for the dashboard grid, aggregated Kalshi-style:
  * one event card with its favored outcomes, total volume, and market count —
@@ -203,6 +343,12 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   if (marketsCache && Date.now() - marketsCache.at < MARKETS_CACHE_TTL_MS) {
     return marketsCache.data;
   }
+
+  // Popular long-dated events (pagination) and today's near-term markets
+  // (close-time filtered) come from different endpoints — fetch in parallel.
+  // Metadata lookups for near-term events wait until pagination is done so
+  // the combined burst stays under Kalshi's rate limit.
+  const nearTermPromise = fetchNearTermMarketsByEvent();
 
   const rawEvents: KalshiEventRaw[] = [];
   let cursor: string | undefined;
@@ -219,6 +365,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     cursor = data.cursor;
     if (!cursor) break;
   }
+
+  const knownEvents = new Set(rawEvents.map((e) => e.event_ticker));
+  rawEvents.push(...(await buildNearTermEvents(await nearTermPromise, knownEvents)));
 
   const markets: DashboardMarket[] = [];
   const events: DashboardEvent[] = [];
