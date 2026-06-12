@@ -72,15 +72,18 @@ function mergeMarkets(
   for (const m of markets) {
     if (!s.markets[m.ticker]) s.order.push(m.ticker);
     const prev = s.markets[m.ticker];
+    // API payloads omit priceHistory (and could omit sparklineData), so
+    // always normalize to arrays — live updates push into these.
+    const incomingSpark = m.sparklineData ?? [];
     s.markets[m.ticker] = {
       ...m,
       priceHistory: prev?.priceHistory?.length
         ? prev.priceHistory
-        : m.priceHistory,
+        : (m.priceHistory ?? []),
       sparklineData:
-        prev && prev.sparklineData.length > m.sparklineData.length
+        prev && prev.sparklineData.length > incomingSpark.length
           ? prev.sparklineData
-          : m.sparklineData,
+          : incomingSpark,
       open24h: prev?.historyLoaded ? prev.open24h : m.open24h,
       historyLoaded: prev?.historyLoaded ?? false,
     };
@@ -126,9 +129,9 @@ export const useMarketStore = create<MarketState>()(
         m.yesPrice = yesPrice;
         m.noPrice = noPrice;
         if (volume != null) m.volume = volume;
-        m.sparklineData.push(yesPrice);
+        (m.sparklineData ??= []).push(yesPrice);
         if (m.sparklineData.length > 48) m.sparklineData.shift();
-        m.priceHistory.push({ t: Date.now(), p: yesPrice });
+        (m.priceHistory ??= []).push({ t: Date.now(), p: yesPrice });
         if (m.priceHistory.length > 2000) m.priceHistory.shift();
       }),
 
@@ -143,9 +146,9 @@ export const useMarketStore = create<MarketState>()(
           m.yesPrice = u.yesPrice;
           m.noPrice = u.noPrice;
           if (u.volume != null) m.volume = u.volume;
-          m.sparklineData.push(u.yesPrice);
+          (m.sparklineData ??= []).push(u.yesPrice);
           if (m.sparklineData.length > 48) m.sparklineData.shift();
-          m.priceHistory.push({ t: now, p: u.yesPrice });
+          (m.priceHistory ??= []).push({ t: now, p: u.yesPrice });
           if (m.priceHistory.length > 2000) m.priceHistory.shift();
         }
         s.lastBatchAt = now;
