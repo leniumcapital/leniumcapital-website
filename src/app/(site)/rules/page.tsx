@@ -51,11 +51,11 @@ export default function RulesPage() {
       <section className="border-y border-border bg-surface py-14">
         <Container>
           <h2 className="text-3xl font-semibold tracking-tight">
-            Five rules. Nothing hidden.
+            Just five rules
           </h2>
           <p className="mt-3 max-w-2xl text-muted">
-            Every limit exists for one reason — to prove your edge is real, not
-            lucky. Nothing more.
+            Each one is here to show your edge is real, not luck — and that's
+            the whole list. No fine print, no surprises.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
