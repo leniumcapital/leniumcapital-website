@@ -254,7 +254,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-muted">
-                  {t.profitTargetPct}% target · ~{t.passRatePct}% pass
+                  {t.profitTargetPct}% profit target
                 </div>
               </Link>
             ))}

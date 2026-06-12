@@ -12,7 +12,6 @@ export type Tier = {
   windowDays: number;
   /** Demo consistency cap: max share of total profit from a single day. */
   consistencyCapPct: number;
-  passRatePct: number;
   /** Tier offered only by Lenium ($15k, $20k, $35k, $75k). */
   exclusive: boolean;
 };
@@ -22,15 +21,15 @@ export type Tier = {
  * to Lenium. Source: Lenium Pricing, Challenge Rules & Fee Schedule v1.0.
  */
 export const TIERS: Tier[] = [
-  { size: 5000, baseFee: 55, profitTargetPct: 25, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 15, minTradingDays: 7, windowDays: 30, consistencyCapPct: 40, passRatePct: 11, exclusive: false },
-  { size: 10000, baseFee: 109, profitTargetPct: 22, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 40, passRatePct: 10, exclusive: false },
-  { size: 15000, baseFee: 149, profitTargetPct: 20, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 3.5, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 35, passRatePct: 10, exclusive: true },
-  { size: 20000, baseFee: 189, profitTargetPct: 20, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3.5, maxPositionPct: 10, minTradingDays: 9, windowDays: 35, consistencyCapPct: 35, passRatePct: 9, exclusive: true },
-  { size: 25000, baseFee: 239, profitTargetPct: 18, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 10, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, passRatePct: 9, exclusive: false },
-  { size: 35000, baseFee: 319, profitTargetPct: 16, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 8, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, passRatePct: 8, exclusive: true },
-  { size: 50000, baseFee: 499, profitTargetPct: 15, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 2.5, maxPositionPct: 8, minTradingDays: 12, windowDays: 40, consistencyCapPct: 25, passRatePct: 7, exclusive: false },
-  { size: 75000, baseFee: 699, profitTargetPct: 13, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2.5, maxPositionPct: 6, minTradingDays: 14, windowDays: 40, consistencyCapPct: 25, passRatePct: 7, exclusive: true },
-  { size: 100000, baseFee: 979, profitTargetPct: 11, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2, maxPositionPct: 5, minTradingDays: 15, windowDays: 45, consistencyCapPct: 20, passRatePct: 6, exclusive: false },
+  { size: 5000, baseFee: 55, profitTargetPct: 25, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 15, minTradingDays: 7, windowDays: 30, consistencyCapPct: 40, exclusive: false },
+  { size: 10000, baseFee: 109, profitTargetPct: 22, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 40, exclusive: false },
+  { size: 15000, baseFee: 149, profitTargetPct: 20, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 3.5, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 35, exclusive: true },
+  { size: 20000, baseFee: 189, profitTargetPct: 20, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3.5, maxPositionPct: 10, minTradingDays: 9, windowDays: 35, consistencyCapPct: 35, exclusive: true },
+  { size: 25000, baseFee: 239, profitTargetPct: 18, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 10, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: false },
+  { size: 35000, baseFee: 319, profitTargetPct: 16, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 8, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: true },
+  { size: 50000, baseFee: 499, profitTargetPct: 15, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 2.5, maxPositionPct: 8, minTradingDays: 12, windowDays: 40, consistencyCapPct: 25, exclusive: false },
+  { size: 75000, baseFee: 699, profitTargetPct: 13, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2.5, maxPositionPct: 6, minTradingDays: 14, windowDays: 40, consistencyCapPct: 25, exclusive: true },
+  { size: 100000, baseFee: 979, profitTargetPct: 11, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2, maxPositionPct: 5, minTradingDays: 15, windowDays: 45, consistencyCapPct: 20, exclusive: false },
 ];
 
 /** Reset fee is 25% off the original base fee, available after any breach. */

@@ -182,7 +182,6 @@ export function PricingCalculator() {
               label="Reset a failed attempt"
               value={`$${resetFee(tier)} (25% off)`}
             />
-            <MiniRow label="Est. pass rate" value={`~${tier.passRatePct}%`} />
           </dl>
         </div>
       </aside>
