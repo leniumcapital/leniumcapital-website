@@ -5,7 +5,12 @@
  */
 import "server-only";
 
-import type { MarketDetail, MarketOutcome } from "@/lib/marketDetail";
+import type {
+  MarketDetail,
+  MarketOutcome,
+  DashboardEvent,
+  EventOutcome,
+} from "@/lib/marketDetail";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -59,8 +64,10 @@ type KalshiMarketRaw = {
 
 type KalshiEventRaw = {
   event_ticker?: string;
+  series_ticker?: string;
   title?: string;
   category?: string;
+  mutually_exclusive?: boolean;
   markets?: KalshiMarketRaw[];
 };
 
@@ -147,20 +154,57 @@ export function normalizeCategory(raw: string | undefined): string {
 // new zero-volume markets, so one page isn't enough for a quality grid. Page
 // through several and cache the computed result in-memory between polls.
 const EVENT_PAGES = 4;
-let marketsCache: { at: number; data: DashboardMarket[] } | null = null;
+const OUTCOMES_PER_EVENT_CARD = 2;
+
+export type DashboardData = {
+  markets: DashboardMarket[];
+  events: DashboardEvent[];
+};
+
+let marketsCache: { at: number; data: DashboardData } | null = null;
 const MARKETS_CACHE_TTL_MS = 10_000;
 
+type ValidContract = {
+  raw: KalshiMarketRaw;
+  ticker: string;
+  yesPrice: number;
+  volume: number;
+  volume24h: number;
+};
+
+/** Tradable contracts of an event: priced, traded, not provisional/combo. */
+function validContracts(ev: KalshiEventRaw): ValidContract[] {
+  const out: ValidContract[] = [];
+  for (const m of ev.markets ?? []) {
+    if (!m.ticker || m.is_provisional || m.mve_collection_ticker) continue;
+    const vol = marketVolume(m);
+    if (vol <= 0) continue;
+    const cents = priceCents(m);
+    if (cents == null || cents < 1) continue;
+    out.push({
+      raw: m,
+      ticker: m.ticker,
+      yesPrice: Math.min(99, Math.max(1, cents)),
+      volume: vol,
+      volume24h: num(m.volume_24h_fp),
+    });
+  }
+  return out;
+}
+
 /**
- * Fetch open Kalshi markets for the dashboard grid: the leading contract of
- * every traded event, sorted by volume. Cached briefly server-side so
+ * Fetch open Kalshi events for the dashboard grid, aggregated Kalshi-style:
+ * one event card with its favored outcomes, total volume, and market count —
+ * plus a flat market list (leaders + carded outcomes) that drives the live
+ * price feed, search, and detail prefetching. Cached briefly server-side so
  * polling clients can't hammer Kalshi.
  */
-export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
+export async function fetchDashboardData(): Promise<DashboardData> {
   if (marketsCache && Date.now() - marketsCache.at < MARKETS_CACHE_TTL_MS) {
     return marketsCache.data;
   }
 
-  const events: KalshiEventRaw[] = [];
+  const rawEvents: KalshiEventRaw[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < EVENT_PAGES; page++) {
     const url =
@@ -171,62 +215,93 @@ export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
       cursor?: string;
     }>(url, 8000, { next: { revalidate: 15 } });
     if (!data?.events?.length) break;
-    events.push(...data.events);
+    rawEvents.push(...data.events);
     cursor = data.cursor;
     if (!cursor) break;
   }
 
-  const out: DashboardMarket[] = [];
-  for (const ev of events) {
+  const markets: DashboardMarket[] = [];
+  const events: DashboardEvent[] = [];
+  const seenTickers = new Set<string>();
+
+  for (const ev of rawEvents) {
+    if (!ev.event_ticker) continue;
     const category = normalizeCategory(ev.category);
+    const contracts = validContracts(ev);
+    if (contracts.length === 0) continue;
 
-    // Pick the leading (most-traded) contract per event, the way Kalshi's
-    // own homepage does. Flattening every nested outcome floods the grid
-    // with illiquid 1¢ legs that read as broken data. Skip provisional
-    // markets, multivariate combo legs, and anything with zero volume or
-    // no real price — those never render.
-    let best: KalshiMarketRaw | null = null;
-    let bestYes = 0;
-    let bestVol = -1;
-    let bestVol24 = -1;
-    for (const m of ev.markets ?? []) {
-      if (!m.ticker || m.is_provisional || m.mve_collection_ticker) continue;
-      const vol = marketVolume(m);
-      if (vol <= 0) continue;
-      const cents = priceCents(m);
-      if (cents == null || cents < 1) continue;
-      const vol24 = num(m.volume_24h_fp);
-      if (vol24 > bestVol24 || (vol24 === bestVol24 && vol > bestVol)) {
-        best = m;
-        bestYes = Math.min(99, Math.max(1, cents));
-        bestVol = vol;
-        bestVol24 = vol24;
-      }
-    }
-    if (!best?.ticker) continue;
+    // Leader = most recently traded contract (Kalshi homepage behavior).
+    const leader = [...contracts].sort(
+      (a, b) => b.volume24h - a.volume24h || b.volume - a.volume,
+    )[0];
 
-    out.push({
-      ticker: best.ticker,
-      question: best.title || ev.title || best.ticker,
+    // Favored outcomes shown on the card, highest probability first.
+    const favored = [...contracts]
+      .sort((a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume)
+      .slice(0, OUTCOMES_PER_EVENT_CARD);
+
+    const totalVolume = contracts.reduce((sum, c) => sum + c.volume, 0);
+    const volume24h = contracts.reduce((sum, c) => sum + c.volume24h, 0);
+
+    events.push({
+      eventTicker: ev.event_ticker,
+      seriesTicker: ev.series_ticker ?? ev.event_ticker.split("-")[0],
+      title: ev.title ?? ev.event_ticker,
       category,
-      yesPrice: bestYes,
-      noPrice: 100 - bestYes,
-      volume: bestVol,
-      volume24h: bestVol24,
-      expiry: best.close_time ?? "",
-      // Real history is loaded per-market from the candlesticks endpoint;
-      // until then the sparkline only accumulates live ticks (never mocked).
-      sparklineData: [bestYes],
-      open24h: bestYes,
+      closeTime: leader.raw.close_time ?? "",
+      totalVolume,
+      volume24h,
+      marketCount: contracts.length,
+      outcomes: favored.map(
+        (c): EventOutcome => ({
+          ticker: c.ticker,
+          name:
+            contracts.length > 1
+              ? c.raw.yes_sub_title || c.raw.title || c.ticker
+              : c.raw.yes_sub_title || "Yes",
+          yesPrice: c.yesPrice,
+          volume: c.volume,
+        }),
+      ),
+      leaderTicker: leader.ticker,
     });
+
+    // Flat market entries: the leader plus every carded outcome, so the live
+    // feed, search, and the detail pages all have prices for them.
+    for (const c of [leader, ...favored]) {
+      if (seenTickers.has(c.ticker)) continue;
+      seenTickers.add(c.ticker);
+      const outcomeName = c.raw.yes_sub_title;
+      markets.push({
+        ticker: c.ticker,
+        question:
+          contracts.length > 1 && outcomeName
+            ? `${ev.title ?? c.raw.title} — ${outcomeName}`
+            : c.raw.title || ev.title || c.ticker,
+        category,
+        yesPrice: c.yesPrice,
+        noPrice: 100 - c.yesPrice,
+        volume: c.volume,
+        volume24h: c.volume24h,
+        expiry: c.raw.close_time ?? "",
+        // Real history is loaded per-market from the candlesticks endpoint;
+        // until then the sparkline only accumulates live ticks (never mocked).
+        sparklineData: [c.yesPrice],
+        open24h: c.yesPrice,
+      });
+    }
   }
 
-  const sorted = out.sort((a, b) => b.volume - a.volume).slice(0, 600);
-  if (sorted.length > 0) {
-    marketsCache = { at: Date.now(), data: sorted };
+  const data: DashboardData = {
+    markets: markets.sort((a, b) => b.volume - a.volume).slice(0, 900),
+    events: events.sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 400),
+  };
+  if (data.events.length > 0) {
+    marketsCache = { at: Date.now(), data };
   }
-  return sorted;
+  return data;
 }
+
 
 /** Price history for one market via Kalshi candlesticks. Best-effort. */
 export async function fetchMarketHistory(
@@ -310,7 +385,7 @@ export async function fetchMarketDetail(
         })
         .filter((o): o is MarketOutcome => o !== null)
         .sort((a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume)
-        .slice(0, 8);
+        .slice(0, 40); // full board — World Cup style events have 30+ teams
     }
   }
 

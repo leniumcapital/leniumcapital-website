@@ -5,46 +5,26 @@ import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
+import type { DashboardEvent } from "@/lib/marketDetail";
+
+export type MarketsPayload = {
+  markets: Market[];
+  events: DashboardEvent[];
+};
 
 /** Initial market fetch via React Query (the live feed keeps prices fresh). */
 export function useMarketsQuery() {
   return useQuery({
     queryKey: ["kalshi-markets"],
-    queryFn: async (): Promise<Market[]> => {
+    queryFn: async (): Promise<MarketsPayload> => {
       const res = await fetch("/api/kalshi/markets", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load markets");
-      const data = (await res.json()) as { markets?: Market[] };
-      return data.markets ?? [];
+      const data = (await res.json()) as Partial<MarketsPayload>;
+      return { markets: data.markets ?? [], events: data.events ?? [] };
     },
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
-}
-
-function sortTickers(
-  tickers: string[],
-  markets: Record<string, Market>,
-  order: SortOrder,
-): string[] {
-  const arr = [...tickers];
-  switch (order) {
-    case "volume":
-      return arr.sort((a, b) => markets[b].volume - markets[a].volume);
-    case "expiry":
-      return arr.sort(
-        (a, b) =>
-          new Date(markets[a].expiry || 8.64e15).getTime() -
-          new Date(markets[b].expiry || 8.64e15).getTime(),
-      );
-    case "movement":
-      return arr.sort((a, b) => {
-        const moveA = Math.abs(markets[a].yesPrice - markets[a].open24h);
-        const moveB = Math.abs(markets[b].yesPrice - markets[b].open24h);
-        return moveB - moveA;
-      });
-    case "newest":
-      return arr.reverse();
-  }
 }
 
 /** Fixed display order of category sections, mirroring Kalshi. */
@@ -62,138 +42,141 @@ export const CATEGORY_ORDER = [
 const TRENDING_TAB_SIZE = 20;
 const TRENDING_SECTION_SIZE = 6;
 
-/** Only markets with a real price and real volume ever render. */
-function tradableTickers(
-  order: string[],
-  markets: Record<string, Market>,
-): string[] {
-  return order.filter((t) => {
-    const m = markets[t];
-    return m != null && m.yesPrice > 0 && m.volume > 0;
-  });
+/** Live category → count map for the tab bar. Counts event cards shown. */
+export function useCategoryCounts(): Record<string, number> {
+  return useMarketStore(
+    useShallow((s) => {
+      const counts: Record<string, number> = {};
+      for (const ticker of s.eventOrder) {
+        const ev = s.events[ticker];
+        if (!ev) continue;
+        counts[ev.category] = (counts[ev.category] ?? 0) + 1;
+      }
+      return counts;
+    }),
+  );
 }
 
-function topByVolume24h(
+// ─── Event-level grouping (one card per Kalshi event) ─────────────────────────
+
+export type EventSection = {
+  category: string;
+  eventTickers: string[];
+};
+
+export type GroupedEvents = {
+  /** Leader market of the highest 24h-volume event — the featured strip. */
+  featured: string | null;
+  sections: EventSection[];
+};
+
+function sortEventTickers(
   tickers: string[],
-  markets: Record<string, Market>,
+  events: Record<string, DashboardEvent>,
+  order: SortOrder,
+): string[] {
+  const arr = [...tickers];
+  switch (order) {
+    case "volume":
+      return arr.sort((a, b) => events[b].totalVolume - events[a].totalVolume);
+    case "expiry":
+      return arr.sort(
+        (a, b) =>
+          new Date(events[a].closeTime || 8.64e15).getTime() -
+          new Date(events[b].closeTime || 8.64e15).getTime(),
+      );
+    case "movement":
+      return arr.sort((a, b) => events[b].volume24h - events[a].volume24h);
+    case "newest":
+      return arr.reverse();
+  }
+}
+
+function topEventsBy24h(
+  tickers: string[],
+  events: Record<string, DashboardEvent>,
   count: number,
 ): string[] {
   return [...tickers]
     .sort(
       (a, b) =>
-        (markets[b].volume24h || markets[b].volume) -
-        (markets[a].volume24h || markets[a].volume),
+        (events[b].volume24h || events[b].totalVolume) -
+        (events[a].volume24h || events[a].totalVolume),
     )
     .slice(0, count);
 }
 
 /**
- * Visible market tickers for the grid: category-filtered, sorted. Subscribes
- * only to the ticker/category/order slices — price changes don't re-sort.
- */
-export function useVisibleMarketTickers(): string[] {
-  const activeCategory = useUiStore((s) => s.activeCategory);
-  const sortOrder = useUiStore((s) => s.sortOrder);
-
-  // Category + order are stable across price-only updates; prices intentionally
-  // do not invalidate this selector (cards subscribe to their own prices).
-  const tickerCategoryKey = useMarketStore(
-    useShallow((s) => s.order.map((t) => `${t}:${s.markets[t]?.category}`)),
-  );
-
-  return useMemo(() => {
-    const { markets, order } = useMarketStore.getState();
-    const tradable = tradableTickers(order, markets);
-    if (activeCategory === "Trending") {
-      return topByVolume24h(tradable, markets, TRENDING_TAB_SIZE);
-    }
-    const filtered =
-      activeCategory === "All Markets"
-        ? tradable
-        : tradable.filter((t) => markets[t]?.category === activeCategory);
-    return sortTickers(filtered, markets, sortOrder);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, sortOrder, tickerCategoryKey]);
-}
-
-export type MarketSection = {
-  category: string;
-  tickers: string[];
-};
-
-export type GroupedMarkets = {
-  /** Highest 24h-volume market — the featured card. Null while loading. */
-  featured: string | null;
-  sections: MarketSection[];
-};
-
-/**
- * Markets grouped into Kalshi-style category sections. "All Markets" and
- * "Trending" show a Trending section first, then every category in order;
+ * Events grouped into Kalshi-style category sections — one card per event.
+ * "All Markets"/"Trending" show a Trending section then every category;
  * a specific category shows only its own section.
  */
-export function useGroupedMarkets(): GroupedMarkets {
+export function useGroupedEvents(): GroupedEvents {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const sortOrder = useUiStore((s) => s.sortOrder);
+  const eventSearch = useUiStore((s) => s.eventSearch);
 
-  const tickerCategoryKey = useMarketStore(
-    useShallow((s) => s.order.map((t) => `${t}:${s.markets[t]?.category}`)),
+  const eventCategoryKey = useMarketStore(
+    useShallow((s) => s.eventOrder.map((t) => `${t}:${s.events[t]?.category}`)),
   );
 
   return useMemo(() => {
-    const { markets, order } = useMarketStore.getState();
-    const tradable = tradableTickers(order, markets);
-    if (tradable.length === 0) return { featured: null, sections: [] };
+    const { events, eventOrder } = useMarketStore.getState();
+    const all = eventOrder.filter((t) => events[t]);
+    if (all.length === 0) return { featured: null, sections: [] };
 
-    const featured = topByVolume24h(tradable, markets, 1)[0] ?? null;
+    // Page-level search overrides category grouping entirely.
+    const q = eventSearch.trim().toLowerCase();
+    if (q) {
+      const matches = all.filter((t) => {
+        const ev = events[t];
+        return (
+          ev.title.toLowerCase().includes(q) ||
+          ev.outcomes.some((o) => o.name.toLowerCase().includes(q))
+        );
+      });
+      return {
+        featured: null,
+        sections: [
+          {
+            category: "Results",
+            eventTickers: sortEventTickers(matches, events, "volume"),
+          },
+        ],
+      };
+    }
+
+    const topEvent = topEventsBy24h(all, events, 1)[0];
+    const featured = topEvent ? events[topEvent].leaderTicker : null;
     const showAll =
       activeCategory === "All Markets" || activeCategory === "Trending";
 
-    const sections: MarketSection[] = [];
+    const sections: EventSection[] = [];
 
     if (showAll) {
       const trendingSize =
         activeCategory === "Trending" ? TRENDING_TAB_SIZE : TRENDING_SECTION_SIZE;
       sections.push({
         category: "Trending",
-        tickers: topByVolume24h(tradable, markets, trendingSize),
+        eventTickers: topEventsBy24h(all, events, trendingSize),
       });
       for (const category of CATEGORY_ORDER) {
-        const tickers = tradable.filter(
-          (t) => markets[t]?.category === category,
-        );
+        const tickers = all.filter((t) => events[t].category === category);
         if (tickers.length === 0) continue;
         sections.push({
           category,
-          tickers: sortTickers(tickers, markets, sortOrder),
+          eventTickers: sortEventTickers(tickers, events, sortOrder),
         });
       }
     } else {
-      const tickers = tradable.filter(
-        (t) => markets[t]?.category === activeCategory,
-      );
+      const tickers = all.filter((t) => events[t].category === activeCategory);
       sections.push({
         category: activeCategory,
-        tickers: sortTickers(tickers, markets, sortOrder),
+        eventTickers: sortEventTickers(tickers, events, sortOrder),
       });
     }
 
     return { featured, sections };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, sortOrder, tickerCategoryKey]);
-}
-
-/** Live category → count map for the tab bar. Counts only tradable markets. */
-export function useCategoryCounts(): Record<string, number> {
-  return useMarketStore(
-    useShallow((s) => {
-      const counts: Record<string, number> = {};
-      for (const ticker of s.order) {
-        const m = s.markets[ticker];
-        if (!m || m.yesPrice <= 0 || m.volume <= 0) continue;
-        counts[m.category] = (counts[m.category] ?? 0) + 1;
-      }
-      return counts;
-    }),
-  );
+  }, [activeCategory, sortOrder, eventSearch, eventCategoryKey]);
 }

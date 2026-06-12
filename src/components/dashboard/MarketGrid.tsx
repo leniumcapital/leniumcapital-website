@@ -20,17 +20,17 @@ import {
   marketHistoryQueryKey,
 } from "@/lib/clientApi";
 import {
-  useGroupedMarkets,
+  useGroupedEvents,
   useMarketsQuery,
-  type MarketSection,
+  type EventSection,
 } from "@/hooks/useMarkets";
-import { MarketCard, SkeletonCard } from "@/components/dashboard/MarketCard";
+import { EventCard, SkeletonEventCard } from "@/components/dashboard/EventCard";
 import { T } from "@/lib/tokens";
 
 const CARD_GAP = 12;
 const INITIAL_SECTIONS = 2;
 const VIRTUALIZE_THRESHOLD = 100;
-const VIRTUAL_ROW_HEIGHT = 196;
+const VIRTUAL_ROW_HEIGHT = 224;
 
 /**
  * Kalshi-style market browser: a compact featured trending strip, then
@@ -39,28 +39,32 @@ const VIRTUAL_ROW_HEIGHT = 196;
  */
 export function MarketGrid() {
   const { data, isError, refetch } = useMarketsQuery();
-  const { featured, sections } = useGroupedMarkets();
+  const { featured, sections } = useGroupedEvents();
 
   // Seed the store from the query result directly so the grid renders as
   // soon as data exists, independent of the polling feed's timing.
   useEffect(() => {
-    if (data && data.length > 0) {
-      useMarketStore.getState().setMarkets(data);
+    if (!data) return;
+    if (data.markets.length > 0) {
+      useMarketStore.getState().setMarkets(data.markets);
+    }
+    if (data.events.length > 0) {
+      useMarketStore.getState().setEvents(data.events);
     }
   }, [data]);
 
-  // Prefetch 1D history for the top 10 markets by volume so clicking those
-  // cards renders the detail chart instantly.
+  // Prefetch 1D history for the leaders of the top 10 events so clicking
+  // those cards renders the detail chart instantly.
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!data || data.length === 0) return;
-    const top = [...data]
-      .sort((a, b) => b.volume - a.volume)
+    if (!data || data.events.length === 0) return;
+    const top = [...data.events]
+      .sort((a, b) => b.totalVolume - a.totalVolume)
       .slice(0, 10);
-    for (const m of top) {
+    for (const ev of top) {
       void queryClient.prefetchQuery({
-        queryKey: marketHistoryQueryKey(m.ticker, "1D"),
-        queryFn: () => fetchMarketHistoryClient(m.ticker, "1D"),
+        queryKey: marketHistoryQueryKey(ev.leaderTicker, "1D"),
+        queryFn: () => fetchMarketHistoryClient(ev.leaderTicker, "1D"),
         staleTime: 60_000,
       });
     }
@@ -143,7 +147,7 @@ function CategorySection({
   section,
   viewMode,
 }: {
-  section: MarketSection;
+  section: EventSection;
   viewMode: "grid" | "list";
 }) {
   const setCategory = useUiStore((s) => s.setCategory);
@@ -192,7 +196,8 @@ function CategorySection({
           />
         </button>
         <span style={{ color: T.textMuted, fontSize: 13 }}>
-          {section.tickers.length} market{section.tickers.length === 1 ? "" : "s"}
+          {section.eventTickers.length} event
+          {section.eventTickers.length === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -205,24 +210,24 @@ function CategorySection({
             padding: "0 24px",
           }}
         >
-          {section.tickers.map((ticker) => (
-            <MarketCard key={ticker} ticker={ticker} variant="row" />
+          {section.eventTickers.map((ticker) => (
+            <EventCard key={ticker} eventTicker={ticker} variant="row" />
           ))}
         </div>
-      ) : section.tickers.length > VIRTUALIZE_THRESHOLD ? (
-        <VirtualCategoryGrid tickers={section.tickers} />
+      ) : section.eventTickers.length > VIRTUALIZE_THRESHOLD ? (
+        <VirtualCategoryGrid tickers={section.eventTickers} />
       ) : (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
             gap: CARD_GAP,
             padding: "0 24px",
             alignItems: "stretch",
           }}
         >
-          {section.tickers.map((ticker) => (
-            <MarketCard key={ticker} ticker={ticker} />
+          {section.eventTickers.map((ticker) => (
+            <EventCard key={ticker} eventTicker={ticker} />
           ))}
         </div>
       )}
@@ -275,7 +280,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
       if (!ticker) return null;
       return (
         <div style={{ ...style, padding: CARD_GAP / 2, boxSizing: "border-box" }}>
-          <MarketCard ticker={ticker} />
+          <EventCard eventTicker={ticker} />
         </div>
       );
     },
@@ -386,13 +391,13 @@ function SkeletonGrid() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
         gap: CARD_GAP,
         padding: "16px 24px",
       }}
     >
       {Array.from({ length: 9 }, (_, i) => (
-        <SkeletonCard key={i} />
+        <SkeletonEventCard key={i} />
       ))}
     </div>
   );

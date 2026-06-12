@@ -34,3 +34,29 @@ export type MarketDetail = {
 };
 
 export type ChartRange = "1D" | "1W" | "1M" | "ALL";
+
+/** One outcome row on an event card (the favored contracts). */
+export type EventOutcome = {
+  ticker: string;
+  name: string;
+  yesPrice: number;
+  volume: number;
+};
+
+/** A Kalshi event aggregated for the dashboard grid — one card per event. */
+export type DashboardEvent = {
+  eventTicker: string;
+  seriesTicker: string;
+  title: string;
+  category: string;
+  closeTime: string;
+  /** Sum of volume across all tradable contracts in the event. */
+  totalVolume: number;
+  volume24h: number;
+  /** Count of tradable contracts (what Kalshi shows as "N markets"). */
+  marketCount: number;
+  /** Top outcomes by probability — favored first. */
+  outcomes: EventOutcome[];
+  /** Most-traded contract; navigation target for the card. */
+  leaderTicker: string;
+};

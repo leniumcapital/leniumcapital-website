@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { fetchDashboardMarkets } from "@/lib/kalshi";
+import { fetchDashboardData } from "@/lib/kalshi";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-/** Live market list for the dashboard grid. Session required. */
+/** Live events + market list for the dashboard grid. Session required. */
 export async function GET() {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const markets = await fetchDashboardMarkets();
-  if (markets.length === 0) {
+  const { markets, events } = await fetchDashboardData();
+  if (events.length === 0) {
     // Upstream failed or returned nothing usable — let the client show its
     // error state instead of an endless skeleton.
     return NextResponse.json(
@@ -22,7 +22,7 @@ export async function GET() {
     );
   }
   return NextResponse.json(
-    { markets },
+    { markets, events },
     { headers: { "Cache-Control": "private, max-age=30" } },
   );
 }

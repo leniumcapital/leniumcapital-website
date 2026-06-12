@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import type { DashboardEvent } from "@/lib/marketDetail";
 
 export type PricePoint = {
   /** Unix ms timestamp. */
@@ -43,9 +44,13 @@ interface MarketState {
   markets: Record<string, Market>;
   /** Insertion order preserved for "newest" sorting. */
   order: string[];
+  /** Kalshi events aggregated for the grid — one card per event. */
+  events: Record<string, DashboardEvent>;
+  eventOrder: string[];
   lastBatchAt: number;
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
+  setEvents: (events: DashboardEvent[]) => void;
   /** Populate the store from the initial REST fetch (alias of setMarkets). */
   initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
@@ -86,6 +91,8 @@ export const useMarketStore = create<MarketState>()(
   immer((set) => ({
     markets: {},
     order: [],
+    events: {},
+    eventOrder: [],
     lastBatchAt: 0,
 
     setMarket: (market) =>
@@ -97,6 +104,14 @@ export const useMarketStore = create<MarketState>()(
     setMarkets: (markets) =>
       set((s) => {
         mergeMarkets(s, markets);
+      }),
+
+    setEvents: (events) =>
+      set((s) => {
+        for (const ev of events) {
+          if (!s.events[ev.eventTicker]) s.eventOrder.push(ev.eventTicker);
+          s.events[ev.eventTicker] = ev;
+        }
       }),
 
     initializeMarkets: (markets) =>
@@ -155,7 +170,14 @@ export const useMarketStore = create<MarketState>()(
         m.open24h = closes[0];
       }),
 
-    reset: () => set(() => ({ markets: {}, order: [], lastBatchAt: 0 })),
+    reset: () =>
+      set(() => ({
+        markets: {},
+        order: [],
+        events: {},
+        eventOrder: [],
+        lastBatchAt: 0,
+      })),
   })),
 );
 

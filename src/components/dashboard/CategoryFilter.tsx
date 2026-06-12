@@ -1,110 +1,110 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { IconTrendingUp } from "@tabler/icons-react";
 import { useUiStore } from "@/stores/uiStore";
-import { useCategoryCounts, CATEGORY_ORDER } from "@/hooks/useMarkets";
+import { CATEGORY_ORDER } from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
-const TRENDING_TAB_SIZE = 20;
-
 /**
- * Horizontal category tab bar below the markets subheader — the primary way
- * to switch categories. The active background morphs between tabs.
+ * Kalshi-style category tab bar: clean text tabs — Trending first, a thin
+ * divider, then All Markets and every category. Active tab is bold white;
+ * inactive tabs are muted and brighten on hover. No pills, no counts.
  */
 export function CategoryTabs() {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const setCategory = useUiStore((s) => s.setCategory);
-  const counts = useCategoryCounts();
-
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-
-  const tabs: { label: string; count: number }[] = [
-    { label: "All Markets", count: total },
-    { label: "Trending", count: Math.min(TRENDING_TAB_SIZE, total) },
-    ...CATEGORY_ORDER.map((c) => ({ label: c, count: counts[c] ?? 0 })),
-  ];
 
   return (
     <div
       className="lenium-tabbar"
       style={{
         width: "100%",
-        height: 44,
+        height: 48,
         background: T.bgPrimary,
         borderBottom: T.hairline(),
         padding: "0 24px",
         display: "flex",
         alignItems: "center",
-        gap: 4,
+        gap: 28,
         overflowX: "auto",
         flexShrink: 0,
         fontFamily: T.font,
       }}
     >
-      {tabs.map(({ label, count }) => {
-        const active = label === activeCategory;
-        return (
-          <button
-            key={label}
-            type="button"
-            onClick={() => setCategory(label)}
-            style={{
-              position: "relative",
-              height: 32,
-              padding: "0 14px",
-              borderRadius: 6,
-              border: "none",
-              background: "transparent",
-              color: active ? T.textPrimary : T.textMuted,
-              fontSize: 13,
-              fontWeight: active ? 500 : 400,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "color 100ms ease, background 100ms ease",
-              fontFamily: T.font,
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              if (!active) {
-                e.currentTarget.style.color = T.textSecondary;
-                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!active) {
-                e.currentTarget.style.color = T.textMuted;
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            {active && (
-              <motion.span
-                layoutId="activeTabBg"
-                transition={{ type: "spring", stiffness: 500, damping: 38 }}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: T.bgTertiary,
-                  border: T.hairline(),
-                  borderRadius: 6,
-                }}
-              />
-            )}
-            <span style={{ position: "relative", zIndex: 1 }}>
-              {label}{" "}
-              <span
-                style={{
-                  fontSize: 11,
-                  color: active ? T.textSecondary : T.textMuted,
-                  opacity: 0.9,
-                }}
-              >
-                {count}
-              </span>
-            </span>
-          </button>
-        );
-      })}
+      <Tab
+        label="Trending"
+        active={activeCategory === "Trending"}
+        onClick={() => setCategory("Trending")}
+        icon={<IconTrendingUp size={15} stroke={2} />}
+      />
+
+      <span
+        style={{
+          width: 1,
+          height: 18,
+          background: T.borderHover,
+          flexShrink: 0,
+        }}
+      />
+
+      <Tab
+        label="All Markets"
+        active={activeCategory === "All Markets"}
+        onClick={() => setCategory("All Markets")}
+      />
+      {CATEGORY_ORDER.map((category) => (
+        <Tab
+          key={category}
+          label={category}
+          active={activeCategory === category}
+          onClick={() => setCategory(category)}
+        />
+      ))}
     </div>
+  );
+}
+
+function Tab({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        height: "100%",
+        padding: 0,
+        border: "none",
+        background: "transparent",
+        color: active ? T.textPrimary : "#888888",
+        fontSize: 13.5,
+        fontWeight: active ? 600 : 400,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "color 120ms ease",
+        fontFamily: T.font,
+        flexShrink: 0,
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.color = "#CCCCCC";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.color = "#888888";
+      }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

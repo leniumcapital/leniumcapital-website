@@ -31,6 +31,7 @@ import {
   type PriceUpdate,
   type Market,
 } from "@/stores/marketStore";
+import type { DashboardEvent } from "@/lib/marketDetail";
 import { useConnectionStore } from "@/stores/connectionStore";
 
 const FLUSH_INTERVAL_MS = 250;
@@ -38,7 +39,7 @@ const POLL_INTERVAL_MS = 5000;
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30000;
 
-type MarketsResponse = { markets?: Market[] };
+type MarketsResponse = { markets?: Market[]; events?: DashboardEvent[] };
 type WsTokenResponse = { wsEnabled?: boolean; token?: string };
 
 /** Single QueryClient for the whole app — grid prefetches feed detail pages. */
@@ -131,6 +132,9 @@ function KalshiFeed(): null {
         const markets = data.markets ?? [];
         if (markets.length === 0) throw new Error("empty feed");
 
+        if (data.events?.length) {
+          useMarketStore.getState().setEvents(data.events);
+        }
         if (!seededRef.current) {
           useMarketStore.getState().initializeMarkets(markets);
           seededRef.current = true;

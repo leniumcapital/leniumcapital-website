@@ -71,7 +71,8 @@ function subscribeMinute(callback: () => void): () => void {
 const getMinuteNow = () => Math.floor(Date.now() / 60_000) * 60_000;
 const getServerNow = () => 0;
 
-function useMinuteNow(): number {
+/** Minute-resolution clock that is render-pure (external store snapshot). */
+export function useMinuteNow(): number {
   return useSyncExternalStore(subscribeMinute, getMinuteNow, getServerNow);
 }
 
