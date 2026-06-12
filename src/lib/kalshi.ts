@@ -384,9 +384,20 @@ export async function fetchDashboardData(): Promise<DashboardData> {
       (a, b) => b.volume24h - a.volume24h || b.volume - a.volume,
     )[0];
 
-    // Favored outcomes shown on the card, highest probability first.
+    // Favored outcomes shown on the card. Nominal events (nominees, teams)
+    // show the highest-probability outcomes, Kalshi-style. Price-ladder
+    // events (BTC at 5pm, temperature strikes) would always surface boring
+    // ~99% deep strikes that way — rank those by traded volume instead so
+    // the at-the-money strikes people actually trade appear.
+    const looksLikeLadder =
+      contracts.length > 6 &&
+      contracts.filter((c) => c.yesPrice >= 97).length >= 3;
     const favored = [...contracts]
-      .sort((a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume)
+      .sort(
+        looksLikeLadder
+          ? (a, b) => b.volume - a.volume || b.volume24h - a.volume24h
+          : (a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume,
+      )
       .slice(0, OUTCOMES_PER_EVENT_CARD);
 
     const totalVolume = contracts.reduce((sum, c) => sum + c.volume, 0);
