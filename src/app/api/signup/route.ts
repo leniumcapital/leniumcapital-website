@@ -20,10 +20,12 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 },
-    );
+  } catch (e) {
+    console.error("Signup failed:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    const hint = message.includes("connect")
+      ? "Database connection failed. Check Vercel env vars and redeploy."
+      : "Something went wrong. Please try again.";
+    return NextResponse.json({ error: hint }, { status: 500 });
   }
 }

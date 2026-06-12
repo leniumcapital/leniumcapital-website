@@ -41,7 +41,9 @@ export function SignupForm() {
     setLoading(false);
 
     if (!login || login.error) {
-      router.push("/login");
+      setError(
+        "Account may have been created, but sign-in failed. Try logging in — if that fails, AUTH_SECRET may be missing on Vercel.",
+      );
       return;
     }
 
