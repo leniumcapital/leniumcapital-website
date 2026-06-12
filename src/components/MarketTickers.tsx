@@ -15,6 +15,12 @@ const ROW_CONFIG = [
   { dir: "right" as const, duration: 114 },
 ];
 
+// Card width (270px) + row gap (16px).
+const CARD_PX = 286;
+// Each marquee half must span the widest realistic viewport so rows are
+// fully populated on first paint — no blank space waiting to be filled.
+const MIN_HALF_PX = 2800;
+
 export function MarketTickers() {
   const [markets, setMarkets] = useState<TickerMarket[]>(FALLBACK_TICKERS);
   const [dirs, setDirs] = useState<Record<string, 1 | -1 | 0>>({});
@@ -62,10 +68,17 @@ export function MarketTickers() {
   const rows = useMemo(() => {
     const list = markets.length ? markets : FALLBACK_TICKERS;
     const per = Math.max(1, Math.ceil(list.length / ROW_CONFIG.length));
-    return ROW_CONFIG.map((cfg, i) => ({
-      ...cfg,
-      cards: list.slice(i * per, (i + 1) * per),
-    })).filter((r) => r.cards.length > 0);
+    return ROW_CONFIG.map((cfg, i) => {
+      const cards = list.slice(i * per, (i + 1) * per);
+      if (cards.length === 0) return { ...cfg, cards };
+      // Tile the cards until one half of the marquee covers the viewport,
+      // so the row is full edge-to-edge from the first frame.
+      const copies = Math.max(1, Math.ceil(MIN_HALF_PX / (cards.length * CARD_PX)));
+      return {
+        ...cfg,
+        cards: Array.from({ length: copies }, () => cards).flat(),
+      };
+    }).filter((r) => r.cards.length > 0);
   }, [markets]);
 
   return (

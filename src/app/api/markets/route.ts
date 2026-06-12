@@ -184,7 +184,7 @@ export async function GET() {
   const mapped = mapEvents(data?.events ?? [])
     .filter((m) => m.title && m.vol >= 0)
     .sort((a, b) => b.vol - a.vol)
-    .slice(0, 12);
+    .slice(0, 24);
 
   // No live data available — keep the hero alive with the static set.
   if (!mapped.length) {
