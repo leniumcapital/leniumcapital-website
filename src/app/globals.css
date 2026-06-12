@@ -133,6 +133,58 @@ body {
   }
 }
 
+/* ---- Trading dashboard ---- */
+@keyframes lenium-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* Hide number-input spinners in the order entry amount field. */
+.order-amount-input::-webkit-outer-spin-button,
+.order-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.order-amount-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Position-size slider. */
+.order-size-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: #1c1c1c;
+  border-radius: 2px;
+  outline: none;
+  accent-color: #00e87a;
+  cursor: pointer;
+}
+.order-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00e87a;
+  cursor: pointer;
+  border: none;
+}
+.order-size-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00e87a;
+  cursor: pointer;
+  border: none;
+}
+
 /* ---- Floating market tickers (marquee) ---- */
 @keyframes marquee-left {
   from {
