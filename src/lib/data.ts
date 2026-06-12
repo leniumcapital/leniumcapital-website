@@ -185,83 +185,37 @@ export type RuleRow = {
 export const RULE_ROWS: RuleRow[] = [
   {
     key: "profitTargetPct",
-    label: "Demo profit target",
+    label: "Profit target",
     format: (t) => `${t.profitTargetPct}% ($${demoTargetUsd(t).toLocaleString()})`,
-    plain:
-      "The one-time gain you must reach to pass the demo challenge. Targets scale down as accounts grow because larger accounts need more absolute profit, and Kalshi market depth makes big percentage moves harder to realize at size.",
+    plain: "The one-time gain you need to pass. Scaled to your account size.",
   },
   {
     key: "maxDrawdownPct",
-    label: "Maximum drawdown",
+    label: "Max drawdown",
     format: (t) => `${t.maxDrawdownPct}%`,
     plain:
-      "The most your account may fall from its peak before the challenge ends. Calibrated to the mechanics of binary contracts to give disciplined maker-style traders a realistic path.",
+      "The most your account can fall from its peak before the challenge ends.",
   },
   {
     key: "dailyLimitPct",
     label: "Daily loss limit",
     format: (t) => `${t.dailyLimitPct}%`,
     plain:
-      "The most you may lose in a single day. This catches overtraders who concentrate risk into one event window instead of spreading forecasts across markets.",
+      "The most you can lose in a single day. Prevents one bad event from ending your challenge.",
+  },
+  {
+    key: "minTradingDays",
+    label: "Minimum trading days",
+    format: (t) => `${t.minTradingDays} days`,
+    plain:
+      "The minimum number of distinct days you must trade. Proves a repeatable process, not a single lucky session.",
   },
   {
     key: "maxPositionPct",
     label: "Max position size",
     format: (t) => `${t.maxPositionPct}%`,
     plain:
-      "The largest share of account value any single position may consume. This is the most important prediction-market-specific sizing rule — it keeps a single binary outcome from sinking the account.",
-  },
-  {
-    key: "minTradingDays",
-    label: "Min trading days",
-    format: (t) => `${t.minTradingDays} days`,
-    plain:
-      "The minimum number of distinct days you must trade. This proves a repeatable process rather than a single lucky session.",
-  },
-  {
-    key: "windowDays",
-    label: "Challenge window",
-    format: (t) => `${t.windowDays} days`,
-    plain:
-      "How long you have to complete the challenge. Add the Double Time add-on to extend it.",
-  },
-  {
-    key: "consistencyCapPct",
-    label: "Consistency cap",
-    format: (t) => `${t.consistencyCapPct}%`,
-    plain:
-      "The maximum share of total profit any single day may contribute. This prevents one outsized day from masquerading as a consistent edge.",
-  },
-  {
-    key: "passRatePct",
-    label: "Est. pass rate",
-    format: (t) => `~${t.passRatePct}%`,
-    plain:
-      "Our estimate of first-attempt pass rate, grounded in GWU/UCD research on Kalshi trader economics and industry prop-firm data. Most traders lose; the rules filter for the rare skilled forecaster.",
-  },
-];
-
-export type PredictionRule = {
-  title: string;
-  body: string;
-};
-
-export const PREDICTION_RULES: PredictionRule[] = [
-  {
-    title: "60-second resolution lockout",
-    body: "No position may be held within 60 seconds of a scheduled event resolution. This prevents last-second binary gambling and rewards genuine forecasting over coin-flip timing.",
-  },
-  {
-    title: "Three positions per event",
-    body: "No more than three open positions on the same underlying event at once. This stops synthetic leverage built by stacking correlated contracts on a single outcome.",
-  },
-  {
-    title: "Surveillance-window restriction",
-    body: "No new positions in Kalshi-flagged markets within 30 minutes of resolution during elevated surveillance windows, aligning Lenium's risk controls with Kalshi's own market-integrity framework.",
-  },
-  {
-    title: "Category concentration review",
-    body: "If more than 70% of your challenge profit comes from a single market category — all sports, for example — the account flags for manual review before funded approval. This prevents category luck from masquerading as edge.",
+      "The largest share of your account any single contract can represent. Keeps one binary outcome from deciding everything.",
   },
 ];
 
@@ -294,7 +248,7 @@ export const FAQS: FAQ[] = [
   },
   {
     q: "How does the challenge work?",
-    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your profit target within the window without breaching the drawdown or daily loss limits, satisfy the minimum trading days, and pass the consistency rule — and you receive a funded account.",
+    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your profit target without breaching the max drawdown or daily loss limit, keep within the max position size, and meet the minimum trading days — and you receive a funded account.",
   },
   {
     q: "What happens when I pass?",
@@ -310,7 +264,7 @@ export const FAQS: FAQ[] = [
   },
   {
     q: "Can I trade any Kalshi market?",
-    a: "Yes, with four integrity restrictions: no open position within 60 seconds of a scheduled resolution, no more than three positions on the same underlying event, no new positions in Kalshi-flagged surveillance markets within 30 minutes of resolution, and no single market category comprising more than 70% of total challenge profit.",
+    a: "Yes. You can trade any market available on Kalshi. The only constraints are the five challenge rules — your profit target, max drawdown, daily loss limit, minimum trading days, and max position size.",
   },
   {
     q: "How are payouts processed?",
