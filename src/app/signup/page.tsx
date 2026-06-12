@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { SignupForm } from "@/components/SignupForm";
 
 export const metadata: Metadata = {
   title: "Create account",
@@ -164,62 +165,7 @@ export default function SignupPage() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form className="space-y-4">
-            <div>
-              <label htmlFor="name" className="mb-1.5 block text-sm font-medium">
-                Full name
-              </label>
-              <input
-                id="name"
-                type="text"
-                placeholder="Jordan Rivera"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1.5 block text-sm font-medium"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-              />
-              <p className="mt-1.5 text-xs text-muted">At least 8 characters.</p>
-            </div>
-            <Link
-              href="/pricing"
-              className="block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
-            >
-              Create account
-            </Link>
-          </form>
-
-          <p className="mt-4 text-center text-xs text-muted">
-            By creating an account you agree to our Terms and Privacy Policy.
-          </p>
-
-          <p className="mt-6 text-center text-sm text-muted">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-brand-strong">
-              Log in
-            </Link>
-          </p>
+          <SignupForm />
         </div>
       </div>
     </section>

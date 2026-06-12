@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { verifyUser, type AccountType, type ChallengeStatus } from "@/lib/users";
+import { verifyCredentials } from "@/lib/auth-db";
+import type { AccountType, ChallengeStatus } from "@/lib/users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -15,7 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorize: async (credentials) => {
         const email = String(credentials?.email ?? "");
         const password = String(credentials?.password ?? "");
-        const user = verifyUser(email, password);
+        const user = await verifyCredentials(email, password);
         if (!user) return null;
         // Only non-secret, session-safe fields are returned here.
         return {
@@ -50,7 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (token.accountType as AccountType) ?? "challenge";
         session.user.tier = (token.tier as number) ?? 0;
         session.user.challengeStatus =
-          (token.challengeStatus as ChallengeStatus) ?? "in_progress";
+          (token.challengeStatus as ChallengeStatus) ?? "pending";
         session.user.balance = (token.balance as number) ?? 0;
       }
       return session;

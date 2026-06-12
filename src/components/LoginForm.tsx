@@ -79,9 +79,6 @@ export function LoginForm() {
         {loading ? "Signing in…" : "Sign in"}
       </button>
 
-      <p className="rounded-lg bg-white/[0.04] px-3 py-2 text-center text-xs text-white/45">
-        Demo login — trader@lenium.capital · demo1234
-      </p>
     </form>
   );
 }
