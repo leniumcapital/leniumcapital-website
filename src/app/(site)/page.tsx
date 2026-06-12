@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Container, CtaButton, Card, PillBadge } from "@/components/ui";
+import { Container, CtaButton, PillBadge } from "@/components/ui";
 import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
+import { FundedSteps } from "@/components/FundedSteps";
 import { TIERS, STATS, usd } from "@/lib/data";
 
 const FOUNDATION = [
@@ -131,6 +132,13 @@ export default function HomePage() {
         </Container>
       </section>
 
+      {/* Funded in three steps */}
+      <section className="border-y border-border bg-surface py-20">
+        <Container>
+          <FundedSteps />
+        </Container>
+      </section>
+
       {/* Stats strip */}
       <section className="border-y border-border bg-surface">
         <Container className="grid grid-cols-2 gap-6 py-10 sm:grid-cols-4">
@@ -204,45 +212,6 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </Container>
-      </section>
-
-      {/* How it works teaser */}
-      <section className="border-y border-border bg-surface py-20">
-        <Container>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            Funded in three steps
-          </h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {[
-              {
-                n: "01",
-                t: "Choose your challenge",
-                d: "Pick an account size from $5,000 to $100,000 and any add-ons that fit your style.",
-              },
-              {
-                n: "02",
-                t: "Prove your edge",
-                d: "Trade a simulated account that mirrors live Kalshi prices in real time. Hit your target within the rules.",
-              },
-              {
-                n: "03",
-                t: "Get funded",
-                d: "Pass and receive a funded Kalshi sub-account with real capital. Keep up to 95% of profits.",
-              },
-            ].map((s) => (
-              <Card key={s.n}>
-                <span className="font-mono text-sm text-brand">{s.n}</span>
-                <h3 className="mt-3 text-lg font-semibold">{s.t}</h3>
-                <p className="mt-2 text-sm text-muted">{s.d}</p>
-              </Card>
-            ))}
-          </div>
-          <div className="mt-8">
-            <CtaButton href="/how-it-works" variant="ghost">
-              See the full process
-            </CtaButton>
           </div>
         </Container>
       </section>
