@@ -114,6 +114,7 @@ export default function MarketDetailPage() {
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap", // narrow viewports: order panel stacks below content
         gap: 24,
         alignItems: "flex-start",
         padding: "20px 24px 64px",
@@ -122,7 +123,7 @@ export default function MarketDetailPage() {
       }}
     >
       {/* ── Left column: 65% ─────────────────────────────────────────────────── */}
-      <div style={{ flex: "1 1 65%", minWidth: 0 }}>
+      <div style={{ flex: "65 1 440px", minWidth: 0 }}>
         <BackButton onClick={() => router.back()} />
 
         {/* Breadcrumb */}
@@ -203,7 +204,7 @@ export default function MarketDetailPage() {
       {/* ── Right column: 35%, sticky order entry ───────────────────────────── */}
       <div
         style={{
-          flex: "0 0 35%",
+          flex: "35 1 280px",
           maxWidth: 380,
           position: "sticky",
           top: 16,
@@ -690,19 +691,20 @@ function DetailSkeleton() {
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap",
         gap: 24,
         padding: "20px 24px",
         alignItems: "flex-start",
       }}
     >
-      <div style={{ flex: "1 1 65%", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ flex: "65 1 440px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div className="lenium-skeleton" style={{ width: 120, height: 16 }} />
         <div className="lenium-skeleton" style={{ width: "70%", height: 28 }} />
         <div className="lenium-skeleton" style={{ width: 280, height: 14 }} />
         <div className="lenium-skeleton" style={{ width: "100%", height: 320, borderRadius: 10 }} />
         <div className="lenium-skeleton" style={{ width: "100%", height: 160, borderRadius: 10 }} />
       </div>
-      <div style={{ flex: "0 0 35%", maxWidth: 380 }}>
+      <div style={{ flex: "35 1 280px", maxWidth: 380 }}>
         <div className="lenium-skeleton" style={{ width: "100%", height: 420, borderRadius: 12 }} />
       </div>
     </div>
