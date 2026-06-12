@@ -34,8 +34,30 @@ export async function fetchMarketHistoryClient(
   return data.points ?? [];
 }
 
+export type UnderlyingData = {
+  spot: number;
+  prevClose: number;
+  currency: string;
+  points: PricePoint[];
+};
+
+export async function fetchUnderlyingClient(
+  symbol: string,
+  range: ChartRange,
+): Promise<UnderlyingData> {
+  const res = await fetch(
+    `/api/underlying/${encodeURIComponent(symbol)}?range=${range}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error("Failed to load price data");
+  return (await res.json()) as UnderlyingData;
+}
+
 export const marketDetailQueryKey = (ticker: string) =>
   ["market-detail", ticker] as const;
 
 export const marketHistoryQueryKey = (ticker: string, range: ChartRange) =>
   ["market-history", ticker, range] as const;
+
+export const underlyingQueryKey = (symbol: string, range: ChartRange) =>
+  ["underlying", symbol, range] as const;

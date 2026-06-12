@@ -277,6 +277,25 @@ body {
   }
 }
 
+/* Pulsing dot for live price feeds. */
+@keyframes lenium-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.lenium-live-dot {
+  animation: lenium-live-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lenium-live-dot {
+    animation: none;
+  }
+}
+
 /* ---- Floating market tickers (marquee) ---- */
 @keyframes marquee-left {
   from {

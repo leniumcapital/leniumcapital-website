@@ -17,7 +17,9 @@ import {
   marketDetailQueryKey,
 } from "@/lib/clientApi";
 import { useMarketStore } from "@/stores/marketStore";
+import { detectUnderlying, parseStrike } from "@/lib/underlying";
 import { DetailChart, OUTCOME_COLORS } from "@/components/dashboard/DetailChart";
+import { UnderlyingChart } from "@/components/dashboard/UnderlyingChart";
 import { DetailOrderPanel } from "@/components/dashboard/DetailOrderPanel";
 import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import { Sparkline } from "@/components/dashboard/Sparkline";
@@ -111,6 +113,16 @@ export default function MarketDetailPage() {
   const activeOutcomeTicker =
     selectedOutcome ?? detail.outcomes[0]?.ticker ?? detail.ticker;
 
+  // Financial markets (BTC, S&P, oil, ...) chart the LIVE underlying asset
+  // price like Kalshi, instead of contract probabilities pinned at 99%.
+  const underlying = detectUnderlying(detail);
+  const activeOutcome = detail.outcomes.find(
+    (o) => o.ticker === activeOutcomeTicker,
+  );
+  const strikeValue = underlying
+    ? parseStrike(activeOutcome?.name ?? detail.question)
+    : null;
+
   return (
     <div
       style={{
@@ -175,12 +187,23 @@ export default function MarketDetailPage() {
         </div>
 
         <ErrorBoundary name="Price chart">
-          <DetailChart
-            ticker={detail.ticker}
-            outcomes={detail.outcomes}
-            currentPrice={currentYes}
-            prevPrice={detail.prevPrice}
-          />
+          {underlying ? (
+            <UnderlyingChart
+              asset={underlying}
+              strike={
+                strikeValue != null && activeOutcome
+                  ? { value: strikeValue, label: activeOutcome.name }
+                  : null
+              }
+            />
+          ) : (
+            <DetailChart
+              ticker={detail.ticker}
+              outcomes={detail.outcomes}
+              currentPrice={currentYes}
+              prevPrice={detail.prevPrice}
+            />
+          )}
         </ErrorBoundary>
 
         {isMulti && (
