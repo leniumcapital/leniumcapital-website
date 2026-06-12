@@ -19,6 +19,7 @@ import {
 import { useMarketStore } from "@/stores/marketStore";
 import { DetailChart, OUTCOME_COLORS } from "@/components/dashboard/DetailChart";
 import { DetailOrderPanel } from "@/components/dashboard/DetailOrderPanel";
+import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { compactUsd } from "@/lib/data";
@@ -283,15 +284,18 @@ function OutcomesTable({
               borderRadius: selected ? 8 : 0,
             }}
           >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: OUTCOME_COLORS[i % OUTCOME_COLORS.length],
-                flexShrink: 0,
-              }}
-            />
+            <OutcomeAvatar ticker={o.ticker} name={o.name} size={28} />
+            {i < OUTCOME_COLORS.length && (
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: OUTCOME_COLORS[i],
+                  flexShrink: 0,
+                }}
+              />
+            )}
             <span
               title={o.name}
               style={{

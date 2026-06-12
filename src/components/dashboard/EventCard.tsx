@@ -7,49 +7,17 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
+import { SeriesIcon, OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
 import { T } from "@/lib/tokens";
 
 /**
- * Kalshi-style event card: category icon + label, event title, close time,
- * favored outcome rows (avatar, name, multiplier odds, live percentage pill),
- * and a footer with total volume and contract count.
+ * Kalshi-style event card: series icon + category label, event title, close
+ * time, favored outcome rows (real Kalshi image, name, multiplier odds, live
+ * percentage pill), and a footer with total volume and contract count.
  */
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Economics: "📈",
-  Politics: "🏛️",
-  Sports: "🏆",
-  Crypto: "₿",
-  Culture: "🎬",
-  Climate: "🌎",
-  "Science and Tech": "🔬",
-  Health: "🩺",
-};
-
-const AVATAR_COLORS = [
-  "#1E3A5F",
-  "#3D2E4F",
-  "#1F4038",
-  "#4A3320",
-  "#3A2030",
-  "#27384D",
-] as const;
-
 const UNDERLINE_COLORS = [T.green, "#3B82F6"] as const;
-
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function initials(name: string): string {
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function formatCloseTime(iso: string): string {
   if (!iso) return "";
@@ -99,7 +67,6 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
     router.push(`/dashboard/markets/${encodeURIComponent(event.leaderTicker)}`);
   };
 
-  const icon = CATEGORY_ICONS[event.category] ?? "◆";
   const closeMs = event.closeTime ? new Date(event.closeTime).getTime() : 0;
   const isLive = now > 0 && closeMs > now && closeMs - now < 24 * 3_600_000;
 
@@ -124,7 +91,11 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
           fontFamily: T.font,
         }}
       >
-        <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+        <SeriesIcon
+          seriesTicker={event.seriesTicker}
+          category={event.category}
+          size={24}
+        />
         <span
           title={event.title}
           style={{
@@ -186,24 +157,13 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         fontFamily: T.font,
       }}
     >
-      {/* Header: icon tile + series/category label */}
+      {/* Header: series image + category label */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 6,
-            background: T.bgTertiary,
-            border: T.hairline(),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </span>
+        <SeriesIcon
+          seriesTicker={event.seriesTicker}
+          category={event.category}
+          size={26}
+        />
         <span
           style={{
             color: T.textMuted,
@@ -312,7 +272,6 @@ function OutcomeRow({
   outcome: EventOutcome;
   index: number;
 }) {
-  const avatarBg = AVATAR_COLORS[hashString(outcome.name) % AVATAR_COLORS.length];
   const underline = UNDERLINE_COLORS[index % UNDERLINE_COLORS.length];
 
   // Live price from the streaming store, falling back to the snapshot.
@@ -323,25 +282,7 @@ function OutcomeRow({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-      <span
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
-          background: avatarBg,
-          border: T.hairline(T.borderHover),
-          color: "#C9D4E0",
-          fontSize: 10,
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          letterSpacing: "0.02em",
-        }}
-      >
-        {initials(outcome.name)}
-      </span>
+      <OutcomeAvatar ticker={outcome.ticker} name={outcome.name} size={26} />
 
       <span
         title={outcome.name}
