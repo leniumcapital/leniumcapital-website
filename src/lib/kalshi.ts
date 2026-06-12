@@ -58,8 +58,8 @@ type KalshiEventRaw = {
 
 type CandlestickRaw = {
   end_period_ts?: number;
-  price?: { close?: number; close_dollars?: string };
-  yes_bid?: { close?: number };
+  price?: { close?: number; close_dollars?: string; previous_dollars?: string };
+  yes_bid?: { close?: number; close_dollars?: string };
 };
 
 async function fetchJson<T>(
@@ -135,19 +135,41 @@ export function normalizeCategory(raw: string | undefined): string {
   return "Culture";
 }
 
+// The events endpoint returns pages in arbitrary order and is full of brand
+// new zero-volume markets, so one page isn't enough for a quality grid. Page
+// through several and cache the computed result in-memory between polls.
+const EVENT_PAGES = 4;
+let marketsCache: { at: number; data: DashboardMarket[] } | null = null;
+const MARKETS_CACHE_TTL_MS = 10_000;
+
 /**
- * Fetch open Kalshi markets, flattened to individual contracts for the
- * dashboard grid. Cached briefly server-side so clients can't hammer Kalshi.
+ * Fetch open Kalshi markets for the dashboard grid: the leading contract of
+ * every traded event, sorted by volume. Cached briefly server-side so
+ * polling clients can't hammer Kalshi.
  */
 export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
-  const data = await fetchJson<{ events?: KalshiEventRaw[] }>(
-    `${KALSHI_BASE}/events?limit=200&status=open&with_nested_markets=true`,
-    8000,
-    { next: { revalidate: 5 } },
-  );
+  if (marketsCache && Date.now() - marketsCache.at < MARKETS_CACHE_TTL_MS) {
+    return marketsCache.data;
+  }
+
+  const events: KalshiEventRaw[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < EVENT_PAGES; page++) {
+    const url =
+      `${KALSHI_BASE}/events?limit=200&status=open&with_nested_markets=true` +
+      (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
+    const data = await fetchJson<{
+      events?: KalshiEventRaw[];
+      cursor?: string;
+    }>(url, 8000, { next: { revalidate: 15 } });
+    if (!data?.events?.length) break;
+    events.push(...data.events);
+    cursor = data.cursor;
+    if (!cursor) break;
+  }
 
   const out: DashboardMarket[] = [];
-  for (const ev of data?.events ?? []) {
+  for (const ev of events) {
     const category = normalizeCategory(ev.category);
 
     // Pick the leading (most-traded) contract per event, the way Kalshi's
@@ -190,7 +212,12 @@ export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
       open24h: bestYes,
     });
   }
-  return out.sort((a, b) => b.volume - a.volume).slice(0, 600);
+
+  const sorted = out.sort((a, b) => b.volume - a.volume).slice(0, 600);
+  if (sorted.length > 0) {
+    marketsCache = { at: Date.now(), data: sorted };
+  }
+  return sorted;
 }
 
 /** Price history for one market via Kalshi candlesticks. Best-effort. */
@@ -211,7 +238,12 @@ export async function fetchMarketHistory(
   const points: { t: number; p: number }[] = [];
   for (const c of data?.candlesticks ?? []) {
     const ts = (c.end_period_ts ?? 0) * 1000;
-    const closeUsd = num(c.price?.close_dollars);
+    // Periods without trades carry only quotes/previous price — use those so
+    // the line stays continuous instead of dropping points.
+    const closeUsd =
+      num(c.price?.close_dollars) ||
+      num(c.yes_bid?.close_dollars) ||
+      num(c.price?.previous_dollars);
     const close =
       closeUsd > 0
         ? Math.round(closeUsd * 100)

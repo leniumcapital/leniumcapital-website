@@ -32,8 +32,16 @@ const VIRTUAL_ROW_HEIGHT = 196;
  * user scrolls; only oversized categories (>100 markets) use react-window.
  */
 export function MarketGrid() {
-  const { isError, refetch } = useMarketsQuery();
+  const { data, isError, refetch } = useMarketsQuery();
   const { featured, sections } = useGroupedMarkets();
+
+  // Seed the store from the query result directly so the grid renders as
+  // soon as data exists, independent of the polling feed's timing.
+  useEffect(() => {
+    if (data && data.length > 0) {
+      useMarketStore.getState().setMarkets(data);
+    }
+  }, [data]);
   const activeCategory = useUiStore((s) => s.activeCategory);
   const viewMode = useUiStore((s) => s.viewMode);
 
