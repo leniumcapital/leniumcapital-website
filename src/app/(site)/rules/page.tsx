@@ -54,7 +54,7 @@ export default function RulesPage() {
             Just five rules
           </h2>
           <p className="mt-3 max-w-2xl text-muted">
-            Each one is here to show your edge is real, not luck — and that's
+            Each one is here to show your edge is real, not luck, and that's
             the whole list. No fine print, no surprises.
           </p>
 
