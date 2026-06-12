@@ -29,7 +29,7 @@ export function FundingVisualizer() {
   // before reversing — $5K → $100K → $5K → … forever.
   useEffect(() => {
     const controls = animate(progress, 1, {
-      duration: 6.5,
+      duration: 11,
       ease: "easeInOut",
       repeat: Infinity,
       repeatType: "reverse",
