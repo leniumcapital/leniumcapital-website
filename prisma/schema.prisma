@@ -1,5 +1,7 @@
-// Supabase Postgres — use the pooled URL for runtime (DATABASE_URL) and the
-// direct URL for migrations (DIRECT_URL). See .env.example for details.
+// Supabase Postgres via Vercel integration (auto-synced env vars):
+//   POSTGRES_PRISMA_URL       — pooled, for the running app
+//   POSTGRES_URL_NON_POOLING  — direct, for migrations (db push / migrate)
+// If connecting manually, set those same names in .env — see .env.example.
 
 generator client {
   provider = "prisma-client-js"
@@ -7,8 +9,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 model User {
