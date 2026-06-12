@@ -9,10 +9,16 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 function pooledDatabaseUrl(): string | undefined {
   const url = process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL;
   if (!url) return undefined;
-  if (url.includes("pgbouncer=true")) return url;
   if (url.includes("pooler.supabase.com") || url.includes(":6543")) {
-    return `${url}${url.includes("?") ? "&" : "?"}pgbouncer=true`;
+    const params = new URLSearchParams(
+      url.includes("?") ? url.split("?")[1] : "",
+    );
+    if (!params.has("pgbouncer")) params.set("pgbouncer", "true");
+    if (!params.has("connection_limit")) params.set("connection_limit", "1");
+    const base = url.split("?")[0];
+    return `${base}?${params.toString()}`;
   }
+  if (url.includes("pgbouncer=true")) return url;
   return url;
 }
 

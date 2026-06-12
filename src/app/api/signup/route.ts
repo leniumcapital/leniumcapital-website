@@ -22,10 +22,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Signup failed:", e);
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String((e as { code: unknown }).code)
+        : undefined;
     const message = e instanceof Error ? e.message : "Unknown error";
-    const hint = message.includes("connect")
-      ? "Database connection failed. Check Vercel env vars and redeploy."
-      : "Something went wrong. Please try again.";
-    return NextResponse.json({ error: hint }, { status: 500 });
+
+    let hint = "Something went wrong. Please try again.";
+    if (code === "P2002") {
+      hint = "An account with this email already exists.";
+      return NextResponse.json({ error: hint }, { status: 400 });
+    }
+    if (
+      code === "P1001" ||
+      code === "P1017" ||
+      message.toLowerCase().includes("connect")
+    ) {
+      hint =
+        "Database connection failed. Confirm Supabase is on the same Vercel project as lenium.capital, then redeploy.";
+    } else if (code === "P2021") {
+      hint =
+        "Database tables are missing. Run the User/TradingAccount SQL in Supabase again.";
+    }
+
+    return NextResponse.json({ error: hint, code }, { status: 500 });
   }
 }

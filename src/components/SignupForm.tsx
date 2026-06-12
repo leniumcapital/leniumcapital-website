@@ -24,11 +24,14 @@ export function SignupForm() {
       body: JSON.stringify({ name, email, password }),
     });
 
-    const data = (await res.json()) as { error?: string };
+    const data = (await res.json()) as { error?: string; code?: string };
 
     if (!res.ok) {
       setLoading(false);
-      setError(data.error ?? "Could not create account. Please try again.");
+      const detail = data.code ? ` (${data.code})` : "";
+      setError(
+        (data.error ?? "Could not create account. Please try again.") + detail,
+      );
       return;
     }
 
