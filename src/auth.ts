@@ -34,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     // Persist the account state into the signed JWT at sign-in time so it can
     // be read from the session on every request without re-fetching.
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.uid = user.id as string;
         token.accountType = user.accountType;
@@ -42,6 +42,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.challengeStatus = user.challengeStatus;
         token.balance = user.balance;
       }
+
+      if (trigger === "update" && session?.user) {
+        const u = session.user as {
+          accountType?: AccountType;
+          tier?: number;
+          challengeStatus?: ChallengeStatus;
+          balance?: number;
+        };
+        if (u.accountType !== undefined) token.accountType = u.accountType;
+        if (u.tier !== undefined) token.tier = u.tier;
+        if (u.challengeStatus !== undefined) {
+          token.challengeStatus = u.challengeStatus;
+        }
+        if (u.balance !== undefined) token.balance = u.balance;
+      }
+
       return token;
     },
     session({ session, token }) {

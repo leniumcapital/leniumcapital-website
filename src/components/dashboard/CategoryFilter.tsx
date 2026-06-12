@@ -6,9 +6,9 @@ import { CATEGORY_ORDER } from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
 /**
- * Kalshi-style category tab bar: clean text tabs — Trending first, a thin
- * divider, then All Markets and every category. Active tab is bold white;
- * inactive tabs are muted and brighten on hover. No pills, no counts.
+ * Category tab bar under the page heading — Trending first, a thin divider,
+ * then All Markets and every category. Active tab is bold white; inactive tabs
+ * are muted and brighten on hover.
  */
 export function CategoryTabs() {
   const activeCategory = useUiStore((s) => s.activeCategory);
@@ -19,8 +19,9 @@ export function CategoryTabs() {
       className="lenium-tabbar"
       style={{
         width: "100%",
-        height: 48,
+        height: 44,
         background: T.bgPrimary,
+        borderTop: T.hairline(),
         borderBottom: T.hairline(),
         padding: "0 24px",
         display: "flex",
@@ -80,11 +81,12 @@ function Tab({
       type="button"
       onClick={onClick}
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
         gap: 6,
         height: "100%",
-        padding: 0,
+        padding: "0 0 2px",
         border: "none",
         background: "transparent",
         color: active ? T.textPrimary : "#888888",
@@ -103,6 +105,19 @@ function Tab({
         if (!active) e.currentTarget.style.color = "#888888";
       }}
     >
+      {active && (
+        <span
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 2,
+            background: T.textPrimary,
+            borderRadius: 1,
+          }}
+        />
+      )}
       {icon}
       {label}
     </button>

@@ -39,40 +39,46 @@ export default function MarketsPage() {
 
   return (
     <div style={{ fontFamily: T.font }}>
-      {/* Sticky category tab row */}
-      <div style={{ position: "sticky", top: 0, zIndex: 31 }}>
-        <CategoryTabs />
-      </div>
-
-      {/* Heading row: section title + event search + filters */}
+      {/* Page header: title + search, then category picker directly below */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          padding: "22px 24px 6px",
+          position: "sticky",
+          top: 0,
+          zIndex: 31,
+          background: T.bgPrimary,
         }}
       >
-        <h1
+        <div
           style={{
-            margin: 0,
-            color: T.textPrimary,
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            padding: "22px 24px 12px",
           }}
         >
-          {heading}
-        </h1>
+          <h1
+            style={{
+              margin: 0,
+              color: T.textPrimary,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {heading}
+          </h1>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <EventSearchInput />
-          <FilterMenu />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <EventSearchInput />
+            <FilterMenu />
+          </div>
         </div>
+
+        <CategoryTabs />
       </div>
 
       {/* Sports sub-menu: pick a specific sport, Kalshi-style */}
