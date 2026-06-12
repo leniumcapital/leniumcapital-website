@@ -11,7 +11,6 @@ import {
   IconSettings,
 } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
-import { CategoryFilter } from "@/components/dashboard/CategoryFilter";
 import { ChallengeWidget } from "@/components/dashboard/ChallengeWidget";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T, TOP_BAR_HEIGHT, SIDEBAR_WIDTH } from "@/lib/tokens";
@@ -101,12 +100,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <Divider />
-
-      <div style={{ overflowY: "auto", flexShrink: 1 }}>
-        <CategoryFilter />
-      </div>
 
       <div style={{ flexGrow: 1 }} />
 

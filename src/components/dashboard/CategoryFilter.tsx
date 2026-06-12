@@ -1,87 +1,106 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useUiStore } from "@/stores/uiStore";
-import { useCategoryCounts } from "@/hooks/useMarkets";
+import { useCategoryCounts, CATEGORY_ORDER } from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
-export const CATEGORIES = [
-  "All Markets",
-  "Economics",
-  "Politics",
-  "Sports",
-  "Crypto",
-  "Culture",
-  "Climate",
-  "Science and Tech",
-  "Health",
-] as const;
+const TRENDING_TAB_SIZE = 20;
 
-/** Sidebar category list with live contract-count badges. */
-export function CategoryFilter() {
+/**
+ * Horizontal category tab bar below the markets subheader — the primary way
+ * to switch categories. The active background morphs between tabs.
+ */
+export function CategoryTabs() {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const setCategory = useUiStore((s) => s.setCategory);
   const counts = useCategoryCounts();
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
+  const tabs: { label: string; count: number }[] = [
+    { label: "All Markets", count: total },
+    { label: "Trending", count: Math.min(TRENDING_TAB_SIZE, total) },
+    ...CATEGORY_ORDER.map((c) => ({ label: c, count: counts[c] ?? 0 })),
+  ];
+
   return (
-    <div style={{ padding: 8 }}>
-      <div
-        style={{
-          padding: "6px 10px",
-          marginBottom: 2,
-          color: T.green,
-          fontSize: 10,
-          fontWeight: 500,
-          letterSpacing: "0.1em",
-        }}
-      >
-        MARKETS
-      </div>
-      {CATEGORIES.map((category) => {
-        const active = category === activeCategory;
-        const count =
-          category === "All Markets" ? total : (counts[category] ?? 0);
+    <div
+      className="lenium-tabbar"
+      style={{
+        width: "100%",
+        height: 44,
+        background: T.bgPrimary,
+        borderBottom: T.hairline(),
+        padding: "0 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        overflowX: "auto",
+        flexShrink: 0,
+        fontFamily: T.font,
+      }}
+    >
+      {tabs.map(({ label, count }) => {
+        const active = label === activeCategory;
         return (
           <button
-            key={category}
+            key={label}
             type="button"
-            onClick={() => setCategory(category)}
+            onClick={() => setCategory(label)}
             style={{
-              width: "100%",
-              height: 34,
-              padding: "0 10px",
+              position: "relative",
+              height: 32,
+              padding: "0 14px",
               borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: active ? T.greenMutedBg : "transparent",
-              border: active ? T.hairline(T.greenMutedBorder) : "0.5px solid transparent",
-              color: active ? T.green : T.textMuted,
+              border: "none",
+              background: "transparent",
+              color: active ? T.textPrimary : T.textMuted,
               fontSize: 13,
+              fontWeight: active ? 500 : 400,
               cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: `color ${T.transition}`,
               fontFamily: T.font,
-              transition: `background ${T.transition}`,
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => {
-              if (!active) e.currentTarget.style.background = T.bgSecondary;
+              if (!active) {
+                e.currentTarget.style.color = T.textSecondary;
+                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              }
             }}
             onMouseLeave={(e) => {
-              if (!active) e.currentTarget.style.background = "transparent";
+              if (!active) {
+                e.currentTarget.style.color = T.textMuted;
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
-            <span>{category}</span>
-            <span
-              style={{
-                background: T.border,
-                borderRadius: 4,
-                padding: "1px 7px",
-                fontSize: 11,
-                color: T.textMuted,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {count}
+            {active && (
+              <motion.span
+                layoutId="activeTab"
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: T.bgTertiary,
+                  border: T.hairline(),
+                  borderRadius: 6,
+                }}
+              />
+            )}
+            <span style={{ position: "relative", zIndex: 1 }}>
+              {label}{" "}
+              <span
+                style={{
+                  fontSize: 11,
+                  color: active ? T.textSecondary : T.textMuted,
+                  opacity: 0.9,
+                }}
+              >
+                {count}
+              </span>
             </span>
           </button>
         );

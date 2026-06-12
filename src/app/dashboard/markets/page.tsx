@@ -1,10 +1,10 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { IconLayoutGrid, IconList } from "@tabler/icons-react";
 import { useUiStore, type SortOrder, type ViewMode } from "@/stores/uiStore";
-import { useMarketsQuery, useVisibleMarketTickers } from "@/hooks/useMarkets";
+import { useMarketsQuery } from "@/hooks/useMarkets";
 import { MarketGrid } from "@/components/dashboard/MarketGrid";
+import { CategoryTabs } from "@/components/dashboard/CategoryFilter";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
 
@@ -23,51 +23,35 @@ export default function MarketsPage() {
   const setSortOrder = useUiStore((s) => s.setSortOrder);
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
-  const tickers = useVisibleMarketTickers();
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        fontFamily: T.font,
-      }}
-    >
-      {/* Sticky subheader */}
+    <div style={{ fontFamily: T.font }}>
+      {/* Sticky subheader: breadcrumb + controls */}
       <div
         style={{
           position: "sticky",
           top: 0,
-          zIndex: 30,
+          zIndex: 31,
           background: T.bgPrimary,
           borderBottom: T.hairline(),
           padding: "0 24px",
-          height: 52,
+          height: 48,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          flexShrink: 0,
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.h1
-            key={activeCategory}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            style={{
-              margin: 0,
-              color: T.textPrimary,
-              fontSize: 18,
-              fontWeight: 500,
-            }}
-          >
-            {activeCategory}
-          </motion.h1>
-        </AnimatePresence>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: T.textMuted, fontSize: 14 }}>Markets</span>
+          {activeCategory !== "All Markets" && (
+            <>
+              <span style={{ color: T.textMuted, fontSize: 14 }}>/</span>
+              <span style={{ color: T.textPrimary, fontSize: 14, fontWeight: 500 }}>
+                {activeCategory}
+              </span>
+            </>
+          )}
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select
@@ -106,17 +90,12 @@ export default function MarketsPage() {
               onClick={() => setViewMode("list")}
             />
           </div>
-
-          <span
-            style={{
-              color: T.textMuted,
-              fontSize: 13,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {tickers.length} markets
-          </span>
         </div>
+      </div>
+
+      {/* Sticky category tab bar directly below the subheader */}
+      <div style={{ position: "sticky", top: 48, zIndex: 30 }}>
+        <CategoryTabs />
       </div>
 
       <ErrorBoundary name="Market grid">

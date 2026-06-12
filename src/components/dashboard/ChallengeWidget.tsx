@@ -37,16 +37,20 @@ function EmptyState() {
         padding: "6px 0",
       }}
     >
-      <span style={{ color: T.textMuted, fontSize: 13 }}>
+      <span style={{ color: T.textSecondary, fontSize: 13 }}>
         No active challenge
       </span>
       <Link
         href="/pricing"
         style={{
+          display: "block",
+          width: "100%",
+          boxSizing: "border-box",
+          textAlign: "center",
           background: T.green,
           color: T.bgPrimary,
           borderRadius: 6,
-          padding: "6px 14px",
+          padding: "8px 14px",
           fontSize: 12,
           fontWeight: 500,
           textDecoration: "none",

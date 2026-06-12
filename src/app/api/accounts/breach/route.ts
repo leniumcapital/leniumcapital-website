@@ -20,12 +20,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Server-side audit log only — never logged to the browser.
-  if (process.env.NODE_ENV !== "production") {
-    console.log(
-      `[breach] user=${session.user.id} reason=${body.reason ?? "drawdown"}`,
-    );
-  }
-
+  void body;
   return NextResponse.json({ ok: true, recordedAt: Date.now() });
 }

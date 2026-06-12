@@ -160,6 +160,9 @@ function ShellInner({ user, children }: DashboardShellProps) {
             height: `calc(100vh - ${TOP_BAR_HEIGHT}px)`,
             overflowY: "auto",
             overflowX: "hidden",
+            // Subheader (48) + category tab bar (44) are sticky inside this
+            // scroller; with the 56px top bar the full sticky stack is 148px.
+            scrollPaddingTop: 92,
             flex: 1,
             display: "flex",
             flexDirection: "column",

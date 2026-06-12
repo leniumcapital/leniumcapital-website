@@ -25,6 +25,8 @@ export type DashboardMarket = {
   yesPrice: number;
   noPrice: number;
   volume: number;
+  /** Volume traded in the last 24 hours — drives Trending. */
+  volume24h: number;
   expiry: string;
   sparklineData: number[];
   open24h: number;
@@ -132,24 +134,6 @@ export function normalizeCategory(raw: string | undefined): string {
 }
 
 /**
- * Deterministic synthetic 24h sparkline ending at the current price. Used
- * until per-market candlestick history loads — never random between renders.
- */
-function seedSparkline(ticker: string, current: number): number[] {
-  let h = 0;
-  for (let i = 0; i < ticker.length; i++) h = (h * 31 + ticker.charCodeAt(i)) | 0;
-  const out: number[] = [];
-  let p = current;
-  for (let i = 23; i >= 0; i--) {
-    const wave = Math.sin((h % 7) + i * 0.7) * 1.6 + Math.sin(i * 0.23 + h) * 0.9;
-    out.unshift(Math.min(99, Math.max(1, Math.round(p - wave))));
-    p = out[0];
-  }
-  out[out.length - 1] = current;
-  return out;
-}
-
-/**
  * Fetch open Kalshi markets, flattened to individual contracts for the
  * dashboard grid. Cached briefly server-side so clients can't hammer Kalshi.
  */
@@ -168,7 +152,6 @@ export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
       const cents = priceCents(m);
       if (cents == null) continue;
       const yes = Math.min(99, Math.max(1, cents));
-      const spark = seedSparkline(m.ticker, yes);
       out.push({
         ticker: m.ticker,
         question: m.title || ev.title || m.ticker,
@@ -176,9 +159,12 @@ export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
         yesPrice: yes,
         noPrice: 100 - yes,
         volume: marketVolume(m),
+        volume24h: num(m.volume_24h_fp),
         expiry: m.close_time ?? "",
-        sparklineData: spark,
-        open24h: spark[0],
+        // Real history is loaded per-market from the candlesticks endpoint;
+        // until then the sparkline only accumulates live ticks (never mocked).
+        sparklineData: [yes],
+        open24h: yes,
       });
     }
   }

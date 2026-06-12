@@ -18,14 +18,18 @@ export type Market = {
   noPrice: number;
   /** Total traded volume in dollars. */
   volume: number;
+  /** Volume traded in the last 24 hours — drives Trending. */
+  volume24h: number;
   /** ISO expiry timestamp. */
   expiry: string;
   /** Full intraday price history for the drawer chart. */
   priceHistory: PricePoint[];
-  /** Compact 24h series for card sparklines. */
+  /** Real 24h price series for card sparklines (live ticks + candlesticks). */
   sparklineData: number[];
   /** YES price 24 hours ago — drives sparkline color. */
   open24h: number;
+  /** True once the real candlestick history has been fetched for this market. */
+  historyLoaded?: boolean;
 };
 
 export type PriceUpdate = {
@@ -46,6 +50,8 @@ interface MarketState {
   /** Single setState for a whole accumulator flush — one React notification. */
   batchUpdatePrices: (updates: Record<string, PriceUpdate>) => void;
   setPriceHistory: (ticker: string, history: PricePoint[]) => void;
+  /** Seed the sparkline + 24h open from real candlestick history (once). */
+  seedSparklineFromHistory: (ticker: string, points: PricePoint[]) => void;
   reset: () => void;
 }
 
@@ -65,13 +71,20 @@ export const useMarketStore = create<MarketState>()(
       set((s) => {
         for (const m of markets) {
           if (!s.markets[m.ticker]) s.order.push(m.ticker);
-          // Preserve any richer history already loaded for the drawer.
+          // Preserve richer data already accumulated client-side: drawer
+          // history, the candlestick-seeded sparkline, and the 24h open.
           const prev = s.markets[m.ticker];
           s.markets[m.ticker] = {
             ...m,
             priceHistory: prev?.priceHistory?.length
               ? prev.priceHistory
               : m.priceHistory,
+            sparklineData:
+              prev && prev.sparklineData.length > m.sparklineData.length
+                ? prev.sparklineData
+                : m.sparklineData,
+            open24h: prev?.historyLoaded ? prev.open24h : m.open24h,
+            historyLoaded: prev?.historyLoaded ?? false,
           };
         }
       }),
@@ -112,6 +125,19 @@ export const useMarketStore = create<MarketState>()(
       set((s) => {
         const m = s.markets[ticker];
         if (m) m.priceHistory = history;
+      }),
+
+    seedSparklineFromHistory: (ticker, points) =>
+      set((s) => {
+        const m = s.markets[ticker];
+        if (!m) return;
+        m.historyLoaded = true;
+        if (points.length < 2) return;
+        const closes = points.map((p) => p.p);
+        // Keep any live ticks that arrived after the history snapshot.
+        const liveTail = m.sparklineData.slice(-4);
+        m.sparklineData = [...closes, ...liveTail].slice(-48);
+        m.open24h = closes[0];
       }),
 
     reset: () => set(() => ({ markets: {}, order: [], lastBatchAt: 0 })),
