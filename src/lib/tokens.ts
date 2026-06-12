@@ -30,7 +30,9 @@ export const T = {
 export const TOP_BAR_HEIGHT = 56;
 export const SIDEBAR_WIDTH = 260;
 export const DRAWER_WIDTH = 420;
-export const MIN_VIEWPORT_WIDTH = 1280;
+// Allows iPads in landscape (1024px+); phones and portrait tablets get the
+// "best on desktop" guard instead of a broken layout.
+export const MIN_VIEWPORT_WIDTH = 1000;
 
 /** Card heights for react-window virtualization. */
 export const GRID_CARD_HEIGHT = 180;

@@ -138,7 +138,7 @@ function CenterSection({
       <div style={{ position: "relative" }}>
         <div
           style={{
-            width: 420,
+            width: "min(420px, 30vw)",
             height: 34,
             background: T.bgTertiary,
             border: T.hairline(focused ? T.borderHover : T.border),

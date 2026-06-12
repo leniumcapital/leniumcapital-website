@@ -130,8 +130,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
           Best experienced on desktop
         </span>
         <span style={{ color: T.textMuted, fontSize: 14, maxWidth: 380 }}>
-          Please open Lenium on a screen at least 1280px wide to access the
-          trading dashboard
+          Please open Lenium on a larger screen — or rotate your tablet to
+          landscape — to access the trading dashboard
         </span>
       </div>
     );

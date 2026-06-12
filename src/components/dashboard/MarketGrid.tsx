@@ -192,7 +192,7 @@ function CategorySection({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
             gap: CARD_GAP,
             padding: "0 24px",
             alignItems: "stretch",
@@ -233,7 +233,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
     return () => observer.disconnect();
   }, []);
 
-  const columnCount = 3;
+  const columnCount = Math.max(2, Math.floor(width / 280)) || 3;
   const columnWidth = width > 0 ? Math.floor(width / columnCount) : 0;
   const rowCount = Math.ceil(tickers.length / columnCount);
   const height = Math.min(rowCount, 4) * VIRTUAL_ROW_HEIGHT;
@@ -256,7 +256,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
         </div>
       );
     },
-    [tickers],
+    [tickers, columnCount],
   );
 
   return (
@@ -363,7 +363,7 @@ function SkeletonGrid() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
+        gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
         gap: CARD_GAP,
         padding: "16px 24px",
       }}
