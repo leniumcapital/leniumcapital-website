@@ -8,23 +8,36 @@ const DEMO_ACCOUNTS = [
     email: "trader@lenium.capital",
     password: "demo1234",
     name: "Demo Trader",
-    account: {
-      accountType: "challenge",
-      tier: 25000,
-      balance: 26840,
-      challengeStatus: "in_progress",
-    },
+    accounts: [
+      {
+        accountType: "challenge",
+        tier: 25000,
+        balance: 26840,
+        challengeStatus: "in_progress",
+        isPrimary: true,
+      },
+      {
+        accountType: "funded",
+        tier: 50000,
+        balance: 52840,
+        challengeStatus: "funded",
+        isPrimary: false,
+      },
+    ],
   },
   {
     email: "funded@lenium.capital",
     password: "demo1234",
     name: "Funded Pro",
-    account: {
-      accountType: "funded",
-      tier: 50000,
-      balance: 52840,
-      challengeStatus: "funded",
-    },
+    accounts: [
+      {
+        accountType: "funded",
+        tier: 50000,
+        balance: 52840,
+        challengeStatus: "funded",
+        isPrimary: true,
+      },
+    ],
   },
 ] as const;
 
@@ -38,26 +51,30 @@ async function main() {
         email: demo.email,
         name: demo.name,
         password: hash,
-        accounts: {
-          create: {
-            accountType: demo.account.accountType,
-            tier: demo.account.tier,
-            balance: demo.account.balance,
-            challengeStatus: demo.account.challengeStatus,
-            isPrimary: true,
-          },
-        },
       },
-      include: { accounts: true },
     });
 
-    const hasAccount = user.accounts.length > 0;
-    if (!hasAccount) {
-      await prisma.tradingAccount.create({
-        data: {
+    for (const account of demo.accounts) {
+      await prisma.tradingAccount.upsert({
+        where: {
+          userId_accountType: {
+            userId: user.id,
+            accountType: account.accountType,
+          },
+        },
+        update: {
+          tier: account.tier,
+          balance: account.balance,
+          challengeStatus: account.challengeStatus,
+          isPrimary: account.isPrimary,
+        },
+        create: {
           userId: user.id,
-          ...demo.account,
-          isPrimary: true,
+          accountType: account.accountType,
+          tier: account.tier,
+          balance: account.balance,
+          challengeStatus: account.challengeStatus,
+          isPrimary: account.isPrimary,
         },
       });
     }

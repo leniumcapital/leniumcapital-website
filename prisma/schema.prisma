@@ -18,6 +18,10 @@ model User {
   email     String           @unique
   password  String
   name      String
+  username  String?          @unique
+  phone     String?
+  country   String?
+  avatarUrl String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   accounts  TradingAccount[]
@@ -35,5 +39,6 @@ model TradingAccount {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@unique([userId, accountType])
   @@index([userId])
 }

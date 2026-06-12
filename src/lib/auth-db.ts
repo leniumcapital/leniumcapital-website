@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
+import { upsertTradingAccount } from "@/lib/accounts-db";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -121,14 +122,5 @@ export async function createTradingAccount(
     challengeStatus: ChallengeStatus;
   },
 ) {
-  return prisma.tradingAccount.create({
-    data: {
-      userId,
-      accountType: data.accountType,
-      tier: data.tier,
-      balance: data.balance,
-      challengeStatus: data.challengeStatus,
-      isPrimary: true,
-    },
-  });
+  return upsertTradingAccount(userId, { ...data, makePrimary: true });
 }

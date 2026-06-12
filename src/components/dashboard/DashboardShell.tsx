@@ -65,6 +65,54 @@ function ShellInner({ user, children }: DashboardShellProps) {
     });
   }, [user]);
 
+  // Hydrate extended profile (avatar, username, phone, country) for top bar.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { profile?: {
+        username: string | null;
+        phone: string | null;
+        country: string | null;
+        avatarUrl: string | null;
+        name: string;
+        email: string;
+      } } | null) => {
+        if (cancelled || !data?.profile) return;
+        const p = data.profile;
+        useAccountStore.getState().setAccount({
+          name: p.name,
+          email: p.email,
+          username: p.username ?? "",
+          phone: p.phone ?? "",
+          country: p.country ?? "",
+          avatarUrl: p.avatarUrl ?? "",
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  // Load which account types exist (demo + live) for the mode switcher.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/accounts")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { hasDemo?: boolean; hasLive?: boolean } | null) => {
+        if (cancelled || !data) return;
+        useAccountStore.getState().setAccount({
+          hasDemoAccount: Boolean(data.hasDemo),
+          hasLiveAccount: Boolean(data.hasLive),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
   useChallengeSync();

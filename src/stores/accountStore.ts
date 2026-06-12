@@ -7,11 +7,17 @@ interface AccountState {
   userId: string;
   name: string;
   email: string;
+  username: string;
+  phone: string;
+  country: string;
+  avatarUrl: string;
   accountType: AccountType;
   challengeStatus: AccountChallengeStatus;
   tier: number;
   balance: number;
   accountSize: number;
+  hasDemoAccount: boolean;
+  hasLiveAccount: boolean;
   /** True when the daily loss limit has been hit — trading locked until midnight UTC. */
   dailyLockout: boolean;
   setAccount: (
@@ -21,11 +27,17 @@ interface AccountState {
         | "userId"
         | "name"
         | "email"
+        | "username"
+        | "phone"
+        | "country"
+        | "avatarUrl"
         | "accountType"
         | "challengeStatus"
         | "tier"
         | "balance"
         | "accountSize"
+        | "hasDemoAccount"
+        | "hasLiveAccount"
       >
     >,
   ) => void;
@@ -39,11 +51,17 @@ const initial = {
   userId: "",
   name: "",
   email: "",
+  username: "",
+  phone: "",
+  country: "",
+  avatarUrl: "",
   accountType: "none" as AccountType,
   challengeStatus: "none" as AccountChallengeStatus,
   tier: 0,
   balance: 0,
   accountSize: 0,
+  hasDemoAccount: false,
+  hasLiveAccount: false,
   dailyLockout: false,
 };
 
