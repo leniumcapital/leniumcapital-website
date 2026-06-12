@@ -11,6 +11,7 @@ import type {
   AccountType,
   AccountChallengeStatus,
 } from "@/stores/accountStore";
+import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -45,10 +46,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Middleware already guards /dashboard; this is defense in depth so the
-  // shell can never render without a session even if the matcher changes.
   const session = await auth();
-  if (!session?.user) redirect("/login?callbackUrl=/dashboard");
+  if (!session?.user) {
+    redirect(`/login?callbackUrl=${encodeURIComponent(CHALLENGE_SELECT_PATH)}`);
+  }
 
   const u = session.user;
   const user: SessionUser = {

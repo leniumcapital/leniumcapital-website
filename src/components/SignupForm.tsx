@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { startNavigationLoading } from "@/components/NavigationLoader";
+import { safeCallbackUrl } from "@/lib/callback-url";
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
+  const loginHref = callbackUrl
+    ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : "/login";
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,7 +59,7 @@ export function SignupForm() {
     }
 
     startNavigationLoading();
-    router.push("/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -127,7 +134,7 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-muted">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-brand-strong">
+        <Link href={loginHref} className="font-medium text-brand-strong">
           Log in
         </Link>
       </p>

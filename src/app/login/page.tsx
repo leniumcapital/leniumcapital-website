@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { LoginForm } from "@/components/LoginForm";
+import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 
 export const metadata: Metadata = {
   title: "Login",
   description: "Log in to your Lenium trader dashboard.",
 };
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ callbackUrl?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const callbackUrl = params.callbackUrl ?? CHALLENGE_SELECT_PATH;
+  const signupHref = `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+
   return (
     <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05060a] px-6 py-16 text-white">
-      {/* Flowing aurora background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="aurora-blob anim-aurora-a"
@@ -51,12 +60,14 @@ export default function LoginPage() {
             Access your trader dashboard.
           </p>
 
-          <LoginForm />
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
         </div>
 
         <p className="mt-6 text-center text-sm text-white/60">
           No account yet?{" "}
-          <Link href="/signup" className="font-medium text-brand">
+          <Link href={signupHref} className="font-medium text-brand">
             Create account
           </Link>
         </p>

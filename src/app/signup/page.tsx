@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { SignupForm } from "@/components/SignupForm";
 
@@ -111,7 +112,9 @@ export default function SignupPage() {
           </p>
 
           <div className="mt-7">
-            <SignupForm />
+            <Suspense fallback={null}>
+              <SignupForm />
+            </Suspense>
           </div>
         </div>
       </div>
