@@ -9,6 +9,8 @@ import {
   IconWallet,
   IconHistory,
   IconSettings,
+  IconBriefcase,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { ChallengeWidget } from "@/components/dashboard/ChallengeWidget";
@@ -19,6 +21,8 @@ const NAV_ITEMS = [
   { icon: IconLayoutGrid, label: "Markets", href: "/dashboard/markets" },
   { icon: IconChartCandle, label: "My Positions", href: "/dashboard/positions" },
   { icon: IconTarget, label: "Challenge Progress", href: "/dashboard/progress" },
+  { icon: IconBriefcase, label: "Trading Account", href: "/dashboard/account" },
+  { icon: IconClipboardList, label: "Challenge Rules", href: "/dashboard/challenge-rules" },
   { icon: IconWallet, label: "Payouts", href: "/dashboard/payouts" },
   { icon: IconHistory, label: "Trade History", href: "/dashboard/history" },
   { icon: IconSettings, label: "Settings", href: "/dashboard/settings" },
@@ -63,7 +67,7 @@ export function Sidebar() {
 
       <Divider />
 
-      <nav style={{ padding: 8 }}>
+      <nav style={{ padding: 8, overflowY: "auto", flexShrink: 0 }}>
         {NAV_ITEMS.map(({ icon: Icon, label, href }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
