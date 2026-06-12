@@ -44,6 +44,9 @@ type KalshiMarketRaw = {
   title?: string;
   yes_sub_title?: string;
   close_time?: string;
+  /** When the underlying event actually happens (game end) — close_time on
+   * sports markets is the settlement deadline, often weeks later. */
+  expected_expiration_time?: string;
   status?: string;
   event_ticker?: string;
   rules_primary?: string;
@@ -69,6 +72,8 @@ type KalshiEventRaw = {
   category?: string;
   mutually_exclusive?: boolean;
   markets?: KalshiMarketRaw[];
+  /** Set on events from the curated game series (keeps untraded games). */
+  is_game?: boolean;
 };
 
 type CandlestickRaw = {
@@ -156,6 +161,174 @@ export function normalizeCategory(raw: string | undefined): string {
   return "Culture";
 }
 
+// ─── Sport detection (sub-categories for the Sports tab) ──────────────────────
+// Matched against `${series_ticker} ${title}`; series tickers embed the league
+// acronym (KXNBAFINALS, KXWORLDCUP, ...) so acronyms match without boundaries.
+const SPORT_RULES: { name: string; pattern: RegExp }[] = [
+  { name: "World Cup", pattern: /world ?cup|fifa/i },
+  {
+    name: "Soccer",
+    pattern:
+      /soccer|premier league|champions league|la ?liga|serie ?a|bundesliga|ligue ?1|\bmls\b|uefa|europa/i,
+  },
+  { name: "Basketball", pattern: /nba|wnba|basketball|march madness/i },
+  { name: "Football", pattern: /nfl|college football|super bowl|heisman/i },
+  { name: "Baseball", pattern: /mlb|baseball|world series/i },
+  { name: "Hockey", pattern: /nhl|hockey|stanley cup/i },
+  {
+    name: "Tennis",
+    pattern: /tennis|wimbledon|atp|wta|roland garros|french open/i,
+  },
+  { name: "Golf", pattern: /golf|pga|ryder cup|masters/i },
+  { name: "MMA", pattern: /ufc|mma/i },
+  { name: "Boxing", pattern: /boxing/i },
+  {
+    name: "Motorsports",
+    pattern: /formula ?1|\bf1\b|nascar|grand prix|indycar|motogp/i,
+  },
+  { name: "Cricket", pattern: /cricket|\bipl\b|t20/i },
+  {
+    name: "Esports",
+    pattern: /esports|counter[- ]strike|league of legends|valorant|dota/i,
+  },
+  { name: "Olympics", pattern: /olympic/i },
+];
+
+/** Kalshi series tags → dashboard sport names. */
+const TAG_TO_SPORT: Record<string, string> = {
+  Soccer: "Soccer",
+  Basketball: "Basketball",
+  Football: "Football",
+  CFB: "Football",
+  Baseball: "Baseball",
+  Hockey: "Hockey",
+  Tennis: "Tennis",
+  Golf: "Golf",
+  MMA: "MMA",
+  UFC: "MMA",
+  Boxing: "Boxing",
+  Motorsport: "Motorsports",
+  Cricket: "Cricket",
+  Esports: "Esports",
+  "Video games": "Esports",
+  Olympics: "Olympics",
+};
+
+type SeriesInfo = { title: string; tags: string[] };
+
+/** Sports series directory (ticker → title/tags). One request, cached 6h. */
+let seriesDirCache: { at: number; map: Map<string, SeriesInfo> } | null = null;
+const SERIES_DIR_TTL_MS = 6 * 3600_000;
+
+async function fetchSportsSeriesDir(): Promise<Map<string, SeriesInfo>> {
+  if (seriesDirCache && Date.now() - seriesDirCache.at < SERIES_DIR_TTL_MS) {
+    return seriesDirCache.map;
+  }
+  const data = await fetchJson<{
+    series?: { ticker?: string; title?: string; tags?: string[] }[];
+  }>(`${KALSHI_BASE}/series?category=Sports`, 10000, {
+    next: { revalidate: 21600 },
+  });
+  const map = new Map<string, SeriesInfo>();
+  for (const s of data?.series ?? []) {
+    if (s.ticker) map.set(s.ticker, { title: s.title ?? "", tags: s.tags ?? [] });
+  }
+  if (map.size > 0) seriesDirCache = { at: Date.now(), map };
+  return seriesDirCache?.map ?? map;
+}
+
+function detectSport(
+  seriesTicker?: string,
+  title?: string,
+  series?: SeriesInfo,
+): string {
+  const text = `${series?.title ?? ""} ${title ?? ""}`;
+  // The FIFA World Cup gets its own tab (it's the headline event); the Club
+  // World Cup stays under Soccer.
+  if (/world ?cup|fifa/i.test(text) && !/club world/i.test(text)) {
+    const tag = series?.tags?.[0];
+    if (!tag || tag === "Soccer") return "World Cup";
+  }
+  for (const tag of series?.tags ?? []) {
+    const sport = TAG_TO_SPORT[tag];
+    if (sport) return sport;
+  }
+  const fallbackText = `${seriesTicker ?? ""} ${text}`;
+  for (const rule of SPORT_RULES) {
+    if (rule.pattern.test(fallbackText)) return rule.name;
+  }
+  return "More Sports";
+}
+
+// Game-level series for the major leagues, fetched directly so live and
+// upcoming games always make the grid (the generic near-term scan gets
+// flooded by thousand-row parlay ladders and misses them).
+const SPORTS_GAME_SERIES = [
+  "KXWCGAME", // FIFA World Cup
+  "KXCLUBWCGAME", // FIFA Club World Cup
+  "KXNBAGAME",
+  "KXWNBAGAME",
+  "KXMLBGAME",
+  "KXNHLGAME",
+  "KXNFLGAME",
+  "KXNCAAFGAME",
+  "KXNCAAMBGAME",
+  "KXMLSGAME",
+  "KXUCLGAME",
+  "KXEPLGAME",
+  "KXLALIGAGAME",
+  "KXSERIEAGAME",
+  "KXBUNDESLIGAGAME",
+  "KXLIGUE1GAME",
+  "KXATPMATCH",
+  "KXWTAMATCH",
+  "KXUFCFIGHT",
+  "KXNASCARRACE",
+];
+const SPORTS_GAME_HORIZON_H = 7 * 24;
+// Keep games whose expected end passed recently — overtime runs long.
+const SPORTS_GAME_GRACE_H = 6;
+
+/** When the underlying game actually happens. close_time on sports markets
+ * is the settlement deadline — often weeks after the final whistle. */
+function gameTime(m: KalshiMarketRaw): string {
+  return m.expected_expiration_time || m.close_time || "";
+}
+
+/**
+ * Open markets in the major game series with games inside the horizon.
+ * close-time filters are useless here (settlement deadlines), so each series
+ * is fetched whole and filtered by expected_expiration_time.
+ */
+async function fetchSportsGameMarkets(): Promise<KalshiMarketRaw[]> {
+  const now = Date.now();
+  const minMs = now - SPORTS_GAME_GRACE_H * 3600_000;
+  const maxMs = now + SPORTS_GAME_HORIZON_H * 3600_000;
+  const out: KalshiMarketRaw[] = [];
+  const WAVE = 4;
+  for (let i = 0; i < SPORTS_GAME_SERIES.length; i += WAVE) {
+    const wave = await Promise.all(
+      SPORTS_GAME_SERIES.slice(i, i + WAVE).map((series) =>
+        fetchJson<{ markets?: KalshiMarketRaw[] }>(
+          `${KALSHI_BASE}/markets?limit=200&status=open&series_ticker=${series}`,
+          8000,
+          { next: { revalidate: 60 } },
+        ),
+      ),
+    );
+    for (const res of wave) {
+      for (const m of res?.markets ?? []) {
+        const t = new Date(gameTime(m)).getTime();
+        if (Number.isFinite(t) && t >= minMs && t <= maxMs) out.push(m);
+      }
+    }
+    if (i + WAVE < SPORTS_GAME_SERIES.length) {
+      await new Promise((r) => setTimeout(r, 350));
+    }
+  }
+  return out;
+}
+
 // The events endpoint returns pages in roughly *farthest-expiry-first* order
 // and is full of brand new zero-volume markets, so one page isn't enough for
 // a quality grid. Page through several and cache the result between polls.
@@ -172,7 +345,7 @@ const OUTCOMES_PER_EVENT_CARD = 2;
 // hours are sampled hour-by-hour to guarantee live games, daily strikes,
 // and today's events are all captured.
 const NEAR_TERM_BUCKETS_H = [0, 1, 2, 3, 4, 5, 6, 12, 24, 48];
-const NEAR_TERM_EVENT_LIMIT = 40;
+const NEAR_TERM_EVENT_LIMIT = 80;
 const NEAR_TERM_MIN_VOL24H = 500;
 // Kalshi rate-limits aggressive parallelism — fetch metadata in small,
 // spaced batches (only uncached events cost anything).
@@ -196,12 +369,16 @@ type ValidContract = {
 };
 
 /** Tradable contracts of an event: priced, traded, not provisional/combo. */
-function validContracts(ev: KalshiEventRaw): ValidContract[] {
+function validContracts(
+  ev: KalshiEventRaw,
+  allowUntraded = false,
+): ValidContract[] {
   const out: ValidContract[] = [];
   for (const m of ev.markets ?? []) {
     if (!m.ticker || m.is_provisional || m.mve_collection_ticker) continue;
     const vol = marketVolume(m);
-    if (vol <= 0) continue;
+    // Upcoming games are quoted before anyone trades them — keep those.
+    if (vol <= 0 && !allowUntraded) continue;
     const cents = priceCents(m);
     if (cents == null || cents < 1) continue;
     out.push({
@@ -332,6 +509,57 @@ async function buildNearTermEvents(
   return out;
 }
 
+/** Game events (one per matchup) from the major-league series, soonest first. */
+async function buildSportsGameEvents(
+  markets: KalshiMarketRaw[],
+  skip: Set<string | undefined>,
+): Promise<KalshiEventRaw[]> {
+  const byEvent = new Map<string, KalshiMarketRaw[]>();
+  for (const m of markets) {
+    if (!m.event_ticker || !m.ticker) continue;
+    const list = byEvent.get(m.event_ticker) ?? [];
+    list.push(m);
+    byEvent.set(m.event_ticker, list);
+  }
+
+  // No volume floor — tomorrow's games matter even before they're traded.
+  // Soonest close first so live games get meta priority within the cap.
+  const ranked = [...byEvent.entries()]
+    .filter(([eventTicker]) => !skip.has(eventTicker))
+    .map(([eventTicker, ms]) => ({
+      eventTicker,
+      markets: ms,
+      closeMs: Math.min(
+        ...ms.map((m) => new Date(gameTime(m) || 8.64e15).getTime()),
+      ),
+    }))
+    .sort((a, b) => a.closeMs - b.closeMs)
+    .slice(0, 150);
+
+  const out: KalshiEventRaw[] = [];
+  for (let i = 0; i < ranked.length; i += META_BATCH_SIZE) {
+    const batch = ranked.slice(i, i + META_BATCH_SIZE);
+    await Promise.all(
+      batch.map(async ({ eventTicker, markets: ms }) => {
+        const meta = await fetchEventMeta(eventTicker);
+        if (!meta) return;
+        out.push({
+          event_ticker: eventTicker,
+          series_ticker: meta.series,
+          title: meta.title,
+          category: meta.category ?? "Sports",
+          markets: ms,
+          is_game: true,
+        });
+      }),
+    );
+    if (i + META_BATCH_SIZE < ranked.length) {
+      await new Promise((r) => setTimeout(r, META_BATCH_GAP_MS));
+    }
+  }
+  return out;
+}
+
 /**
  * Fetch open Kalshi events for the dashboard grid, aggregated Kalshi-style:
  * one event card with its favored outcomes, total volume, and market count —
@@ -344,11 +572,14 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     return marketsCache.data;
   }
 
-  // Popular long-dated events (pagination) and today's near-term markets
-  // (close-time filtered) come from different endpoints — fetch in parallel.
-  // Metadata lookups for near-term events wait until pagination is done so
-  // the combined burst stays under Kalshi's rate limit.
+  // Popular long-dated events (pagination), today's near-term markets
+  // (close-time filtered), and this week's games in the major sports series
+  // come from different endpoints — fetch in parallel. Metadata lookups wait
+  // until pagination is done so the combined burst stays under Kalshi's
+  // rate limit.
   const nearTermPromise = fetchNearTermMarketsByEvent();
+  const sportsGamesPromise = fetchSportsGameMarkets();
+  const seriesDirPromise = fetchSportsSeriesDir();
 
   const rawEvents: KalshiEventRaw[] = [];
   let cursor: string | undefined;
@@ -369,6 +600,12 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   const knownEvents = new Set(rawEvents.map((e) => e.event_ticker));
   rawEvents.push(...(await buildNearTermEvents(await nearTermPromise, knownEvents)));
 
+  const knownAfterNearTerm = new Set(rawEvents.map((e) => e.event_ticker));
+  rawEvents.push(
+    ...(await buildSportsGameEvents(await sportsGamesPromise, knownAfterNearTerm)),
+  );
+  const seriesDir = await seriesDirPromise;
+
   const markets: DashboardMarket[] = [];
   const events: DashboardEvent[] = [];
   const seenTickers = new Set<string>();
@@ -376,7 +613,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   for (const ev of rawEvents) {
     if (!ev.event_ticker) continue;
     const category = normalizeCategory(ev.category);
-    const contracts = validContracts(ev);
+    const contracts = validContracts(ev, ev.is_game);
     if (contracts.length === 0) continue;
 
     // Leader = most recently traded contract (Kalshi homepage behavior).
@@ -403,12 +640,19 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const totalVolume = contracts.reduce((sum, c) => sum + c.volume, 0);
     const volume24h = contracts.reduce((sum, c) => sum + c.volume24h, 0);
 
+    const seriesTicker = ev.series_ticker ?? ev.event_ticker.split("-")[0];
     events.push({
       eventTicker: ev.event_ticker,
-      seriesTicker: ev.series_ticker ?? ev.event_ticker.split("-")[0],
+      seriesTicker,
       title: ev.title ?? ev.event_ticker,
       category,
-      closeTime: leader.raw.close_time ?? "",
+      subCategory:
+        category === "Sports"
+          ? detectSport(seriesTicker, ev.title, seriesDir.get(seriesTicker))
+          : undefined,
+      closeTime: ev.is_game
+        ? gameTime(leader.raw)
+        : (leader.raw.close_time ?? ""),
       totalVolume,
       volume24h,
       marketCount: contracts.length,
@@ -443,7 +687,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
         noPrice: 100 - c.yesPrice,
         volume: c.volume,
         volume24h: c.volume24h,
-        expiry: c.raw.close_time ?? "",
+        expiry: ev.is_game ? gameTime(c.raw) : (c.raw.close_time ?? ""),
         // Real history is loaded per-market from the candlesticks endpoint;
         // until then the sparkline only accumulates live ticks (never mocked).
         sparklineData: [c.yesPrice],
@@ -453,8 +697,8 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   }
 
   const data: DashboardData = {
-    markets: markets.sort((a, b) => b.volume - a.volume).slice(0, 900),
-    events: events.sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 400),
+    markets: markets.sort((a, b) => b.volume - a.volume).slice(0, 1100),
+    events: events.sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 600),
   };
   if (data.events.length > 0) {
     marketsCache = { at: Date.now(), data };

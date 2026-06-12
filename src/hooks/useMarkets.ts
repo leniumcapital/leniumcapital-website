@@ -92,6 +92,59 @@ function sortEventTickers(
   }
 }
 
+/**
+ * Sports ordering, Kalshi-style: live games first, then everything by start
+ * time — soonest next. Ascending close time gives exactly that (live games
+ * close soonest); long-dated futures (e.g. tournament winner) land last.
+ */
+function effectiveOrder(category: string, order: SortOrder): SortOrder {
+  return category === "Sports" && order === "volume" ? "expiry" : order;
+}
+
+/** Curated sport display order, mirroring Kalshi's sports sidebar. */
+const SPORT_ORDER = [
+  "World Cup",
+  "Soccer",
+  "Basketball",
+  "Football",
+  "Baseball",
+  "Hockey",
+  "Tennis",
+  "Golf",
+  "MMA",
+  "Boxing",
+  "Motorsports",
+  "Cricket",
+  "Esports",
+  "Olympics",
+  "More Sports",
+];
+
+/** Sports present in the live data, with event counts, in curated order. */
+export function useSportsSubcategories(): { name: string; count: number }[] {
+  // Subscribe to primitives only — useShallow on fresh objects re-renders
+  // forever (the store updates every 250ms).
+  const sportsKey = useMarketStore(
+    useShallow((s) =>
+      s.eventOrder.map((t) => {
+        const ev = s.events[t];
+        return ev?.category === "Sports" ? (ev.subCategory ?? "More Sports") : "";
+      }),
+    ),
+  );
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const sport of sportsKey) {
+      if (!sport) continue;
+      counts.set(sport, (counts.get(sport) ?? 0) + 1);
+    }
+    return SPORT_ORDER.filter((name) => counts.has(name)).map((name) => ({
+      name,
+      count: counts.get(name) ?? 0,
+    }));
+  }, [sportsKey]);
+}
+
 function topEventsBy24h(
   tickers: string[],
   events: Record<string, DashboardEvent>,
@@ -115,6 +168,7 @@ export function useGroupedEvents(): GroupedEvents {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const sortOrder = useUiStore((s) => s.sortOrder);
   const eventSearch = useUiStore((s) => s.eventSearch);
+  const sportsFilter = useUiStore((s) => s.sportsFilter);
 
   const eventCategoryKey = useMarketStore(
     useShallow((s) => s.eventOrder.map((t) => `${t}:${s.events[t]?.category}`)),
@@ -165,18 +219,35 @@ export function useGroupedEvents(): GroupedEvents {
         if (tickers.length === 0) continue;
         sections.push({
           category,
-          eventTickers: sortEventTickers(tickers, events, sortOrder),
+          eventTickers: sortEventTickers(
+            tickers,
+            events,
+            effectiveOrder(category, sortOrder),
+          ),
         });
       }
     } else {
-      const tickers = all.filter((t) => events[t].category === activeCategory);
+      let tickers = all.filter((t) => events[t].category === activeCategory);
+      // Sports sub-menu: narrow to one sport when picked.
+      if (activeCategory === "Sports" && sportsFilter !== "All") {
+        tickers = tickers.filter(
+          (t) => (events[t].subCategory ?? "More Sports") === sportsFilter,
+        );
+      }
       sections.push({
-        category: activeCategory,
-        eventTickers: sortEventTickers(tickers, events, sortOrder),
+        category:
+          activeCategory === "Sports" && sportsFilter !== "All"
+            ? sportsFilter
+            : activeCategory,
+        eventTickers: sortEventTickers(
+          tickers,
+          events,
+          effectiveOrder(activeCategory, sortOrder),
+        ),
       });
     }
 
     return { featured, sections };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, sortOrder, eventSearch, eventCategoryKey]);
+  }, [activeCategory, sortOrder, eventSearch, sportsFilter, eventCategoryKey]);
 }

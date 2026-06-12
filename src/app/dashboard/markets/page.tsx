@@ -10,7 +10,7 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import { useUiStore, type SortOrder, type ViewMode } from "@/stores/uiStore";
-import { useMarketsQuery } from "@/hooks/useMarkets";
+import { useMarketsQuery, useSportsSubcategories } from "@/hooks/useMarkets";
 import { MarketGrid } from "@/components/dashboard/MarketGrid";
 import { CategoryTabs } from "@/components/dashboard/CategoryFilter";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
@@ -75,9 +75,71 @@ export default function MarketsPage() {
         </div>
       </div>
 
+      {/* Sports sub-menu: pick a specific sport, Kalshi-style */}
+      {activeCategory === "Sports" && <SportsSubTabs />}
+
       <ErrorBoundary name="Market grid">
         <MarketGrid />
       </ErrorBoundary>
+    </div>
+  );
+}
+
+// ─── Sports sub-menu: one chip per sport present in the live data ─────────────
+
+function SportsSubTabs() {
+  const sports = useSportsSubcategories();
+  const sportsFilter = useUiStore((s) => s.sportsFilter);
+  const setSportsFilter = useUiStore((s) => s.setSportsFilter);
+
+  if (sports.length === 0) return null;
+
+  const chips = [{ name: "All", count: 0 }, ...sports];
+
+  return (
+    <div
+      className="lenium-tabbar"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 24px 4px",
+        overflowX: "auto",
+      }}
+    >
+      {chips.map(({ name }) => {
+        const active = sportsFilter === name;
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setSportsFilter(name)}
+            style={{
+              height: 32,
+              padding: "0 14px",
+              borderRadius: 999,
+              border: `1px solid ${active ? "#3A3A3A" : "#2C2C2C"}`,
+              background: active ? T.bgTertiary : "transparent",
+              color: active ? T.textPrimary : T.textMuted,
+              fontSize: 13,
+              fontWeight: active ? 600 : 400,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              transition: `color ${T.transition}, background ${T.transition}, border-color ${T.transition}`,
+              fontFamily: T.font,
+            }}
+            onMouseEnter={(e) => {
+              if (!active) e.currentTarget.style.color = "#CCCCCC";
+            }}
+            onMouseLeave={(e) => {
+              if (!active) e.currentTarget.style.color = T.textMuted;
+            }}
+          >
+            {name}
+          </button>
+        );
+      })}
     </div>
   );
 }

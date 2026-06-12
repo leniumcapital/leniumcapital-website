@@ -76,8 +76,13 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
 
   const closeMs = event.closeTime ? new Date(event.closeTime).getTime() : 0;
   // "Happening now" proxy: resolves within a few hours (live games, hourly
-  // strikes). Same-day events get the "Today @ ..." label instead.
-  const isLive = now > 0 && closeMs > now && closeMs - now < 4 * 3_600_000;
+  // strikes), with grace after the expected end for overtime. Same-day
+  // events get the "Today @ ..." label instead.
+  const isLive =
+    now > 0 &&
+    closeMs > 0 &&
+    closeMs - now < 4 * 3_600_000 &&
+    now - closeMs < 3 * 3_600_000;
 
   if (variant === "row") {
     const top = event.outcomes[0];

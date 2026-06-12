@@ -49,6 +49,8 @@ export type DashboardEvent = {
   seriesTicker: string;
   title: string;
   category: string;
+  /** Sport name for Sports events (World Cup, Basketball, ...). */
+  subCategory?: string;
   closeTime: string;
   /** Sum of volume across all tradable contracts in the event. */
   totalVolume: number;
