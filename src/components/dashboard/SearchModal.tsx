@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { T } from "@/lib/tokens";
@@ -16,15 +15,18 @@ export function SearchModal() {
   const query = useUiStore((s) => s.searchQuery);
   const setSearchQuery = useUiStore((s) => s.setSearchQuery);
 
-  // Subscribe to tickers + questions only — not live prices.
-  const searchIndex = useMarketStore(
-    useShallow((s) =>
-      s.order.map((t) => {
-        const m = s.markets[t];
-        return { ticker: t, question: m.question, category: m.category };
-      }),
-    ),
-  );
+  // Subscribe to the (stable) ticker order only — mapping to fresh objects
+  // inside the selector would defeat useShallow's equality check and loop the
+  // subscription forever. Questions/categories never change per price tick,
+  // so reading them once per order change is safe.
+  const order = useMarketStore((s) => s.order);
+  const searchIndex = useMemo(() => {
+    const markets = useMarketStore.getState().markets;
+    return order.map((t) => {
+      const m = markets[t];
+      return { ticker: t, question: m.question, category: m.category };
+    });
+  }, [order]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();

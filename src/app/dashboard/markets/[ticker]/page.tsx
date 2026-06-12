@@ -547,7 +547,11 @@ function RelatedMarkets({
   excludeTickers: string[];
 }) {
   const router = useRouter();
-  const related = useMarketStore(
+  // Select only ticker strings: useShallow can keep the snapshot stable for
+  // primitives, but NOT for freshly-mapped objects (that loops the
+  // external-store subscription forever and hangs the tab). Each card
+  // subscribes to its own market below.
+  const relatedTickers = useMarketStore(
     useShallow((s) => {
       const exclude = new Set(excludeTickers);
       return s.order
@@ -562,22 +566,11 @@ function RelatedMarkets({
           );
         })
         .sort((a, b) => s.markets[b].volume - s.markets[a].volume)
-        .slice(0, 3)
-        .map((t) => {
-          const m = s.markets[t];
-          return {
-            ticker: t,
-            question: m.question,
-            category: m.category,
-            yesPrice: m.yesPrice,
-            sparklineData: m.sparklineData,
-            open24h: m.open24h,
-          };
-        });
+        .slice(0, 3);
     }),
   );
 
-  if (related.length === 0) return null;
+  if (relatedTickers.length === 0) return null;
 
   return (
     <div style={{ marginTop: 32 }}>
@@ -592,12 +585,12 @@ function RelatedMarkets({
         People are also trading
       </div>
       <div style={{ display: "flex", gap: 12 }}>
-        {related.map((m) => (
+        {relatedTickers.map((t) => (
           <RelatedCard
-            key={m.ticker}
-            market={m}
+            key={t}
+            ticker={t}
             onClick={() =>
-              router.push(`/dashboard/markets/${encodeURIComponent(m.ticker)}`)
+              router.push(`/dashboard/markets/${encodeURIComponent(t)}`)
             }
           />
         ))}
@@ -607,20 +600,28 @@ function RelatedMarkets({
 }
 
 function RelatedCard({
-  market,
+  ticker,
   onClick,
 }: {
-  market: {
-    ticker: string;
-    question: string;
-    category: string;
-    yesPrice: number;
-    sparklineData: number[];
-    open24h: number;
-  };
+  ticker: string;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  // Individual primitive/stable-reference fields keep this subscription cheap.
+  const market = useMarketStore(
+    useShallow((s) => {
+      const m = s.markets[ticker];
+      return m
+        ? {
+            question: m.question,
+            category: m.category,
+            yesPrice: m.yesPrice,
+            sparklineData: m.sparklineData,
+          }
+        : null;
+    }),
+  );
+  if (!market) return null;
   const hasSpark = market.sparklineData.length >= 2;
   return (
     <div
