@@ -81,7 +81,7 @@ export type Addon = {
   id: AddonId;
   name: string;
   blurb: string;
-  /** Percentage of base fee (e.g. 0.28 = 28%). Mutually exclusive with `flat`. */
+  /** Percentage of base fee (e.g. 0.5 = 50%). Mutually exclusive with `flat`. */
   pctOfBase?: number;
   /** Flat dollar fee. */
   flat?: number;
@@ -94,14 +94,14 @@ export const ADDONS: Addon[] = [
     id: "split90",
     name: "90% profit split",
     blurb: "Changes the default 70/30 split to 90/10 permanently. Keep 90 cents of every dollar you earn on the funded account.",
-    pctOfBase: 0.28,
+    pctOfBase: 0.5,
     exclusive: false,
   },
   {
     id: "split95",
     name: "95% profit split",
     blurb: "The highest profit split available anywhere in the prediction market prop firm industry. Keep 95 cents of every dollar — Lenium retains 5%.",
-    pctOfBase: 0.45,
+    pctOfBase: 0.8,
     exclusive: true,
   },
   {
@@ -260,7 +260,7 @@ export const FAQS: FAQ[] = [
   },
   {
     q: "What if I fail the challenge?",
-    a: "Your account is closed. You may reset at 50% of the original challenge fee and begin a new challenge immediately at the same account size.",
+    a: "Your account is closed. You may reset at 25% off the original challenge fee and begin a new challenge immediately at the same account size.",
   },
   {
     q: "Can I trade any Kalshi market?",

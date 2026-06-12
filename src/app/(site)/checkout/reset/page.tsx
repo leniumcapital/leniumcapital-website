@@ -65,7 +65,7 @@ export default function ResetCheckoutPage() {
               </span>
             </div>
             <div className="flex items-end justify-between border-t border-border pt-3">
-              <span className="text-muted">Total today</span>
+              <span className="text-muted">Total charged today</span>
               <span className="text-2xl font-semibold tracking-tight">
                 {usd(resetFee(tier))}
               </span>
