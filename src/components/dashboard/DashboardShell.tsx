@@ -201,8 +201,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
             height: `calc(100vh - ${TOP_BAR_HEIGHT}px)`,
             overflowY: "auto",
             overflowX: "hidden",
-            // The 48px category tab bar is sticky inside this scroller.
-            scrollPaddingTop: 56,
+            // Heading + category tabs stick together (~82px + 44px).
+            scrollPaddingTop: 134,
             flex: 1,
             display: "flex",
             flexDirection: "column",
