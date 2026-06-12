@@ -7,6 +7,8 @@ export type MarketOutcome = {
   ticker: string;
   /** Outcome label, e.g. a team or candidate name. */
   name: string;
+  /** Resolved Kalshi CDN URL (team flag, logo, candidate photo). */
+  imageUrl?: string;
   yesPrice: number;
   noPrice: number;
   /** Previous (24h) price in cents; 0 when unknown. */
@@ -39,6 +41,8 @@ export type ChartRange = "1D" | "1W" | "1M" | "ALL";
 export type EventOutcome = {
   ticker: string;
   name: string;
+  /** Resolved Kalshi CDN URL (team flag, logo, candidate photo). */
+  imageUrl?: string;
   yesPrice: number;
   volume: number;
 };

@@ -11,6 +11,12 @@ import type {
   DashboardEvent,
   EventOutcome,
 } from "@/lib/marketDetail";
+import {
+  structuredTargetId,
+  structuredTargetImageKey,
+  structuredTargetUrl,
+  type StructuredTargetData,
+} from "@/lib/kalshiImages";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -63,6 +69,8 @@ type KalshiMarketRaw = {
   volume?: number;
   is_provisional?: boolean;
   mve_collection_ticker?: string;
+  strike_type?: string;
+  custom_strike?: Record<string, string>;
 };
 
 type KalshiEventRaw = {
@@ -399,6 +407,62 @@ const eventMetaCache = new Map<
 >();
 const EVENT_META_TTL_MS = 6 * 3600_000;
 
+// Structured targets (team flags, logos) — stable, cache aggressively.
+const structuredTargetCache = new Map<
+  string,
+  { at: number; data: StructuredTargetData | null }
+>();
+const STRUCTURED_TARGET_TTL_MS = 6 * 3600_000;
+
+async function fetchStructuredTarget(
+  id: string,
+): Promise<StructuredTargetData | null> {
+  const hit = structuredTargetCache.get(id);
+  if (hit && Date.now() - hit.at < STRUCTURED_TARGET_TTL_MS) return hit.data;
+  const data = await fetchJson<{ structured_target?: StructuredTargetData }>(
+    `${KALSHI_BASE}/structured_targets/${encodeURIComponent(id)}`,
+    5000,
+    { next: { revalidate: 3600 } },
+  );
+  const target = data?.structured_target ?? null;
+  if (target) structuredTargetCache.set(id, { at: Date.now(), data: target });
+  return target;
+}
+
+/** Fetch many structured targets in spaced batches (rate-limit safe). */
+async function batchFetchStructuredTargets(
+  ids: Iterable<string>,
+): Promise<Map<string, StructuredTargetData>> {
+  const unique = [...new Set(ids)];
+  const out = new Map<string, StructuredTargetData>();
+  for (let i = 0; i < unique.length; i += META_BATCH_SIZE) {
+    const batch = unique.slice(i, i + META_BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (id) => {
+        const target = await fetchStructuredTarget(id);
+        if (target) out.set(id, target);
+      }),
+    );
+    if (i + META_BATCH_SIZE < unique.length) {
+      await new Promise((r) => setTimeout(r, META_BATCH_GAP_MS));
+    }
+  }
+  return out;
+}
+
+function resolveOutcomeImageUrl(
+  market: KalshiMarketRaw,
+  seriesTicker: string,
+  targets: Map<string, StructuredTargetData>,
+): string | undefined {
+  const id = structuredTargetId(market.custom_strike);
+  if (!id) return undefined;
+  const target = targets.get(id);
+  if (!target) return undefined;
+  const key = structuredTargetImageKey(target, seriesTicker);
+  return key ? structuredTargetUrl(key) : undefined;
+}
+
 async function fetchEventMeta(
   eventTicker: string,
 ): Promise<{ title: string; category?: string; series?: string } | null> {
@@ -606,6 +670,17 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   );
   const seriesDir = await seriesDirPromise;
 
+  // Pre-fetch structured targets for carded outcomes (flags, logos, photos).
+  const structuredIds: string[] = [];
+  for (const ev of rawEvents) {
+    if (!ev.event_ticker) continue;
+    for (const c of validContracts(ev, ev.is_game).slice(0, 8)) {
+      const id = structuredTargetId(c.raw.custom_strike);
+      if (id) structuredIds.push(id);
+    }
+  }
+  const structuredTargets = await batchFetchStructuredTargets(structuredIds);
+
   const markets: DashboardMarket[] = [];
   const events: DashboardEvent[] = [];
   const seenTickers = new Set<string>();
@@ -663,6 +738,11 @@ export async function fetchDashboardData(): Promise<DashboardData> {
             contracts.length > 1
               ? c.raw.yes_sub_title || c.raw.title || c.ticker
               : c.raw.yes_sub_title || "Yes",
+          imageUrl: resolveOutcomeImageUrl(
+            c.raw,
+            seriesTicker,
+            structuredTargets,
+          ),
           yesPrice: c.yesPrice,
           volume: c.volume,
         }),
@@ -772,15 +852,23 @@ export async function fetchMarketDetail(
     if (ev) {
       category = normalizeCategory(ev.category);
       eventTitle = ev.title ?? eventTitle;
-      outcomes = (ev.markets ?? [])
+      const seriesTicker =
+        ev.series_ticker ?? market.event_ticker?.split("-")[0] ?? "";
+      const rawMarkets = (ev.markets ?? []).filter((m) => m.ticker);
+      const stIds = rawMarkets
+        .map((m) => structuredTargetId(m.custom_strike))
+        .filter((id): id is string => id != null);
+      const structuredTargets = await batchFetchStructuredTargets(stIds);
+
+      outcomes = rawMarkets
         .map((m): MarketOutcome | null => {
-          if (!m.ticker) return null;
           const c = priceCents(m);
           if (c == null) return null;
           const y = Math.min(99, Math.max(1, c));
           return {
-            ticker: m.ticker,
-            name: m.yes_sub_title || m.title || m.ticker,
+            ticker: m.ticker!,
+            name: m.yes_sub_title || m.title || m.ticker!,
+            imageUrl: resolveOutcomeImageUrl(m, seriesTicker, structuredTargets),
             yesPrice: y,
             noPrice: 100 - y,
             prevPrice: Math.round(num(m.previous_price_dollars) * 100),
@@ -794,10 +882,16 @@ export async function fetchMarketDetail(
   }
 
   if (outcomes.length === 0 && yes > 0) {
+    const seriesTicker = market.event_ticker?.split("-")[0] ?? "";
+    const stIds = structuredTargetId(market.custom_strike);
+    const structuredTargets = stIds
+      ? await batchFetchStructuredTargets([stIds])
+      : new Map<string, StructuredTargetData>();
     outcomes = [
       {
         ticker: market.ticker,
         name: market.yes_sub_title || market.title || market.ticker,
+        imageUrl: resolveOutcomeImageUrl(market, seriesTicker, structuredTargets),
         yesPrice: yes,
         noPrice: 100 - yes,
         prevPrice: Math.round(num(market.previous_price_dollars) * 100),

@@ -296,7 +296,12 @@ function OutcomeRow({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-      <OutcomeAvatar ticker={outcome.ticker} name={outcome.name} size={26} />
+      <OutcomeAvatar
+        ticker={outcome.ticker}
+        name={outcome.name}
+        imageUrl={outcome.imageUrl}
+        size={26}
+      />
 
       <span
         title={outcome.name}

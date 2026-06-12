@@ -307,7 +307,12 @@ function OutcomesTable({
               borderRadius: selected ? 8 : 0,
             }}
           >
-            <OutcomeAvatar ticker={o.ticker} name={o.name} size={28} />
+            <OutcomeAvatar
+              ticker={o.ticker}
+              name={o.name}
+              imageUrl={o.imageUrl}
+              size={28}
+            />
             {i < OUTCOME_COLORS.length && (
               <span
                 style={{
