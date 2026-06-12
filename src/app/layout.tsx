@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { NavigationLoader } from "@/components/NavigationLoader";
+import { KalshiMarketProvider } from "@/providers/KalshiMarketProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,10 +51,12 @@ export default function RootLayout({
       className={`dark ${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <Providers>
-          {children}
-          <NavigationLoader />
-        </Providers>
+        <KalshiMarketProvider>
+          <Providers>
+            {children}
+            <NavigationLoader />
+          </Providers>
+        </KalshiMarketProvider>
       </body>
     </html>
   );

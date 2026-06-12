@@ -10,12 +10,15 @@ interface UIState {
   selectedMarketTicker: string | null;
   viewMode: ViewMode;
   sortOrder: SortOrder;
+  /** Saved scroll offset of the markets grid for back-navigation restore. */
+  marketsScrollTop: number;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   openDrawer: (marketTicker: string) => void;
   closeDrawer: () => void;
   setViewMode: (mode: ViewMode) => void;
   setSortOrder: (order: SortOrder) => void;
+  setMarketsScrollTop: (top: number) => void;
   reset: () => void;
 }
 
@@ -26,6 +29,7 @@ const initial = {
   selectedMarketTicker: null as string | null,
   viewMode: "grid" as ViewMode,
   sortOrder: "volume" as SortOrder,
+  marketsScrollTop: 0,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
@@ -37,5 +41,6 @@ export const useUiStore = create<UIState>()((set) => ({
   closeDrawer: () => set({ drawerOpen: false }),
   setViewMode: (viewMode) => set({ viewMode }),
   setSortOrder: (sortOrder) => set({ sortOrder }),
+  setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
   reset: () => set(initial),
 }));

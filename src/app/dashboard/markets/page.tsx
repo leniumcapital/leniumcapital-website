@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { IconLayoutGrid, IconList } from "@tabler/icons-react";
 import { useUiStore, type SortOrder, type ViewMode } from "@/stores/uiStore";
 import { useMarketsQuery } from "@/hooks/useMarkets";
@@ -17,6 +18,13 @@ const SORT_OPTIONS: { value: SortOrder; label: string }[] = [
 
 export default function MarketsPage() {
   useMarketsQuery(); // initial fetch; the live feed keeps prices current
+
+  // Restore the grid scroll position when returning from a detail page.
+  useEffect(() => {
+    const main = document.getElementById("lenium-main");
+    const top = useUiStore.getState().marketsScrollTop;
+    if (main && top > 0) main.scrollTop = top;
+  }, []);
 
   const activeCategory = useUiStore((s) => s.activeCategory);
   const sortOrder = useUiStore((s) => s.sortOrder);

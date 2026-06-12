@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
@@ -9,6 +10,31 @@ import { useUiStore } from "@/stores/uiStore";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { compactUsd } from "@/lib/data";
 import { T } from "@/lib/tokens";
+
+/**
+ * Flash state for live price changes: snaps to green/red when the price
+ * moves, then fades back to white over 600ms. The pending timeout is held
+ * in the effect closure so a newer update always cancels the older reset.
+ */
+function usePriceFlash(yesPrice: number): string | null {
+  const [prevPrice, setPrevPrice] = useState(yesPrice);
+  const [flashColor, setFlashColor] = useState<string | null>(null);
+
+  // Adjust-state-during-render (guarded) — the recommended pattern for
+  // reacting to a changed subscription value without effect cascades.
+  if (prevPrice !== yesPrice) {
+    setPrevPrice(yesPrice);
+    setFlashColor(yesPrice > prevPrice ? T.green : T.red);
+  }
+
+  useEffect(() => {
+    if (flashColor == null) return;
+    const timeout = setTimeout(() => setFlashColor(null), 600);
+    return () => clearTimeout(timeout);
+  }, [flashColor, yesPrice]);
+
+  return flashColor;
+}
 
 interface MarketCardProps {
   ticker: string;
@@ -99,10 +125,12 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
       };
     }),
   );
-  const openDrawer = useUiStore((s) => s.openDrawer);
+  const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
   useRealSparkline(ticker);
+
+  const flashColor = usePriceFlash(market?.yesPrice ?? 0);
 
   const spring = useSpring(market?.yesPrice ?? 0, {
     stiffness: 120,
@@ -112,6 +140,13 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
   useEffect(() => {
     if (market) spring.set(market.yesPrice);
   }, [market, spring]);
+
+  const openDetail = () => {
+    // Remember where the grid was so back-navigation restores the position.
+    const main = document.getElementById("lenium-main");
+    if (main) useUiStore.getState().setMarketsScrollTop(main.scrollTop);
+    router.push(`/dashboard/markets/${encodeURIComponent(ticker)}`);
+  };
 
   // A card with no real data never renders — the grid filters these out,
   // and this guard covers transient store gaps.
@@ -125,7 +160,7 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
   if (variant === "row") {
     return (
       <div
-        onClick={() => openDrawer(ticker)}
+        onClick={openDetail}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
@@ -164,7 +199,9 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
         {hasSparkline && (
           <Sparkline data={market.sparklineData} up={up} width={64} height={22} />
         )}
-        <span
+        <motion.span
+          animate={{ color: flashColor ?? T.textPrimary }}
+          transition={{ duration: flashColor ? 0.05 : 0.6, ease: "easeOut" }}
           style={{
             color: T.textPrimary,
             fontSize: 16,
@@ -175,14 +212,14 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
           }}
         >
           {market.yesPrice}%
-        </span>
+        </motion.span>
       </div>
     );
   }
 
   return (
     <div
-      onClick={() => openDrawer(ticker)}
+      onClick={openDetail}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -241,7 +278,9 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
           marginBottom: 10,
         }}
       >
-        <span
+        <motion.span
+          animate={{ color: flashColor ?? T.textPrimary }}
+          transition={{ duration: flashColor ? 0.05 : 0.6, ease: "easeOut" }}
           style={{
             color: T.textPrimary,
             fontSize: 28,
@@ -251,7 +290,7 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
           }}
         >
           <motion.span>{display}</motion.span>%
-        </span>
+        </motion.span>
         {hasSparkline && (
           <Sparkline data={market.sparklineData} up={up} width={80} height={28} />
         )}

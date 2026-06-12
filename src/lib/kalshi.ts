@@ -5,6 +5,8 @@
  */
 import "server-only";
 
+import type { MarketDetail, MarketOutcome } from "@/lib/marketDetail";
+
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
   "https://api.elections.kalshi.com/trade-api/v2";
@@ -35,8 +37,14 @@ export type DashboardMarket = {
 type KalshiMarketRaw = {
   ticker?: string;
   title?: string;
+  yes_sub_title?: string;
   close_time?: string;
+  status?: string;
+  event_ticker?: string;
+  rules_primary?: string;
+  rules_secondary?: string;
   last_price_dollars?: string;
+  previous_price_dollars?: string;
   yes_bid_dollars?: string;
   yes_ask_dollars?: string;
   volume_fp?: string;
@@ -251,6 +259,90 @@ export async function fetchMarketHistory(
     if (ts > 0 && close > 0) points.push({ t: ts, p: Math.min(99, Math.max(1, close)) });
   }
   return points;
+}
+
+/**
+ * Full detail for one market: its own data plus every sibling outcome in the
+ * same event (for multi-outcome markets), category, and resolution rules.
+ */
+export async function fetchMarketDetail(
+  ticker: string,
+): Promise<MarketDetail | null> {
+  const marketData = await fetchJson<{ market?: KalshiMarketRaw }>(
+    `${KALSHI_BASE}/markets/${encodeURIComponent(ticker)}`,
+    6000,
+    { next: { revalidate: 5 } },
+  );
+  const market = marketData?.market;
+  if (!market?.ticker) return null;
+
+  const cents = priceCents(market);
+  const yes = cents == null ? 0 : Math.min(99, Math.max(1, cents));
+
+  let category = "Markets";
+  let eventTitle = market.title ?? ticker;
+  let outcomes: MarketOutcome[] = [];
+
+  if (market.event_ticker) {
+    const eventData = await fetchJson<{ event?: KalshiEventRaw }>(
+      `${KALSHI_BASE}/events/${encodeURIComponent(market.event_ticker)}?with_nested_markets=true`,
+      6000,
+      { next: { revalidate: 15 } },
+    );
+    const ev = eventData?.event;
+    if (ev) {
+      category = normalizeCategory(ev.category);
+      eventTitle = ev.title ?? eventTitle;
+      outcomes = (ev.markets ?? [])
+        .map((m): MarketOutcome | null => {
+          if (!m.ticker) return null;
+          const c = priceCents(m);
+          if (c == null) return null;
+          const y = Math.min(99, Math.max(1, c));
+          return {
+            ticker: m.ticker,
+            name: m.yes_sub_title || m.title || m.ticker,
+            yesPrice: y,
+            noPrice: 100 - y,
+            prevPrice: Math.round(num(m.previous_price_dollars) * 100),
+            volume: marketVolume(m),
+          };
+        })
+        .filter((o): o is MarketOutcome => o !== null)
+        .sort((a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume)
+        .slice(0, 8);
+    }
+  }
+
+  if (outcomes.length === 0 && yes > 0) {
+    outcomes = [
+      {
+        ticker: market.ticker,
+        name: market.yes_sub_title || market.title || market.ticker,
+        yesPrice: yes,
+        noPrice: 100 - yes,
+        prevPrice: Math.round(num(market.previous_price_dollars) * 100),
+        volume: marketVolume(market),
+      },
+    ];
+  }
+
+  return {
+    ticker: market.ticker,
+    question: market.title || eventTitle,
+    eventTitle,
+    category,
+    yesPrice: yes,
+    noPrice: 100 - yes,
+    prevPrice: Math.round(num(market.previous_price_dollars) * 100),
+    volume: marketVolume(market),
+    volume24h: num(market.volume_24h_fp),
+    expiry: market.close_time ?? "",
+    status: market.status ?? "active",
+    rulesPrimary: market.rules_primary ?? "",
+    rulesSecondary: market.rules_secondary ?? "",
+    outcomes,
+  };
 }
 
 /** Current YES price for a single market — used for server-side order fills. */

@@ -46,6 +46,8 @@ interface MarketState {
   lastBatchAt: number;
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
+  /** Populate the store from the initial REST fetch (alias of setMarkets). */
+  initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
   /** Single setState for a whole accumulator flush — one React notification. */
   batchUpdatePrices: (updates: Record<string, PriceUpdate>) => void;
@@ -53,6 +55,31 @@ interface MarketState {
   /** Seed the sparkline + 24h open from real candlestick history (once). */
   seedSparklineFromHistory: (ticker: string, points: PricePoint[]) => void;
   reset: () => void;
+}
+
+/** Merge a markets snapshot into draft state, preserving richer client-side
+ *  data already accumulated: drawer history, candlestick-seeded sparklines,
+ *  and the 24h open. */
+function mergeMarkets(
+  s: { markets: Record<string, Market>; order: string[] },
+  markets: Market[],
+): void {
+  for (const m of markets) {
+    if (!s.markets[m.ticker]) s.order.push(m.ticker);
+    const prev = s.markets[m.ticker];
+    s.markets[m.ticker] = {
+      ...m,
+      priceHistory: prev?.priceHistory?.length
+        ? prev.priceHistory
+        : m.priceHistory,
+      sparklineData:
+        prev && prev.sparklineData.length > m.sparklineData.length
+          ? prev.sparklineData
+          : m.sparklineData,
+      open24h: prev?.historyLoaded ? prev.open24h : m.open24h,
+      historyLoaded: prev?.historyLoaded ?? false,
+    };
+  }
 }
 
 export const useMarketStore = create<MarketState>()(
@@ -69,24 +96,12 @@ export const useMarketStore = create<MarketState>()(
 
     setMarkets: (markets) =>
       set((s) => {
-        for (const m of markets) {
-          if (!s.markets[m.ticker]) s.order.push(m.ticker);
-          // Preserve richer data already accumulated client-side: drawer
-          // history, the candlestick-seeded sparkline, and the 24h open.
-          const prev = s.markets[m.ticker];
-          s.markets[m.ticker] = {
-            ...m,
-            priceHistory: prev?.priceHistory?.length
-              ? prev.priceHistory
-              : m.priceHistory,
-            sparklineData:
-              prev && prev.sparklineData.length > m.sparklineData.length
-                ? prev.sparklineData
-                : m.sparklineData,
-            open24h: prev?.historyLoaded ? prev.open24h : m.open24h,
-            historyLoaded: prev?.historyLoaded ?? false,
-          };
-        }
+        mergeMarkets(s, markets);
+      }),
+
+    initializeMarkets: (markets) =>
+      set((s) => {
+        mergeMarkets(s, markets);
       }),
 
     updatePrice: ({ ticker, yesPrice, noPrice, volume }) =>

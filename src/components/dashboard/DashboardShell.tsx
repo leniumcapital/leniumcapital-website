@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
@@ -11,7 +10,6 @@ import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { useChallengeSync, useChallengeProgress } from "@/hooks/useChallengeProgress";
 import {
   useAccountStore,
@@ -45,14 +43,8 @@ interface DashboardShellProps {
   children: React.ReactNode;
 }
 
-const queryClient = new QueryClient();
-
 export function DashboardShell({ user, children }: DashboardShellProps) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ShellInner user={user}>{children}</ShellInner>
-    </QueryClientProvider>
-  );
+  return <ShellInner user={user}>{children}</ShellInner>;
 }
 
 function ShellInner({ user, children }: DashboardShellProps) {
@@ -73,8 +65,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
     });
   }, [user]);
 
-  // ── Live feed + challenge bookkeeping ──────────────────────────────────────
-  useWebSocket();
+  // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
+  // survives every navigation. Only challenge bookkeeping lives here.
   useChallengeSync();
   useRuleEnforcement();
 
@@ -154,6 +146,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
         <Sidebar />
 
         <main
+          id="lenium-main"
           style={{
             marginTop: TOP_BAR_HEIGHT,
             marginLeft: SIDEBAR_WIDTH,

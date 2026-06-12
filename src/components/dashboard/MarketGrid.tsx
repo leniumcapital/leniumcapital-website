@@ -7,12 +7,18 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconChevronRight, IconAlertCircle } from "@tabler/icons-react";
 import { FixedSizeGrid } from "react-window";
+import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useUiStore } from "@/stores/uiStore";
 import { useMarketStore } from "@/stores/marketStore";
+import {
+  fetchMarketHistoryClient,
+  marketHistoryQueryKey,
+} from "@/lib/clientApi";
 import {
   useGroupedMarkets,
   useMarketsQuery,
@@ -42,6 +48,23 @@ export function MarketGrid() {
       useMarketStore.getState().setMarkets(data);
     }
   }, [data]);
+
+  // Prefetch 1D history for the top 10 markets by volume so clicking those
+  // cards renders the detail chart instantly.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    const top = [...data]
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 10);
+    for (const m of top) {
+      void queryClient.prefetchQuery({
+        queryKey: marketHistoryQueryKey(m.ticker, "1D"),
+        queryFn: () => fetchMarketHistoryClient(m.ticker, "1D"),
+        staleTime: 60_000,
+      });
+    }
+  }, [data, queryClient]);
   const activeCategory = useUiStore((s) => s.activeCategory);
   const viewMode = useUiStore((s) => s.viewMode);
 
@@ -288,14 +311,14 @@ function FeaturedMarketStrip({ ticker }: { ticker: string }) {
       return { question: m.question, yesPrice: m.yesPrice, volume: m.volume };
     }),
   );
-  const openDrawer = useUiStore((s) => s.openDrawer);
+  const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
   if (!market || market.yesPrice <= 0 || market.volume <= 0) return null;
 
   return (
     <div
-      onClick={() => openDrawer(ticker)}
+      onClick={() => router.push(`/dashboard/markets/${encodeURIComponent(ticker)}`)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
@@ -11,8 +12,9 @@ const MAX_RESULTS = 30;
 
 /** Grouped search results dropdown under the top-bar search input. */
 export function SearchModal() {
+  const router = useRouter();
   const query = useUiStore((s) => s.searchQuery);
-  const openDrawer = useUiStore((s) => s.openDrawer);
+  const setSearchQuery = useUiStore((s) => s.setSearchQuery);
 
   // Subscribe to tickers + questions only — not live prices.
   const searchIndex = useMarketStore(
@@ -98,7 +100,12 @@ export function SearchModal() {
                 key={m.ticker}
                 ticker={m.ticker}
                 question={m.question}
-                onSelect={() => openDrawer(m.ticker)}
+                onSelect={() => {
+                  setSearchQuery("");
+                  router.push(
+                    `/dashboard/markets/${encodeURIComponent(m.ticker)}`,
+                  );
+                }}
               />
             ))}
           </div>

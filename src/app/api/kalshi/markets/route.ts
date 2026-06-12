@@ -21,5 +21,8 @@ export async function GET() {
       { status: 502 },
     );
   }
-  return NextResponse.json({ markets });
+  return NextResponse.json(
+    { markets },
+    { headers: { "Cache-Control": "private, max-age=30" } },
+  );
 }
