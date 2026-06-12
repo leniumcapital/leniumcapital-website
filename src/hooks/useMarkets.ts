@@ -62,6 +62,17 @@ export const CATEGORY_ORDER = [
 const TRENDING_TAB_SIZE = 20;
 const TRENDING_SECTION_SIZE = 6;
 
+/** Only markets with a real price and real volume ever render. */
+function tradableTickers(
+  order: string[],
+  markets: Record<string, Market>,
+): string[] {
+  return order.filter((t) => {
+    const m = markets[t];
+    return m != null && m.yesPrice > 0 && m.volume > 0;
+  });
+}
+
 function topByVolume24h(
   tickers: string[],
   markets: Record<string, Market>,
@@ -92,13 +103,14 @@ export function useVisibleMarketTickers(): string[] {
 
   return useMemo(() => {
     const { markets, order } = useMarketStore.getState();
+    const tradable = tradableTickers(order, markets);
     if (activeCategory === "Trending") {
-      return topByVolume24h(order, markets, TRENDING_TAB_SIZE);
+      return topByVolume24h(tradable, markets, TRENDING_TAB_SIZE);
     }
     const filtered =
       activeCategory === "All Markets"
-        ? [...order]
-        : order.filter((t) => markets[t]?.category === activeCategory);
+        ? tradable
+        : tradable.filter((t) => markets[t]?.category === activeCategory);
     return sortTickers(filtered, markets, sortOrder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, sortOrder, tickerCategoryKey]);
@@ -130,9 +142,10 @@ export function useGroupedMarkets(): GroupedMarkets {
 
   return useMemo(() => {
     const { markets, order } = useMarketStore.getState();
-    if (order.length === 0) return { featured: null, sections: [] };
+    const tradable = tradableTickers(order, markets);
+    if (tradable.length === 0) return { featured: null, sections: [] };
 
-    const featured = topByVolume24h(order, markets, 1)[0] ?? null;
+    const featured = topByVolume24h(tradable, markets, 1)[0] ?? null;
     const showAll =
       activeCategory === "All Markets" || activeCategory === "Trending";
 
@@ -143,10 +156,12 @@ export function useGroupedMarkets(): GroupedMarkets {
         activeCategory === "Trending" ? TRENDING_TAB_SIZE : TRENDING_SECTION_SIZE;
       sections.push({
         category: "Trending",
-        tickers: topByVolume24h(order, markets, trendingSize),
+        tickers: topByVolume24h(tradable, markets, trendingSize),
       });
       for (const category of CATEGORY_ORDER) {
-        const tickers = order.filter((t) => markets[t]?.category === category);
+        const tickers = tradable.filter(
+          (t) => markets[t]?.category === category,
+        );
         if (tickers.length === 0) continue;
         sections.push({
           category,
@@ -154,7 +169,7 @@ export function useGroupedMarkets(): GroupedMarkets {
         });
       }
     } else {
-      const tickers = order.filter(
+      const tickers = tradable.filter(
         (t) => markets[t]?.category === activeCategory,
       );
       sections.push({
@@ -168,15 +183,15 @@ export function useGroupedMarkets(): GroupedMarkets {
   }, [activeCategory, sortOrder, tickerCategoryKey]);
 }
 
-/** Live category → count map for the sidebar badges. */
+/** Live category → count map for the tab bar. Counts only tradable markets. */
 export function useCategoryCounts(): Record<string, number> {
   return useMarketStore(
     useShallow((s) => {
       const counts: Record<string, number> = {};
       for (const ticker of s.order) {
-        const cat = s.markets[ticker]?.category;
-        if (!cat) continue;
-        counts[cat] = (counts[cat] ?? 0) + 1;
+        const m = s.markets[ticker];
+        if (!m || m.yesPrice <= 0 || m.volume <= 0) continue;
+        counts[m.category] = (counts[m.category] ?? 0) + 1;
       }
       return counts;
     }),

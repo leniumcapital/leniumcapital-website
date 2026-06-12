@@ -60,7 +60,7 @@ export function CategoryTabs() {
               fontWeight: active ? 500 : 400,
               cursor: "pointer",
               whiteSpace: "nowrap",
-              transition: `color ${T.transition}`,
+              transition: "color 100ms ease, background 100ms ease",
               fontFamily: T.font,
               flexShrink: 0,
             }}
@@ -79,7 +79,7 @@ export function CategoryTabs() {
           >
             {active && (
               <motion.span
-                layoutId="activeTab"
+                layoutId="activeTabBg"
                 transition={{ type: "spring", stiffness: 500, damping: 38 }}
                 style={{
                   position: "absolute",

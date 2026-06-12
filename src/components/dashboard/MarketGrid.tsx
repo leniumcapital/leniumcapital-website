@@ -8,33 +8,31 @@ import {
   type CSSProperties,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconChevronRight, IconClock } from "@tabler/icons-react";
+import { IconChevronRight, IconAlertCircle } from "@tabler/icons-react";
 import { FixedSizeGrid } from "react-window";
 import { useShallow } from "zustand/react/shallow";
 import { useUiStore } from "@/stores/uiStore";
 import { useMarketStore } from "@/stores/marketStore";
-import { useGroupedMarkets, type MarketSection } from "@/hooks/useMarkets";
 import {
-  MarketCard,
-  SkeletonCard,
-  useRealSparkline,
-} from "@/components/dashboard/MarketCard";
-import { Sparkline } from "@/components/dashboard/Sparkline";
-import { compactUsd } from "@/lib/data";
+  useGroupedMarkets,
+  useMarketsQuery,
+  type MarketSection,
+} from "@/hooks/useMarkets";
+import { MarketCard, SkeletonCard } from "@/components/dashboard/MarketCard";
 import { T } from "@/lib/tokens";
 
 const CARD_GAP = 12;
-const SECTION_GAP = 40;
 const INITIAL_SECTIONS = 2;
 const VIRTUALIZE_THRESHOLD = 100;
 const VIRTUAL_ROW_HEIGHT = 196;
 
 /**
- * Kalshi-style market browser: a featured trending card, then markets grouped
- * into named category sections. Sections lazy-load as the user scrolls; only
- * oversized categories (>100 markets) fall back to react-window.
+ * Kalshi-style market browser: a compact featured trending strip, then
+ * markets grouped into named category sections. Sections lazy-load as the
+ * user scrolls; only oversized categories (>100 markets) use react-window.
  */
 export function MarketGrid() {
+  const { isError, refetch } = useMarketsQuery();
   const { featured, sections } = useGroupedMarkets();
   const activeCategory = useUiStore((s) => s.activeCategory);
   const viewMode = useUiStore((s) => s.viewMode);
@@ -70,7 +68,7 @@ export function MarketGrid() {
     activeCategory === "All Markets" || activeCategory === "Trending";
 
   if (sections.length === 0) {
-    return <SkeletonSections />;
+    return isError ? <ErrorState onRetry={() => void refetch()} /> : <SkeletonGrid />;
   }
 
   return (
@@ -81,9 +79,9 @@ export function MarketGrid() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
-        style={{ paddingBottom: 48 }}
+        style={{ paddingTop: 16, paddingBottom: 48 }}
       >
-        {showFeatured && featured && <FeaturedMarketCard ticker={featured} />}
+        {showFeatured && featured && <FeaturedMarketStrip ticker={featured} />}
 
         {sections.slice(0, visibleSections).map((section) => (
           <CategorySection
@@ -121,7 +119,7 @@ function CategorySection({
   const [headerHovered, setHeaderHovered] = useState(false);
 
   return (
-    <section style={{ marginBottom: SECTION_GAP - 32 }}>
+    <section>
       <div
         style={{
           height: 48,
@@ -147,7 +145,7 @@ function CategorySection({
             cursor: "pointer",
             color: T.textPrimary,
             fontSize: 16,
-            fontWeight: 500,
+            fontWeight: 600,
             fontFamily: T.font,
           }}
         >
@@ -173,7 +171,7 @@ function CategorySection({
             display: "flex",
             flexDirection: "column",
             gap: 8,
-            padding: "0 24px 32px",
+            padding: "0 24px",
           }}
         >
           {section.tickers.map((ticker) => (
@@ -188,7 +186,7 @@ function CategorySection({
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: CARD_GAP,
-            padding: "0 24px 32px",
+            padding: "0 24px",
             alignItems: "stretch",
           }}
         >
@@ -197,6 +195,15 @@ function CategorySection({
           ))}
         </div>
       )}
+
+      {/* Thin rule for clean separation before the next section header. */}
+      <div
+        style={{
+          height: 0.5,
+          background: T.bgTertiary,
+          margin: "8px 24px 32px",
+        }}
+      />
     </section>
   );
 }
@@ -245,7 +252,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
   );
 
   return (
-    <div ref={containerRef} style={{ padding: "0 24px 32px" }}>
+    <div ref={containerRef} style={{ padding: "0 24px" }}>
       {width > 0 && (
         <FixedSizeGrid
           columnCount={columnCount}
@@ -263,188 +270,145 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
   );
 }
 
-// ─── Featured trending market ─────────────────────────────────────────────────
+// ─── Featured trending strip ──────────────────────────────────────────────────
 
-function FeaturedMarketCard({ ticker }: { ticker: string }) {
+function FeaturedMarketStrip({ ticker }: { ticker: string }) {
   const market = useMarketStore(
     useShallow((s) => {
       const m = s.markets[ticker];
       if (!m) return null;
-      return {
-        question: m.question,
-        yesPrice: m.yesPrice,
-        volume: m.volume,
-        expiry: m.expiry,
-        sparklineData: m.sparklineData,
-      };
+      return { question: m.question, yesPrice: m.yesPrice, volume: m.volume };
     }),
   );
   const openDrawer = useUiStore((s) => s.openDrawer);
   const [hovered, setHovered] = useState(false);
 
-  useRealSparkline(ticker);
-
-  if (!market || market.yesPrice <= 0) {
-    return (
-      <div style={{ margin: "16px 24px 8px" }}>
-        <div
-          className="lenium-skeleton"
-          style={{ height: 100, borderRadius: 10 }}
-        />
-      </div>
-    );
-  }
-
-  const expiryLabel = market.expiry
-    ? new Date(market.expiry).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    : "—";
-  const hasSparkline = market.sparklineData.length >= 2;
-  const up =
-    hasSparkline &&
-    market.yesPrice >= market.sparklineData[0];
+  if (!market || market.yesPrice <= 0 || market.volume <= 0) return null;
 
   return (
-    <div style={{ margin: "16px 24px 8px" }}>
-      <div
-        onClick={() => openDrawer(ticker)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+    <div
+      onClick={() => openDrawer(ticker)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        height: 72,
+        boxSizing: "border-box",
+        margin: "0 24px 24px",
+        padding: "16px 20px",
+        background: T.bgSecondary,
+        border: T.hairline(hovered ? T.borderHover : T.border),
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        cursor: "pointer",
+        boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.5)" : "none",
+        transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
+        fontFamily: T.font,
+      }}
+    >
+      <span
         style={{
-          minHeight: 100,
-          background: T.bgSecondary,
-          border: T.hairline(hovered ? T.borderHover : T.border),
-          borderRadius: 10,
-          padding: "20px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 24,
-          cursor: "pointer",
-          boxShadow: hovered ? "0 2px 16px rgba(0,0,0,0.5)" : "none",
-          transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
-          fontFamily: T.font,
+          color: T.green,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          minWidth: 72,
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              color: T.green,
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: "0.1em",
-              marginBottom: 6,
-            }}
-          >
-            TRENDING
-          </div>
-          <div
-            title={market.question}
-            style={{
-              color: T.textPrimary,
-              fontSize: 16,
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {market.question}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginTop: 6,
-              color: T.textMuted,
-              fontSize: 12,
-            }}
-          >
-            <span>{compactUsd(market.volume)} vol</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <IconClock size={12} stroke={1.5} />
-              {expiryLabel}
-            </span>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 20,
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              color: T.textPrimary,
-              fontSize: 32,
-              fontWeight: 500,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {market.yesPrice}%
-          </span>
-          {hasSparkline ? (
-            <Sparkline
-              data={market.sparklineData}
-              up={up}
-              width={120}
-              height={40}
-            />
-          ) : (
-            <span className="lenium-skeleton" style={{ width: 120, height: 40 }} />
-          )}
-        </div>
-      </div>
+        TRENDING
+      </span>
+      <span
+        title={market.question}
+        style={{
+          flex: 1,
+          color: T.textPrimary,
+          fontSize: 14,
+          fontWeight: 500,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {market.question}
+      </span>
+      <span
+        style={{
+          color: T.textPrimary,
+          fontSize: 20,
+          fontWeight: 600,
+          minWidth: 60,
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {market.yesPrice}%
+      </span>
     </div>
   );
 }
 
-// ─── Initial loading state ────────────────────────────────────────────────────
+// ─── Loading and error states ─────────────────────────────────────────────────
 
-function SkeletonSections() {
+function SkeletonGrid() {
   return (
-    <div style={{ paddingTop: 16 }}>
-      <div style={{ margin: "0 24px 8px" }}>
-        <div
-          className="lenium-skeleton"
-          style={{ height: 100, borderRadius: 10 }}
-        />
-      </div>
-      {[0, 1].map((s) => (
-        <div key={s}>
-          <div
-            style={{
-              height: 48,
-              display: "flex",
-              alignItems: "center",
-              padding: "0 24px",
-            }}
-          >
-            <div
-              className="lenium-skeleton"
-              style={{ width: 140, height: 20, borderRadius: 6 }}
-            />
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: CARD_GAP,
-              padding: "0 24px 32px",
-            }}
-          >
-            {Array.from({ length: 6 }, (_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: CARD_GAP,
+        padding: "16px 24px",
+      }}
+    >
+      {Array.from({ length: 9 }, (_, i) => (
+        <SkeletonCard key={i} />
       ))}
+    </div>
+  );
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: "120px 24px",
+        fontFamily: T.font,
+        textAlign: "center",
+      }}
+    >
+      <IconAlertCircle size={32} color={T.textMuted} stroke={1.5} />
+      <span style={{ color: T.textPrimary, fontSize: 15 }}>
+        Unable to load markets
+      </span>
+      <span style={{ color: T.textMuted, fontSize: 13 }}>
+        Check your Kalshi API credentials in .env.local
+      </span>
+      <button
+        type="button"
+        onClick={onRetry}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          marginTop: 6,
+          border: T.hairline(hovered ? T.borderHover : T.border),
+          color: T.textSecondary,
+          background: "transparent",
+          borderRadius: 6,
+          padding: "8px 16px",
+          fontSize: 13,
+          cursor: "pointer",
+          fontFamily: T.font,
+          transition: `border-color ${T.transition}`,
+        }}
+      >
+        Try again
+      </button>
     </div>
   );
 }

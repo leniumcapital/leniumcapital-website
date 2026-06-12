@@ -1,13 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useSpring,
-  useTransform,
-} from "framer-motion";
-import { IconClock } from "@tabler/icons-react";
+import { motion, useSpring, useTransform } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type PricePoint } from "@/stores/marketStore";
@@ -80,14 +74,11 @@ export function useRealSparkline(ticker: string): void {
   }, [data, ticker]);
 }
 
-function formatExpiry(expiry: string): { label: string; within24h: boolean } {
-  if (!expiry) return { label: "—", within24h: false };
+function formatExpiry(expiry: string): string {
+  if (!expiry) return "";
   const d = new Date(expiry);
-  if (Number.isNaN(d.getTime())) return { label: "—", within24h: false };
-  return {
-    label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    within24h: d.getTime() - Date.now() < 86_400_000,
-  };
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
@@ -105,7 +96,6 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
         expiry: m.expiry,
         sparklineData: m.sparklineData,
         open24h: m.open24h,
-        historyLoaded: m.historyLoaded ?? false,
       };
     }),
   );
@@ -123,14 +113,14 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
     if (market) spring.set(market.yesPrice);
   }, [market, spring]);
 
-  if (!market || market.yesPrice <= 0) {
-    return <SkeletonCard variant={variant} />;
-  }
+  // A card with no real data never renders — the grid filters these out,
+  // and this guard covers transient store gaps.
+  if (!market || market.yesPrice <= 0 || market.volume <= 0) return null;
 
-  const expiry = formatExpiry(market.expiry);
+  const expiryLabel = formatExpiry(market.expiry);
+  // Show a sparkline only with real history — never a flat fake line.
   const hasSparkline = market.sparklineData.length >= 2;
-  const up =
-    market.yesPrice >= (hasSparkline ? market.sparklineData[0] : market.open24h);
+  const up = hasSparkline && market.yesPrice >= market.sparklineData[0];
 
   if (variant === "row") {
     return (
@@ -143,7 +133,7 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
           alignItems: "center",
           gap: 16,
           height: 56,
-          padding: "0 18px",
+          padding: "0 16px",
           background: T.bgSecondary,
           border: T.hairline(hovered ? T.borderHover : T.border),
           borderRadius: 10,
@@ -152,12 +142,14 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
           fontFamily: T.font,
         }}
       >
-        <CategoryPill category={market.category} />
+        <span style={{ color: T.textMuted, fontSize: 11, minWidth: 72 }}>
+          {market.category}
+        </span>
         <span
           title={market.question}
           style={{
             flex: 1,
-            color: T.textPrimary,
+            color: "#CCCCCC",
             fontSize: 13,
             whiteSpace: "nowrap",
             overflow: "hidden",
@@ -169,16 +161,14 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
         <span style={{ color: T.textMuted, fontSize: 12 }}>
           {compactUsd(market.volume)} vol
         </span>
-        {hasSparkline ? (
+        {hasSparkline && (
           <Sparkline data={market.sparklineData} up={up} width={64} height={22} />
-        ) : (
-          <span className="lenium-skeleton" style={{ width: 64, height: 22 }} />
         )}
         <span
           style={{
             color: T.textPrimary,
             fontSize: 16,
-            fontWeight: 500,
+            fontWeight: 600,
             width: 48,
             textAlign: "right",
             fontVariantNumeric: "tabular-nums",
@@ -196,52 +186,39 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        position: "relative",
         background: T.bgSecondary,
         border: T.hairline(hovered ? T.borderHover : T.border),
         borderRadius: 10,
-        padding: "16px 18px",
+        padding: 16,
         cursor: "pointer",
-        boxShadow: hovered ? "0 2px 16px rgba(0,0,0,0.5)" : "none",
+        boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.5)" : "none",
         transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
         fontFamily: T.font,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* Top row: category + expiry */}
+      {/* Row 1 — metadata: plain muted text, no pills, no icons */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: 10,
         }}
       >
-        <CategoryPill category={market.category} />
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <IconClock
-            size={11}
-            color={expiry.within24h ? T.amber : T.textMuted}
-            stroke={1.5}
-          />
-          <span
-            style={{
-              color: expiry.within24h ? T.amber : T.textMuted,
-              fontSize: 11,
-            }}
-          >
-            {expiry.label}
-          </span>
-        </div>
+        <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 400 }}>
+          {market.category}
+        </span>
+        <span style={{ fontSize: 11, color: T.textMuted }}>{expiryLabel}</span>
       </div>
 
-      {/* Question */}
+      {/* Row 2 — question: secondary to the price */}
       <p
         title={market.question}
         style={{
-          marginTop: 10,
-          marginBottom: 0,
-          color: T.textPrimary,
+          margin: "0 0 12px",
+          color: "#CCCCCC",
           fontSize: 13,
           lineHeight: 1.5,
           fontWeight: 400,
@@ -255,37 +232,34 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
         {market.question}
       </p>
 
-      {/* Price + sparkline */}
+      {/* Row 3 — price (dominant) + sparkline */}
       <div
         style={{
-          marginTop: 12,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          marginBottom: 10,
         }}
       >
         <span
           style={{
             color: T.textPrimary,
             fontSize: 28,
-            fontWeight: 500,
+            fontWeight: 600,
             lineHeight: 1,
             fontVariantNumeric: "tabular-nums",
           }}
         >
           <motion.span>{display}</motion.span>%
         </span>
-        {hasSparkline ? (
-          <Sparkline data={market.sparklineData} up={up} width={72} height={24} />
-        ) : (
-          <span className="lenium-skeleton" style={{ width: 72, height: 24 }} />
+        {hasSparkline && (
+          <Sparkline data={market.sparklineData} up={up} width={80} height={28} />
         )}
       </div>
 
-      {/* Volume + YES/NO pills */}
+      {/* Row 4 — volume + compact YES/NO pills */}
       <div
         style={{
-          marginTop: 10,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -294,100 +268,52 @@ function MarketCardInner({ ticker, variant = "card" }: MarketCardProps) {
         <span style={{ color: T.textMuted, fontSize: 12 }}>
           {compactUsd(market.volume)} vol
         </span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 5 }}>
           <span
             style={{
               background: "rgba(0,232,122,0.08)",
-              border: T.hairline(T.greenMutedBorder),
+              border: "0.5px solid rgba(0,232,122,0.2)",
               color: T.green,
               fontSize: 11,
               borderRadius: 4,
-              padding: "2px 8px",
+              padding: "2px 7px",
             }}
           >
             YES {market.yesPrice}¢
           </span>
           <span
             style={{
-              background: T.bgTertiary,
+              background: "rgba(255,255,255,0.04)",
               border: T.hairline(),
               color: T.textMuted,
               fontSize: 11,
               borderRadius: 4,
-              padding: "2px 8px",
+              padding: "2px 7px",
             }}
           >
             NO {market.noPrice}¢
           </span>
         </div>
       </div>
-
-      <AnimatePresence>
-        {hovered && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: "absolute",
-              bottom: 14,
-              right: 18,
-              color: T.green,
-              fontSize: 12,
-              background: T.bgSecondary,
-              paddingLeft: 8,
-            }}
-          >
-            Trade →
-          </motion.span>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
-function CategoryPill({ category }: { category: string }) {
-  return (
-    <span
-      style={{
-        background: T.bgTertiary,
-        border: T.hairline(),
-        borderRadius: 4,
-        padding: "2px 8px",
-        fontSize: 11,
-        color: T.textMuted,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {category}
-    </span>
-  );
-}
-
-/** Shimmer placeholder shown until real price data exists for the slot. */
-export function SkeletonCard({ variant = "card" }: { variant?: "card" | "row" }) {
-  if (variant === "row") {
-    return (
-      <div
-        className="lenium-skeleton"
-        style={{ height: 56, borderRadius: 10 }}
-      />
-    );
-  }
+/** Shimmer placeholder shown while market data loads. */
+export function SkeletonCard() {
   return (
     <div
       style={{
         background: T.bgSecondary,
         border: T.hairline(),
         borderRadius: 10,
-        padding: "16px 18px",
+        padding: 16,
         display: "flex",
         flexDirection: "column",
         gap: 12,
       }}
     >
-      <div className="lenium-skeleton" style={{ width: 80, height: 18 }} />
+      <div className="lenium-skeleton" style={{ width: "45%", height: 12 }} />
       <div className="lenium-skeleton" style={{ width: "100%", height: 36 }} />
       <div
         style={{
@@ -396,10 +322,9 @@ export function SkeletonCard({ variant = "card" }: { variant?: "card" | "row" })
           alignItems: "center",
         }}
       >
-        <div className="lenium-skeleton" style={{ width: 64, height: 28 }} />
-        <div className="lenium-skeleton" style={{ width: 72, height: 24 }} />
+        <div className="lenium-skeleton" style={{ width: 64, height: 26 }} />
+        <div className="lenium-skeleton" style={{ width: 80, height: 20 }} />
       </div>
-      <div className="lenium-skeleton" style={{ width: "60%", height: 16 }} />
     </div>
   );
 }

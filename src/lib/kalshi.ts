@@ -45,6 +45,8 @@ type KalshiMarketRaw = {
   yes_bid?: number;
   yes_ask?: number;
   volume?: number;
+  is_provisional?: boolean;
+  mve_collection_ticker?: string;
 };
 
 type KalshiEventRaw = {
@@ -147,26 +149,46 @@ export async function fetchDashboardMarkets(): Promise<DashboardMarket[]> {
   const out: DashboardMarket[] = [];
   for (const ev of data?.events ?? []) {
     const category = normalizeCategory(ev.category);
+
+    // Pick the leading (most-traded) contract per event, the way Kalshi's
+    // own homepage does. Flattening every nested outcome floods the grid
+    // with illiquid 1¢ legs that read as broken data. Skip provisional
+    // markets, multivariate combo legs, and anything with zero volume or
+    // no real price — those never render.
+    let best: KalshiMarketRaw | null = null;
+    let bestYes = 0;
+    let bestVol = -1;
+    let bestVol24 = -1;
     for (const m of ev.markets ?? []) {
-      if (!m.ticker) continue;
+      if (!m.ticker || m.is_provisional || m.mve_collection_ticker) continue;
+      const vol = marketVolume(m);
+      if (vol <= 0) continue;
       const cents = priceCents(m);
-      if (cents == null) continue;
-      const yes = Math.min(99, Math.max(1, cents));
-      out.push({
-        ticker: m.ticker,
-        question: m.title || ev.title || m.ticker,
-        category,
-        yesPrice: yes,
-        noPrice: 100 - yes,
-        volume: marketVolume(m),
-        volume24h: num(m.volume_24h_fp),
-        expiry: m.close_time ?? "",
-        // Real history is loaded per-market from the candlesticks endpoint;
-        // until then the sparkline only accumulates live ticks (never mocked).
-        sparklineData: [yes],
-        open24h: yes,
-      });
+      if (cents == null || cents < 1) continue;
+      const vol24 = num(m.volume_24h_fp);
+      if (vol24 > bestVol24 || (vol24 === bestVol24 && vol > bestVol)) {
+        best = m;
+        bestYes = Math.min(99, Math.max(1, cents));
+        bestVol = vol;
+        bestVol24 = vol24;
+      }
     }
+    if (!best?.ticker) continue;
+
+    out.push({
+      ticker: best.ticker,
+      question: best.title || ev.title || best.ticker,
+      category,
+      yesPrice: bestYes,
+      noPrice: 100 - bestYes,
+      volume: bestVol,
+      volume24h: bestVol24,
+      expiry: best.close_time ?? "",
+      // Real history is loaded per-market from the candlesticks endpoint;
+      // until then the sparkline only accumulates live ticks (never mocked).
+      sparklineData: [bestYes],
+      open24h: bestYes,
+    });
   }
   return out.sort((a, b) => b.volume - a.volume).slice(0, 600);
 }
