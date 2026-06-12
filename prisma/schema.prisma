@@ -16,11 +16,8 @@ datasource db {
 model User {
   id        String           @id @default(cuid())
   email     String           @unique
-  /// Null for users who signed up with Google/Apple (no password set).
-  password  String?
+  password  String
   name      String
-  /// "credentials", "google", or "apple" — how the account was first created.
-  authProvider String        @default("credentials")
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   accounts  TradingAccount[]

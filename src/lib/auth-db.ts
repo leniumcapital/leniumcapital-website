@@ -62,9 +62,6 @@ export async function verifyCredentials(
   });
   if (!user) return null;
 
-  // OAuth-created accounts have no password — they must use Google/Apple.
-  if (!user.password) return null;
-
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return null;
 
@@ -112,38 +109,6 @@ export async function createUser(
     ok: true,
     user: toSessionPayload(user, null),
   };
-}
-
-/**
- * Find or create a user for a Google/Apple sign-in. Called from the NextAuth
- * jwt callback the first time an OAuth token is issued. If a credentials
- * account already exists with the same (verified) email, the login links to
- * it — same person, same trading account.
- */
-export async function findOrCreateOAuthUser(
-  email: string,
-  name: string | null | undefined,
-  provider: "google" | "apple",
-): Promise<SessionUserPayload> {
-  const normalized = email.trim().toLowerCase();
-
-  const existing = await prisma.user.findUnique({
-    where: { email: normalized },
-    include: { accounts: { where: { isPrimary: true }, take: 1 } },
-  });
-  if (existing) {
-    return toSessionPayload(existing, existing.accounts[0] ?? null);
-  }
-
-  const user = await prisma.user.create({
-    data: {
-      email: normalized,
-      name: name?.trim() || normalized.split("@")[0],
-      password: null,
-      authProvider: provider,
-    },
-  });
-  return toSessionPayload(user, null);
 }
 
 /** Attach a trading account to an existing user (used after challenge purchase). */

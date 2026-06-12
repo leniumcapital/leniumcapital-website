@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Logo } from "@/components/Logo";
 import { SignupForm } from "@/components/SignupForm";
-import { SocialAuthButtons } from "@/components/SocialAuthButtons";
-import { googleEnabled, appleEnabled } from "@/auth";
 
 export const metadata: Metadata = {
   title: "Create account",
@@ -112,25 +110,9 @@ export default function SignupPage() {
             Free to start. No payment until you choose a challenge.
           </p>
 
-          {(googleEnabled || appleEnabled) && (
-            <>
-              <div className="mt-7">
-                <SocialAuthButtons
-                  googleEnabled={googleEnabled}
-                  appleEnabled={appleEnabled}
-                  action="Sign up"
-                />
-              </div>
-
-              <div className="my-6 flex items-center gap-3 text-xs text-muted">
-                <span className="h-px flex-1 bg-border" />
-                or sign up with email
-                <span className="h-px flex-1 bg-border" />
-              </div>
-            </>
-          )}
-
-          <SignupForm />
+          <div className="mt-7">
+            <SignupForm />
+          </div>
         </div>
       </div>
     </section>
