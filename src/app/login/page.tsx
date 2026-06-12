@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { LoginForm } from "@/components/LoginForm";
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
+import { googleEnabled, appleEnabled } from "@/auth";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -50,6 +52,25 @@ export default function LoginPage() {
           <p className="mt-1.5 text-center text-sm text-white/60">
             Access your trader dashboard.
           </p>
+
+          {(googleEnabled || appleEnabled) && (
+            <>
+              <div className="mt-6">
+                <SocialAuthButtons
+                  googleEnabled={googleEnabled}
+                  appleEnabled={appleEnabled}
+                  action="Sign in"
+                  dark
+                />
+              </div>
+
+              <div className="mt-6 flex items-center gap-3 text-xs text-white/40">
+                <span className="h-px flex-1 bg-white/10" />
+                or sign in with email
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+            </>
+          )}
 
           <LoginForm />
         </div>
