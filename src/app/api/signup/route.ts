@@ -34,6 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: hint }, { status: 400 });
     }
     if (
+      message.toLowerCase().includes("authentication failed") ||
+      code === "P1000"
+    ) {
+      hint =
+        "Database password is wrong in Vercel. Update POSTGRES_PRISMA_URL and POSTGRES_URL_NON_POOLING with the correct password, then redeploy.";
+    } else if (
       code === "P1001" ||
       code === "P1017" ||
       message.toLowerCase().includes("connect")

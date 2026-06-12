@@ -15,6 +15,7 @@ function pooledDatabaseUrl(): string | undefined {
     );
     if (!params.has("pgbouncer")) params.set("pgbouncer", "true");
     if (!params.has("connection_limit")) params.set("connection_limit", "1");
+    if (!params.has("sslmode")) params.set("sslmode", "require");
     const base = url.split("?")[0];
     return `${base}?${params.toString()}`;
   }
