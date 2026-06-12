@@ -4,6 +4,7 @@ import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
 import { TIERS, STATS, usd } from "@/lib/data";
+import { loginWithCallback } from "@/lib/callback-url";
 
 const FOUNDATION = [
   { title: "Fully regulated foundation", value: "Built on Kalshi, a CFTC-licensed exchange" },
@@ -106,7 +107,7 @@ export default function HomePage() {
 
           <div className="pointer-events-auto mt-9 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/signup"
+              href={loginWithCallback()}
               className="inline-flex items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
             >
               Start your challenge
@@ -270,7 +271,7 @@ export default function HomePage() {
             to every serious prediction market trader.
           </h2>
           <div className="mt-8 flex justify-center">
-            <CtaButton href="/signup">Start your challenge</CtaButton>
+            <CtaButton href={loginWithCallback()}>Start your challenge</CtaButton>
           </div>
         </Container>
       </section>

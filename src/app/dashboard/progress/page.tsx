@@ -33,7 +33,7 @@ export default function ProgressPage() {
           No active challenge
         </span>
         <Link
-          href="/pricing"
+          href="/dashboard/challenge/select"
           style={{
             background: T.green,
             color: T.bgPrimary,

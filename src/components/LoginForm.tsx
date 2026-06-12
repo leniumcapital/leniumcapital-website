@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { startNavigationLoading } from "@/components/NavigationLoader";
+import { safeCallbackUrl } from "@/lib/callback-url";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +31,7 @@ export function LoginForm() {
       return;
     }
     startNavigationLoading();
-    router.push("/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   }
 

@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Logo } from "./Logo";
 import { resetAllStores } from "@/stores";
 import { usd } from "@/lib/data";
+import { loginWithCallback } from "@/lib/callback-url";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -104,7 +105,7 @@ export function Nav() {
                 Login
               </Link>
               <Link
-                href="/signup"
+                href={loginWithCallback()}
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
               >
                 Start your challenge
@@ -188,7 +189,7 @@ export function Nav() {
                     Login
                   </Link>
                   <Link
-                    href="/signup"
+                    href={loginWithCallback()}
                     onClick={() => setOpen(false)}
                     className="rounded-lg bg-brand px-4 py-3 text-center text-sm font-semibold text-[#04130b]"
                   >
