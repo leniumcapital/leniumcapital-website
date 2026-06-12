@@ -39,5 +39,6 @@ model TradingAccount {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@unique([userId, accountType])
   @@index([userId])
 }

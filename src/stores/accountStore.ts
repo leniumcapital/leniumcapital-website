@@ -16,6 +16,8 @@ interface AccountState {
   tier: number;
   balance: number;
   accountSize: number;
+  hasDemoAccount: boolean;
+  hasLiveAccount: boolean;
   /** True when the daily loss limit has been hit — trading locked until midnight UTC. */
   dailyLockout: boolean;
   setAccount: (
@@ -34,6 +36,8 @@ interface AccountState {
         | "tier"
         | "balance"
         | "accountSize"
+        | "hasDemoAccount"
+        | "hasLiveAccount"
       >
     >,
   ) => void;
@@ -56,6 +60,8 @@ const initial = {
   tier: 0,
   balance: 0,
   accountSize: 0,
+  hasDemoAccount: false,
+  hasLiveAccount: false,
   dailyLockout: false,
 };
 

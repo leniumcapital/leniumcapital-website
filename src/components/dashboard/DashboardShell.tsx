@@ -95,6 +95,24 @@ function ShellInner({ user, children }: DashboardShellProps) {
     };
   }, [user.id]);
 
+  // Load which account types exist (demo + live) for the mode switcher.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/accounts")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { hasDemo?: boolean; hasLive?: boolean } | null) => {
+        if (cancelled || !data) return;
+        useAccountStore.getState().setAccount({
+          hasDemoAccount: Boolean(data.hasDemo),
+          hasLiveAccount: Boolean(data.hasLive),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
   useChallengeSync();
