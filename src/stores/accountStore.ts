@@ -7,6 +7,10 @@ interface AccountState {
   userId: string;
   name: string;
   email: string;
+  username: string;
+  phone: string;
+  country: string;
+  avatarUrl: string;
   accountType: AccountType;
   challengeStatus: AccountChallengeStatus;
   tier: number;
@@ -21,6 +25,10 @@ interface AccountState {
         | "userId"
         | "name"
         | "email"
+        | "username"
+        | "phone"
+        | "country"
+        | "avatarUrl"
         | "accountType"
         | "challengeStatus"
         | "tier"
@@ -39,6 +47,10 @@ const initial = {
   userId: "",
   name: "",
   email: "",
+  username: "",
+  phone: "",
+  country: "",
+  avatarUrl: "",
   accountType: "none" as AccountType,
   challengeStatus: "none" as AccountChallengeStatus,
   tier: 0,

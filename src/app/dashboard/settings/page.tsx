@@ -3,37 +3,54 @@
 import { useAccountStore } from "@/stores/accountStore";
 import { TIERS, DEFAULT_TRADER_SPLIT_PCT, PAYOUT_CYCLE_DAYS } from "@/lib/data";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { T } from "@/lib/tokens";
 
 export default function SettingsPage() {
-  const name = useAccountStore((s) => s.name);
-  const email = useAccountStore((s) => s.email);
   const tierSize = useAccountStore((s) => s.tier);
   const accountType = useAccountStore((s) => s.accountType);
-
   const tier = TIERS.find((t) => t.size === tierSize);
 
   return (
     <ErrorBoundary name="Settings">
-      <div style={{ padding: 32, maxWidth: 640, fontFamily: T.font }}>
+      <div style={{ padding: 32, maxWidth: 720, fontFamily: T.font }}>
         <h1
           style={{
             margin: 0,
             color: T.textPrimary,
-            fontSize: 18,
-            fontWeight: 500,
+            fontSize: 22,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
           }}
         >
           Settings
         </h1>
+        <p style={{ marginTop: 8, marginBottom: 28, fontSize: 14, color: T.textMuted }}>
+          Manage your profile, contact details, and account preferences.
+        </p>
 
-        <Section title="Profile">
-          <Field label="Full name" value={name || "—"} />
-          <Field label="Email" value={email || "—"} />
-        </Section>
+        <SettingsForm />
 
-        <Section title="Account">
-          <Field
+        <AccountSection accountType={accountType} tierSize={tierSize} tier={tier} />
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+function AccountSection({
+  accountType,
+  tierSize,
+  tier,
+}: {
+  accountType: string;
+  tierSize: number;
+  tier: (typeof TIERS)[number] | undefined;
+}) {
+  return (
+    <>
+      <div style={{ marginTop: 32 }}>
+        <ReadOnlySection title="Trading account">
+          <ReadOnlyField
             label="Account type"
             value={
               accountType === "none"
@@ -43,39 +60,41 @@ export default function SettingsPage() {
                   : "Demo challenge"
             }
           />
-          <Field
+          <ReadOnlyField
             label="Account size"
             value={tierSize ? `$${tierSize.toLocaleString()}` : "—"}
           />
-          <Field
+          <ReadOnlyField
             label="Profit split"
             value={`${DEFAULT_TRADER_SPLIT_PCT}% to you`}
           />
-          <Field label="Payout cycle" value={`${PAYOUT_CYCLE_DAYS} days`} />
-        </Section>
+          <ReadOnlyField label="Payout cycle" value={`${PAYOUT_CYCLE_DAYS} days`} />
+        </ReadOnlySection>
+      </div>
 
-        {tier && (
-          <Section title="Challenge rules">
-            <Field label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <Field label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
-            <Field label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
-            <Field
+      {tier && (
+        <div style={{ marginTop: 24 }}>
+          <ReadOnlySection title="Challenge rules">
+            <ReadOnlyField label="Profit target" value={`${tier.profitTargetPct}%`} />
+            <ReadOnlyField label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
+            <ReadOnlyField label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
+            <ReadOnlyField
               label="Max position size"
               value={`${tier.maxPositionPct}% ($${Math.round((tier.size * tier.maxPositionPct) / 100).toLocaleString()})`}
             />
-            <Field
+            <ReadOnlyField
               label="Minimum trading days"
               value={`${tier.minTradingDays} days`}
             />
-            <Field label="Challenge window" value={`${tier.windowDays} days`} />
-          </Section>
-        )}
-      </div>
-    </ErrorBoundary>
+            <ReadOnlyField label="Challenge window" value={`${tier.windowDays} days`} />
+          </ReadOnlySection>
+        </div>
+      )}
+    </>
   );
 }
 
-function Section({
+function ReadOnlySection({
   title,
   children,
 }: {
@@ -85,7 +104,6 @@ function Section({
   return (
     <div
       style={{
-        marginTop: 24,
         background: T.bgSecondary,
         border: T.hairline(),
         borderRadius: T.radiusLg,
@@ -104,14 +122,12 @@ function Section({
       >
         {title}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {children}
-      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{children}</div>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between" }}>
       <span style={{ color: T.textMuted, fontSize: 13 }}>{label}</span>

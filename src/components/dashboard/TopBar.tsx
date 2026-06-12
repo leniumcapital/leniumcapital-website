@@ -183,6 +183,7 @@ function RightSection() {
   const [bellOpen, setBellOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const name = useAccountStore((s) => s.name);
+  const avatarUrl = useAccountStore((s) => s.avatarUrl);
   const bellRef = useRef<HTMLButtonElement>(null);
 
   const initials = name
@@ -260,7 +261,7 @@ function RightSection() {
             width: 32,
             height: 32,
             borderRadius: "50%",
-            background: T.border,
+            background: avatarUrl ? "transparent" : T.border,
             border: T.hairline(T.borderHover),
             color: T.textPrimary,
             fontSize: 13,
@@ -270,9 +271,20 @@ function RightSection() {
             alignItems: "center",
             justifyContent: "center",
             fontFamily: T.font,
+            overflow: "hidden",
+            padding: 0,
           }}
         >
-          {initials || "?"}
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            initials || "?"
+          )}
         </button>
 
         <AnimatePresence>
