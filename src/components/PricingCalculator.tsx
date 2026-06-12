@@ -8,7 +8,6 @@ import {
   SPLIT_ADDONS,
   computePrice,
   addonPrice,
-  resetFee,
   usd,
   type AddonId,
 } from "@/lib/data";
@@ -164,25 +163,6 @@ export function PricingCalculator() {
           <p className="mt-2 text-center text-xs text-muted">
             Free to create an account — you only pay when you start.
           </p>
-
-          <dl className="mt-5 space-y-2 border-t border-border pt-4 text-xs text-muted">
-            <MiniRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <MiniRow label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
-            <MiniRow label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
-            <MiniRow
-              label="Max position size"
-              value={`${tier.maxPositionPct}%`}
-            />
-            <MiniRow
-              label="Min trading days"
-              value={`${tier.minTradingDays}`}
-            />
-            <MiniRow label="Challenge window" value={`${tier.windowDays} days`} />
-            <MiniRow
-              label="Reset a failed attempt"
-              value={`$${resetFee(tier)} (25% off)`}
-            />
-          </dl>
         </div>
       </aside>
     </div>
@@ -212,11 +192,3 @@ function Row({
   );
 }
 
-function MiniRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt>{label}</dt>
-      <dd className="font-medium text-foreground">{value}</dd>
-    </div>
-  );
-}

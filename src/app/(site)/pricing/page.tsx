@@ -112,17 +112,11 @@ export default function PricingPage() {
                       <div className="text-base font-semibold text-brand-strong">
                         ${goal.toLocaleString()}
                       </div>
-                      <div className="text-xs text-muted">
-                        {t.profitTargetPct}% of the account
-                      </div>
                     </Field>
 
                     <Field label="Safety limit">
                       <div className="text-base font-semibold">
                         ${loss.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {t.maxDrawdownPct}% of the account
                       </div>
                     </Field>
                   </div>
