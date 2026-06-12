@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { startNavigationLoading } from "@/components/NavigationLoader";
 
 export function SignupForm() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export function SignupForm() {
       return;
     }
 
+    startNavigationLoading();
     router.push("/dashboard");
     router.refresh();
   }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { startNavigationLoading } from "@/components/NavigationLoader";
 
 export function LoginForm() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function LoginForm() {
       setError("Incorrect email or password. Please try again.");
       return;
     }
+    startNavigationLoading();
     router.push("/dashboard");
     router.refresh();
   }
