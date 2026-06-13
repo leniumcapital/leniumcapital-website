@@ -8,7 +8,7 @@ import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
 import { usd } from "@/lib/data";
-import { T } from "@/lib/tokens";
+import { T, tradeSidePanelStyle } from "@/lib/tokens";
 
 type Direction = "yes" | "no";
 
@@ -399,32 +399,13 @@ function DirectionButton({
     <button
       type="button"
       onClick={onClick}
-      style={{
-        flex: 1,
-        height: 52,
-        borderRadius: 8,
-        cursor: "pointer",
-        background: selected
-          ? isYes
-            ? "rgba(0,232,122,0.12)"
-            : "rgba(239,68,68,0.1)"
-          : T.bgTertiary,
-        border: selected
-          ? `1.5px solid ${isYes ? T.green : T.red}`
-          : T.hairline(),
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
-        transition: `border-color ${T.transition}, background ${T.transition}`,
-        fontFamily: T.font,
-      }}
+      style={tradeSidePanelStyle(tone, selected)}
     >
       <span
         style={{
           fontSize: 12,
-          color: selected ? (isYes ? T.green : T.red) : T.textMuted,
+          color: isYes ? T.green : T.red,
+          opacity: selected ? 1 : 0.85,
         }}
       >
         {label}
@@ -433,7 +414,7 @@ function DirectionButton({
         style={{
           fontSize: 18,
           fontWeight: 600,
-          color: T.textPrimary,
+          color: isYes ? T.green : T.red,
           fontVariantNumeric: "tabular-nums",
         }}
       >
