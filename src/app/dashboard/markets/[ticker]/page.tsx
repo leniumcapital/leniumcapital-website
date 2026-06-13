@@ -199,6 +199,7 @@ export default function MarketDetailPage() {
           ) : (
             <DetailChart
               ticker={detail.ticker}
+              category={detail.category}
               outcomes={detail.outcomes}
               currentPrice={currentYes}
               prevPrice={detail.prevPrice}
@@ -209,6 +210,7 @@ export default function MarketDetailPage() {
         {isMulti && (
           <OutcomesTable
             outcomes={detail.outcomes}
+            category={detail.category}
             selectedOutcome={activeOutcomeTicker}
             onPick={(t, dir) => {
               setSelectedOutcome(t);
@@ -281,10 +283,12 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function OutcomesTable({
   outcomes,
+  category,
   selectedOutcome,
   onPick,
 }: {
   outcomes: MarketOutcome[];
+  category: string;
   selectedOutcome: string;
   onPick: (ticker: string, direction: Direction) => void;
 }) {
@@ -310,20 +314,12 @@ function OutcomesTable({
             <OutcomeAvatar
               ticker={o.ticker}
               name={o.name}
+              category={category}
               imageUrl={o.imageUrl}
               size={28}
+              colorIndex={i}
             />
-            {i < OUTCOME_COLORS.length && (
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: OUTCOME_COLORS[i],
-                  flexShrink: 0,
-                }}
-              />
-            )}
+
             <span
               title={o.name}
               style={{

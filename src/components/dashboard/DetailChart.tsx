@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ResponsiveContainer } from "recharts";
 import type { MarketOutcome, ChartRange } from "@/lib/marketDetail";
+import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import {
   fetchMarketHistoryClient,
   marketHistoryQueryKey,
@@ -39,6 +40,7 @@ const PLOT_BOTTOM = 30;
 
 interface DetailChartProps {
   ticker: string;
+  category: string;
   /** Outcomes charted as multiple lines when there is more than one. */
   outcomes: MarketOutcome[];
   currentPrice: number;
@@ -61,6 +63,7 @@ function formatTooltipTs(ts: number): string {
 
 export function DetailChart({
   ticker,
+  category,
   outcomes,
   currentPrice,
   prevPrice,
@@ -127,6 +130,37 @@ export function DetailChart({
 
   return (
     <div style={{ marginTop: 24, fontFamily: T.font }}>
+      {isMulti && chartedOutcomes.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
+            marginBottom: 10,
+          }}
+        >
+          {chartedOutcomes.map((o, i) => (
+            <div
+              key={o.ticker}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <OutcomeAvatar
+                ticker={o.ticker}
+                name={o.name}
+                category={category}
+                imageUrl={o.imageUrl}
+                size={20}
+                color={OUTCOME_COLORS[i]}
+                colorIndex={i}
+              />
+              <span style={{ color: T.textSecondary, fontSize: 12 }}>
+                {o.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Range selector */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
         {RANGES.map((r) => {
@@ -228,33 +262,58 @@ export function DetailChart({
                         <div style={{ color: T.textSecondary, fontSize: 11, marginBottom: 6 }}>
                           {formatTooltipTs(Number(label))}
                         </div>
-                        {payload.map((entry) => (
-                          <div
-                            key={String(entry.dataKey)}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              fontSize: 12,
-                              color: T.textPrimary,
-                              marginTop: 2,
-                            }}
-                          >
-                            <span
+                        {payload.map((entry) => {
+                          const key = String(entry.dataKey);
+                          const outcome = chartedOutcomes.find(
+                            (o) => o.ticker === key,
+                          );
+                          const idx = chartedOutcomes.findIndex(
+                            (o) => o.ticker === key,
+                          );
+                          return (
+                            <div
+                              key={key}
                               style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: colorFor(String(entry.dataKey)),
-                                flexShrink: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                fontSize: 12,
+                                color: T.textPrimary,
+                                marginTop: 2,
                               }}
-                            />
-                            <span style={{ color: T.textSecondary }}>
-                              {nameFor(String(entry.dataKey))}
-                            </span>
-                            <span style={{ fontWeight: 600 }}>{entry.value}%</span>
-                          </div>
-                        ))}
+                            >
+                              {outcome ? (
+                                <OutcomeAvatar
+                                  ticker={outcome.ticker}
+                                  name={outcome.name}
+                                  category={category}
+                                  imageUrl={outcome.imageUrl}
+                                  size={18}
+                                  color={
+                                    idx >= 0 ? OUTCOME_COLORS[idx] : undefined
+                                  }
+                                  colorIndex={idx >= 0 ? idx : undefined}
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: "50%",
+                                    background: colorFor(key),
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                              <span style={{ color: T.textSecondary }}>
+                                {nameFor(key)}
+                              </span>
+                              <span style={{ fontWeight: 600 }}>
+                                {entry.value}%
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   }}

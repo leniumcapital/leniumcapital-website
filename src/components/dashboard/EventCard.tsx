@@ -108,6 +108,7 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         <SeriesIcon
           seriesTicker={event.seriesTicker}
           category={event.category}
+          title={event.title}
           size={24}
         />
         <span
@@ -176,6 +177,7 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         <SeriesIcon
           seriesTicker={event.seriesTicker}
           category={event.category}
+          title={event.title}
           size={26}
         />
         <span
@@ -254,7 +256,12 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         }}
       >
         {event.outcomes.map((outcome, i) => (
-          <OutcomeRow key={outcome.ticker} outcome={outcome} index={i} />
+          <OutcomeRow
+            key={outcome.ticker}
+            outcome={outcome}
+            category={event.category}
+            index={i}
+          />
         ))}
       </div>
 
@@ -281,9 +288,11 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
 
 function OutcomeRow({
   outcome,
+  category,
   index,
 }: {
   outcome: EventOutcome;
+  category: string;
   index: number;
 }) {
   const underline = UNDERLINE_COLORS[index % UNDERLINE_COLORS.length];
@@ -299,8 +308,10 @@ function OutcomeRow({
       <OutcomeAvatar
         ticker={outcome.ticker}
         name={outcome.name}
+        category={category}
         imageUrl={outcome.imageUrl}
         size={26}
+        colorIndex={index}
       />
 
       <span

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import type { MarketDetail } from "@/lib/marketDetail";
+import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
@@ -236,33 +237,88 @@ export function DetailOrderPanel({
               })}
             </div>
 
-            {/* Outcome selector (multi-outcome only) */}
-            {detail.outcomes.length > 1 && (
-              <select
-                value={outcome?.ticker}
-                onChange={(e) => onSelectOutcome(e.target.value)}
-                aria-label="Outcome"
+            {detail.outcomes.length > 1 ? (
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 8,
+                  }}
+                >
+                  <OutcomeAvatar
+                    ticker={outcome?.ticker ?? detail.ticker}
+                    name={outcome?.name ?? detail.question}
+                    category={detail.category}
+                    imageUrl={outcome?.imageUrl}
+                    size={32}
+                  />
+                  <span
+                    style={{
+                      color: T.textPrimary,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {outcome?.name ?? detail.question}
+                  </span>
+                </div>
+                <select
+                  value={outcome?.ticker}
+                  onChange={(e) => onSelectOutcome(e.target.value)}
+                  aria-label="Outcome"
+                  style={{
+                    width: "100%",
+                    height: 40,
+                    background: T.bgTertiary,
+                    border: T.hairline(),
+                    borderRadius: 8,
+                    color: T.textPrimary,
+                    fontSize: 13,
+                    padding: "0 10px",
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: T.font,
+                  }}
+                >
+                  {detail.outcomes.map((o) => (
+                    <option key={o.ticker} value={o.ticker}>
+                      {o.name} — {o.yesPrice}¢
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div
                 style={{
-                  width: "100%",
-                  height: 40,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
                   marginBottom: 12,
-                  background: T.bgTertiary,
-                  border: T.hairline(),
-                  borderRadius: 8,
-                  color: T.textPrimary,
-                  fontSize: 13,
-                  padding: "0 10px",
-                  outline: "none",
-                  cursor: "pointer",
-                  fontFamily: T.font,
                 }}
               >
-                {detail.outcomes.map((o) => (
-                  <option key={o.ticker} value={o.ticker}>
-                    {o.name} — {o.yesPrice}¢
-                  </option>
-                ))}
-              </select>
+                <OutcomeAvatar
+                  ticker={detail.ticker}
+                  name={detail.question}
+                  category={detail.category}
+                  imageUrl={detail.outcomes[0]?.imageUrl}
+                  size={32}
+                />
+                <span
+                  style={{
+                    color: T.textPrimary,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {detail.question}
+                </span>
+              </div>
             )}
 
             {/* YES / NO selection */}

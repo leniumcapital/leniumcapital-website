@@ -7,6 +7,7 @@ import {
   compactUsd,
   type TickerMarket,
 } from "@/lib/data";
+import { OptionImage } from "@/components/dashboard/KalshiImages";
 
 const ROW_CONFIG = [
   { dir: "left" as const, duration: 85 },
@@ -128,9 +129,13 @@ function TickerCard({
     <div className="pointer-events-auto w-[270px] shrink-0 rounded-2xl border border-white/[0.07] bg-[#0b0e13]/70 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-colors hover:border-white/15">
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <MarketIcon
-            image={market.image}
-            emoji={meta.emoji}
+          <OptionImage
+            name={market.title}
+            category={market.category}
+            ticker={market.id}
+            imageUrl={market.image}
+            size={24}
+            radius={6}
             color={market.color || meta.color}
           />
           <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-white/70">
@@ -178,44 +183,6 @@ function TickerCard({
   );
 }
 
-function MarketIcon({
-  image,
-  emoji,
-  color,
-}: {
-  image?: string;
-  emoji: string;
-  color: string;
-}) {
-  const [failed, setFailed] = useState(false);
-
-  if (image && !failed) {
-    return (
-      <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-md bg-white/10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={image}
-          alt=""
-          width={24}
-          height={24}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-          className="size-6 object-cover"
-        />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="grid size-6 shrink-0 place-items-center rounded-md text-[12px]"
-      style={{ backgroundColor: color }}
-    >
-      {emoji}
-    </span>
-  );
-}
 
 function OutcomeRow({
   label,

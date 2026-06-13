@@ -1,35 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   seriesIconUrl,
   marketImageCandidates,
   KALSHI_CDN,
 } from "@/lib/kalshiImages";
+import {
+  optionColor,
+  optionInitials,
+} from "@/lib/optionImage";
+import { fetchResolvedOptionImage } from "@/lib/optionImageCache";
 import { T } from "@/lib/tokens";
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Economics: "📈",
-  Politics: "🏛️",
-  Sports: "🏆",
-  Crypto: "₿",
-  Culture: "🎬",
-  Climate: "🌎",
-  "Tech and Science": "🔬",
-  "Science and Tech": "🔬",
-  Health: "🩺",
-};
-
-const AVATAR_COLORS = [
-  "#1E3A5F",
-  "#3D2E4F",
-  "#1F4038",
-  "#4A3320",
-  "#3A2030",
-  "#27384D",
-] as const;
-
-/** Sport-specific series icon overrides when the generic series asset is missing. */
 const SERIES_OVERRIDES: Record<string, string> = {
   KXNBAGAME: `${KALSHI_CDN}/override_images/sports/Basketball-NBA.webp`,
   KXWNBAGAME: `${KALSHI_CDN}/override_images/sports/Basketball-WNBA.webp`,
@@ -44,53 +27,196 @@ const SERIES_OVERRIDES: Record<string, string> = {
   KXPRESNOMR: `${KALSHI_CDN}/override_images/core/Republican.webp`,
 };
 
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function initials(name: string): string {
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function InitialsFallback({ name, size }: { name: string; size: number }) {
-  const bg = AVATAR_COLORS[hashString(name) % AVATAR_COLORS.length];
+/** Colored circle with white initials — always visible as the final fallback. */
+export function InitialsCircle({
+  name,
+  size,
+  color,
+  radius = "50%",
+}: {
+  name: string;
+  size: number;
+  color?: string;
+  radius?: number | string;
+}) {
+  const bg = color ?? optionColor(name);
   return (
     <span
+      aria-hidden
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
+        borderRadius: radius,
         background: bg,
-        border: T.hairline(T.borderHover),
-        color: "#C9D4E0",
-        fontSize: size * 0.38,
+        color: "#FFFFFF",
+        fontSize: Math.max(9, size * 0.36),
         fontWeight: 600,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
         letterSpacing: "0.02em",
+        lineHeight: 1,
+        userSelect: "none",
       }}
     >
-      {initials(name)}
+      {optionInitials(name)}
     </span>
   );
 }
 
-/** Event/series icon from Kalshi's CDN, with sport-specific override fallbacks. */
+type OptionImageProps = {
+  name: string;
+  category: string;
+  ticker?: string;
+  /** Pre-resolved URL from market data (Kalshi CDN, metadata, etc.). */
+  imageUrl?: string;
+  /** Extra CDN / override candidates tried before API lookup. */
+  extraCandidates?: string[];
+  size?: number;
+  radius?: number | string;
+  /** Explicit outcome color (chart legend, progress bars). */
+  color?: string;
+  colorIndex?: number;
+};
+
+/**
+ * Universal option image: Kalshi URLs → API lookup → colored initials circle.
+ * The initials circle is always rendered underneath so the slot is never blank.
+ */
+export function OptionImage({
+  name,
+  category,
+  ticker,
+  imageUrl,
+  extraCandidates = [],
+  size = 26,
+  radius = "50%",
+  color,
+  colorIndex,
+}: OptionImageProps) {
+  const circleColor = optionColor(name, color, colorIndex);
+  const allCandidates = useMemo(() => {
+    const list = [
+      ...(imageUrl ? [imageUrl] : []),
+      ...extraCandidates,
+      ...(ticker ? marketImageCandidates(ticker) : []),
+    ].filter((u, i, arr) => Boolean(u) && arr.indexOf(u) === i);
+    return list;
+  }, [imageUrl, extraCandidates, ticker]);
+
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [apiUrl, setApiUrl] = useState<string | null>(null);
+  const [apiTried, setApiTried] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const apiRequested = useRef(false);
+
+  const activeUrl =
+    candidateIdx < allCandidates.length
+      ? allCandidates[candidateIdx]
+      : apiUrl;
+
+  const showImage = Boolean(activeUrl) && loaded;
+
+  const advance = useCallback(() => {
+    setLoaded(false);
+    if (candidateIdx < allCandidates.length - 1) {
+      setCandidateIdx((i) => i + 1);
+      return;
+    }
+    if (!apiTried && !apiRequested.current) {
+      apiRequested.current = true;
+      void fetchResolvedOptionImage(name, category, ticker).then((url) => {
+        setApiTried(true);
+        if (url) setApiUrl(url);
+      });
+    }
+  }, [
+    allCandidates.length,
+    apiTried,
+    candidateIdx,
+    category,
+    name,
+    ticker,
+  ]);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setApiUrl(null);
+    setApiTried(false);
+    setLoaded(false);
+    apiRequested.current = false;
+  }, [name, category, ticker, imageUrl, allCandidates.join("|")]);
+
+  useEffect(() => {
+    if (candidateIdx >= allCandidates.length && !apiTried && !apiRequested.current) {
+      apiRequested.current = true;
+      void fetchResolvedOptionImage(name, category, ticker).then((url) => {
+        setApiTried(true);
+        if (url) setApiUrl(url);
+      });
+    }
+  }, [allCandidates.length, apiTried, candidateIdx, category, name, ticker]);
+
+  return (
+    <span
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        display: "inline-flex",
+        flexShrink: 0,
+        verticalAlign: "middle",
+      }}
+    >
+      <InitialsCircle
+        name={name}
+        size={size}
+        color={circleColor}
+        radius={radius}
+      />
+      {activeUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={activeUrl}
+          src={activeUrl}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          onError={advance}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: size,
+            height: size,
+            borderRadius: radius,
+            objectFit: "cover",
+            opacity: showImage ? 1 : 0,
+            transition: "opacity 120ms ease",
+            background: T.bgTertiary,
+          }}
+        />
+      )}
+    </span>
+  );
+}
+
+/** Event/series icon from Kalshi CDN with initials fallback. */
 export function SeriesIcon({
   seriesTicker,
   category,
+  title,
   size = 24,
   radius = 6,
 }: {
   seriesTicker: string;
   category: string;
+  /** Event title used for initials when CDN assets are missing. */
+  title?: string;
   size?: number;
   radius?: number;
 }) {
@@ -100,99 +226,46 @@ export function SeriesIcon({
   ].filter((u): u is string => Boolean(u));
 
   return (
-    <CdnImage
-      candidates={candidates}
+    <OptionImage
+      name={title ?? category}
+      category={category}
+      extraCandidates={candidates}
       size={size}
       radius={radius}
-      fallback={
-        <span
-          style={{
-            width: size,
-            height: size,
-            borderRadius: radius,
-            background: T.bgTertiary,
-            border: T.hairline(),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: size * 0.5,
-            flexShrink: 0,
-          }}
-        >
-          {CATEGORY_ICONS[category] ?? "◆"}
-        </span>
-      }
     />
   );
 }
 
 /**
- * Outcome avatar: team flag, league logo, or candidate photo from Kalshi's CDN.
- * Uses a server-resolved imageUrl when available; otherwise walks the
- * market-images extension chain before falling back to initials.
+ * Outcome avatar for market options — team logos, flags, headshots, coin icons.
+ * Used on event cards, detail tables, order panel, and chart legends.
  */
 export function OutcomeAvatar({
   ticker,
   name,
+  category,
   imageUrl,
   size = 26,
+  color,
+  colorIndex,
 }: {
   ticker: string;
   name: string;
-  /** Pre-resolved CDN URL from structured-target lookup (preferred). */
+  category: string;
   imageUrl?: string;
   size?: number;
+  color?: string;
+  colorIndex?: number;
 }) {
-  const candidates = [
-    ...(imageUrl ? [imageUrl] : []),
-    ...marketImageCandidates(ticker),
-  ];
-
   return (
-    <CdnImage
-      candidates={candidates}
+    <OptionImage
+      name={name}
+      category={category}
+      ticker={ticker}
+      imageUrl={imageUrl}
       size={size}
-      radius="50%"
-      fallback={<InitialsFallback name={name} size={size} />}
-    />
-  );
-}
-
-/** Tries a list of CDN URLs in order; renders fallback when all fail. */
-function CdnImage({
-  candidates,
-  size,
-  radius,
-  fallback,
-}: {
-  candidates: string[];
-  size: number;
-  radius: number | string;
-  fallback: React.ReactNode;
-}) {
-  const [index, setIndex] = useState(0);
-
-  if (index >= candidates.length) return <>{fallback}</>;
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={candidates[index]}
-      alt=""
-      width={size}
-      height={size}
-      loading="lazy"
-      decoding="async"
-      onError={() => setIndex((i) => i + 1)}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: radius,
-        objectFit: "cover",
-        background: T.bgTertiary,
-        border: T.hairline(T.borderHover),
-        flexShrink: 0,
-      }}
+      color={color}
+      colorIndex={colorIndex}
     />
   );
 }
