@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { startNavigationLoading } from "@/components/NavigationLoader";
 
 export type AuthMode = "signup" | "login";
@@ -20,6 +20,9 @@ export function AuthPanel({
   callbackUrl = "/dashboard",
 }: AuthPanelProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -27,9 +30,23 @@ export function AuthPanel({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Keep form mode in sync with ?mode=login in the URL (no page change).
+  useEffect(() => {
+    setMode(searchParams.get("mode") === "login" ? "login" : "signup");
+  }, [searchParams]);
+
   function switchMode(next: AuthMode) {
-    setMode(next);
     setError("");
+    setMode(next);
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "login") {
+      params.set("mode", "login");
+    } else {
+      params.delete("mode");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
   async function handleSignup(e: React.FormEvent) {

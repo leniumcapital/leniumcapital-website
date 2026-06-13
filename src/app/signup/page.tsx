@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { AuthPanel } from "@/components/AuthPanel";
 
@@ -114,9 +115,23 @@ export default async function SignupPage({ searchParams }: PageProps) {
             <Logo />
           </div>
 
-          <AuthPanel initialMode={initialMode} callbackUrl={callbackUrl} />
+          <Suspense fallback={<AuthPanelSkeleton />}>
+            <AuthPanel initialMode={initialMode} callbackUrl={callbackUrl} />
+          </Suspense>
         </div>
       </div>
     </section>
+  );
+}
+
+function AuthPanelSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-8 w-48 rounded-lg bg-surface-muted" />
+      <div className="h-4 w-64 rounded bg-surface-muted" />
+      <div className="mt-7 h-10 rounded-xl bg-surface-muted" />
+      <div className="h-10 rounded-xl bg-surface-muted" />
+      <div className="h-10 rounded-xl bg-surface-muted" />
+    </div>
   );
 }
