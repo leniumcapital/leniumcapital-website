@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useAccountStore } from "@/stores/accountStore";
 import { DEFAULT_TRADER_SPLIT_PCT, PAYOUT_CYCLE_DAYS } from "@/lib/data";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
+import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
 
@@ -82,32 +82,16 @@ function StartChallengeBanner() {
         </div>
       </div>
 
-      <Link
-        href="/pricing"
+      <StartChallengeButton
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
           flexShrink: 0,
-          background: T.green,
-          color: T.bgPrimary,
           borderRadius: T.radius,
           padding: "10px 20px",
           fontSize: 13,
-          fontWeight: 500,
-          textDecoration: "none",
-          fontFamily: T.font,
-          transition: `opacity ${T.transition}`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = "0.9";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = "1";
         }}
       >
         Start a Challenge
-      </Link>
+      </StartChallengeButton>
     </div>
   );
 }

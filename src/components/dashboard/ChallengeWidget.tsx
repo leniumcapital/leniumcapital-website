@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { motion } from "framer-motion";
 import { IconClock } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
+import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
 import { T } from "@/lib/tokens";
 
 /** Compact challenge progress card pinned to the bottom of the sidebar. */
@@ -40,24 +39,7 @@ function EmptyState() {
       <span style={{ color: T.textSecondary, fontSize: 13 }}>
         No active challenge
       </span>
-      <Link
-        href="/pricing"
-        style={{
-          display: "block",
-          width: "100%",
-          boxSizing: "border-box",
-          textAlign: "center",
-          background: T.green,
-          color: T.bgPrimary,
-          borderRadius: 6,
-          padding: "8px 14px",
-          fontSize: 12,
-          fontWeight: 500,
-          textDecoration: "none",
-        }}
-      >
-        Start a challenge →
-      </Link>
+      <StartChallengeButton fullWidth />
     </div>
   );
 }
@@ -159,17 +141,13 @@ function ProgressRow({
           overflow: "hidden",
         }}
       >
-        <motion.div
-          layout
-          initial={false}
-          animate={{ scaleX: Math.min(1, Math.max(0, pct / 100)) }}
-          transition={{ type: "spring", stiffness: 120, damping: 24 }}
+        <div
           style={{
             height: "100%",
-            width: "100%",
-            transformOrigin: "left",
+            width: `${Math.min(100, Math.max(0, pct))}%`,
             background: barColor,
             borderRadius: 2,
+            transition: "width 300ms ease",
           }}
         />
       </div>

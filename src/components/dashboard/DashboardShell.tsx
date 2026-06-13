@@ -9,6 +9,7 @@ import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
+import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useChallengeSync, useChallengeProgress } from "@/hooks/useChallengeProgress";
 import {
@@ -77,7 +78,9 @@ function ShellInner({ user, children }: DashboardShellProps) {
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
-      if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
+      if (e.key === "Escape" && useUiStore.getState().challengeModalOpen) {
+        useUiStore.getState().closeChallengeModal();
+      } else if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
         useUiStore.getState().closeDrawer();
       } else if (e.key === "/") {
         e.preventDefault();
@@ -170,6 +173,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
       <ErrorBoundary name="Trading drawer">
         <TradingDrawer />
       </ErrorBoundary>
+
+      <ChallengeStartModal />
 
       <BreachOverlay />
 

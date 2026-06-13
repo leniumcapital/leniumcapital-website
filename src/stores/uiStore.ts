@@ -16,6 +16,8 @@ interface UIState {
   eventSearch: string;
   /** Active sport in the Sports tab's sub-menu ("All" = every sport). */
   sportsFilter: string;
+  /** Challenge onboarding overlay — never navigates away from dashboard. */
+  challengeModalOpen: boolean;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
@@ -25,6 +27,8 @@ interface UIState {
   setViewMode: (mode: ViewMode) => void;
   setSortOrder: (order: SortOrder) => void;
   setMarketsScrollTop: (top: number) => void;
+  openChallengeModal: () => void;
+  closeChallengeModal: () => void;
   reset: () => void;
 }
 
@@ -38,6 +42,7 @@ const initial = {
   marketsScrollTop: 0,
   eventSearch: "",
   sportsFilter: "All",
+  challengeModalOpen: false,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
@@ -53,5 +58,7 @@ export const useUiStore = create<UIState>()((set) => ({
   setViewMode: (viewMode) => set({ viewMode }),
   setSortOrder: (sortOrder) => set({ sortOrder }),
   setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
+  openChallengeModal: () => set({ challengeModalOpen: true }),
+  closeChallengeModal: () => set({ challengeModalOpen: false }),
   reset: () => set(initial),
 }));

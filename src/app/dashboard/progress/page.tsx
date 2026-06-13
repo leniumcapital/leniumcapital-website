@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
 import { usePositionStore, type ClosedTrade } from "@/stores/positionStore";
 import { useAccountStore } from "@/stores/accountStore";
+import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
@@ -32,20 +33,7 @@ export default function ProgressPage() {
         <span style={{ color: T.textPrimary, fontSize: 16 }}>
           No active challenge
         </span>
-        <Link
-          href="/pricing"
-          style={{
-            background: T.green,
-            color: T.bgPrimary,
-            borderRadius: 6,
-            padding: "8px 18px",
-            fontSize: 13,
-            fontWeight: 500,
-            textDecoration: "none",
-          }}
-        >
-          Start a challenge →
-        </Link>
+        <StartChallengeButton style={{ fontSize: 13, padding: "8px 18px" }} />
       </div>
     );
   }
