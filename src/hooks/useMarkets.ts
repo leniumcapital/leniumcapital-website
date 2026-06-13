@@ -29,15 +29,28 @@ export function useMarketsQuery() {
 
 /** Fixed display order of category sections, mirroring Kalshi. */
 export const CATEGORY_ORDER = [
-  "Economics",
   "Politics",
   "Sports",
   "Crypto",
+  "Economics",
   "Culture",
   "Climate",
   "Science and Tech",
   "Health",
 ] as const;
+
+export type MarketsSortLabel = "trending" | "volume" | "newest" | "closing";
+
+export const MARKETS_SORT_OPTIONS: {
+  value: SortOrder;
+  label: MarketsSortLabel;
+  display: string;
+}[] = [
+  { value: "movement", label: "trending", display: "Trending" },
+  { value: "volume", label: "volume", display: "Most Volume" },
+  { value: "newest", label: "newest", display: "Newest" },
+  { value: "expiry", label: "closing", display: "Closing Soon" },
+];
 
 const TRENDING_TAB_SIZE = 20;
 const TRENDING_SECTION_SIZE = 6;
@@ -250,4 +263,95 @@ export function useGroupedEvents(): GroupedEvents {
     return { featured, sections };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, sortOrder, eventSearch, sportsFilter, eventCategoryKey]);
+}
+
+export type FilteredMarkets = {
+  tickers: string[];
+  heading: string;
+  total: number;
+};
+
+/**
+ * Flat filtered event list for the redesigned markets grid — one category
+ * at a time (or all), sorted, no stacked section headers.
+ */
+export function useFilteredEventTickers(): FilteredMarkets {
+  const activeCategory = useUiStore((s) => s.activeCategory);
+  const sortOrder = useUiStore((s) => s.sortOrder);
+  const eventSearch = useUiStore((s) => s.eventSearch);
+
+  const eventCategoryKey = useMarketStore(
+    useShallow((s) => s.eventOrder.map((t) => `${t}:${s.events[t]?.category}`)),
+  );
+
+  return useMemo(() => {
+    const { events, eventOrder } = useMarketStore.getState();
+    const all = eventOrder.filter((t) => events[t]);
+    if (all.length === 0) return { tickers: [], heading: "All markets", total: 0 };
+
+    const q = eventSearch.trim().toLowerCase();
+    let tickers = all;
+
+    if (q) {
+      tickers = all.filter((t) => {
+        const ev = events[t];
+        return (
+          ev.title.toLowerCase().includes(q) ||
+          ev.outcomes.some((o) => o.name.toLowerCase().includes(q))
+        );
+      });
+      return {
+        tickers: sortEventTickers(tickers, events, "volume"),
+        heading: "Search results",
+        total: tickers.length,
+      };
+    }
+
+    if (activeCategory !== "All Markets" && activeCategory !== "Trending") {
+      tickers = all.filter((t) => events[t].category === activeCategory);
+    }
+
+    const order =
+      activeCategory === "Trending" ? ("movement" as SortOrder) : sortOrder;
+
+    tickers = sortEventTickers(
+      tickers,
+      events,
+      activeCategory === "Sports" ? effectiveOrder("Sports", order) : order,
+    );
+
+    const heading =
+      activeCategory === "All Markets"
+        ? "All markets"
+        : activeCategory === "Trending"
+          ? "Trending"
+          : activeCategory;
+
+    return { tickers, heading, total: tickers.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory, sortOrder, eventSearch, eventCategoryKey]);
+}
+
+/** Categories that have at least one event, in display order. */
+export function useAvailableCategories(): string[] {
+  const eventCategoryKey = useMarketStore(
+    useShallow((s) => s.eventOrder.map((t) => s.events[t]?.category ?? "")),
+  );
+
+  return useMemo(() => {
+    const { events, eventOrder } = useMarketStore.getState();
+    const present = new Set<string>();
+    for (const t of eventOrder) {
+      const cat = events[t]?.category;
+      if (cat) present.add(cat);
+    }
+    const ordered: string[] = CATEGORY_ORDER.filter((c) => present.has(c));
+    for (const cat of present) {
+      if (!ordered.includes(cat)) {
+        ordered.push(cat);
+      }
+    }
+    return ordered;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventCategoryKey]);
 }
