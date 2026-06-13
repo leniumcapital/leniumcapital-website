@@ -9,19 +9,26 @@ import {
   IconWallet,
   IconHistory,
   IconSettings,
+  IconUser,
+  IconBriefcase,
 } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { ChallengeWidget } from "@/components/dashboard/ChallengeWidget";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T, TOP_BAR_HEIGHT, SIDEBAR_WIDTH } from "@/lib/tokens";
 
-const NAV_ITEMS = [
+const MAIN_NAV = [
   { icon: IconLayoutGrid, label: "Markets", href: "/dashboard/markets" },
   { icon: IconChartCandle, label: "My Positions", href: "/dashboard/positions" },
   { icon: IconTarget, label: "Challenge Progress", href: "/dashboard/progress" },
   { icon: IconWallet, label: "Payouts", href: "/dashboard/payouts" },
   { icon: IconHistory, label: "Trade History", href: "/dashboard/history" },
-  { icon: IconSettings, label: "Settings", href: "/dashboard/settings" },
+] as const;
+
+const SETTINGS_NAV = [
+  { icon: IconUser, label: "Profile", href: "/dashboard/profile" },
+  { icon: IconBriefcase, label: "Account", href: "/dashboard/account" },
+  { icon: IconSettings, label: "Challenge Rules", href: "/dashboard/settings" },
 ] as const;
 
 export function Sidebar() {
@@ -34,6 +41,10 @@ export function Sidebar() {
     accountType === "none" || !tier
       ? "No active challenge"
       : `$${tier.toLocaleString()} ${accountType === "funded" ? "Funded" : "Challenge"} Account`;
+
+  const settingsActive = SETTINGS_NAV.some(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+  );
 
   return (
     <aside
@@ -63,42 +74,36 @@ export function Sidebar() {
 
       <Divider />
 
-      <nav style={{ padding: 8 }}>
-        {NAV_ITEMS.map(({ icon: Icon, label, href }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                height: 38,
-                padding: "0 10px",
-                borderRadius: T.radius,
-                background: active ? T.bgTertiary : "transparent",
-                borderLeft: active
-                  ? `2px solid ${T.green}`
-                  : "2px solid transparent",
-                color: active ? T.textPrimary : T.textMuted,
-                fontSize: 13,
-                fontWeight: 400,
-                textDecoration: "none",
-                transition: `background ${T.transition}`,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.background = T.bgSecondary;
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.background = "transparent";
-              }}
-            >
-              <Icon size={17} stroke={1.5} />
-              {label}
-            </Link>
-          );
-        })}
+      <nav style={{ padding: 8, overflowY: "auto", flexShrink: 0 }}>
+        {MAIN_NAV.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+
+        <Divider />
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            height: 32,
+            padding: "0 10px",
+            marginTop: 4,
+            marginBottom: 2,
+            color: settingsActive ? T.textSecondary : T.textMuted,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}
+        >
+          <IconSettings size={13} stroke={1.5} />
+          Settings
+        </div>
+
+        {SETTINGS_NAV.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} nested />
+        ))}
       </nav>
 
       <div style={{ flexGrow: 1 }} />
@@ -112,6 +117,57 @@ export function Sidebar() {
   );
 }
 
+function NavLink({
+  item,
+  pathname,
+  nested = false,
+}: {
+  item: { icon: typeof IconLayoutGrid; label: string; href: string };
+  pathname: string;
+  nested?: boolean;
+}) {
+  const { icon: Icon, label, href } = item;
+  const active = pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        height: 38,
+        padding: nested ? "0 10px 0 22px" : "0 10px",
+        borderRadius: T.radius,
+        background: active ? T.bgTertiary : "transparent",
+        borderLeft: active ? `2px solid ${T.green}` : "2px solid transparent",
+        color: active ? T.textPrimary : T.textMuted,
+        fontSize: 13,
+        fontWeight: 400,
+        textDecoration: "none",
+        transition: `background ${T.transition}`,
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = T.bgSecondary;
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = "transparent";
+      }}
+    >
+      <Icon size={17} stroke={1.5} />
+      {label}
+    </Link>
+  );
+}
+
 function Divider() {
-  return <div style={{ height: 0.5, background: T.border, margin: 0 }} />;
+  return (
+    <div
+      style={{
+        height: 0.5,
+        background: T.border,
+        margin: "8px 12px",
+      }}
+    />
+  );
 }
