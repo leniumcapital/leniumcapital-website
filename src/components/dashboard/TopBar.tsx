@@ -15,6 +15,7 @@ import {
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { BalanceDisplay } from "@/components/dashboard/BalanceDisplay";
+import { AccountModeSwitch } from "@/components/dashboard/AccountModeSwitch";
 import { SearchModal } from "@/components/dashboard/SearchModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useAccountStore } from "@/stores/accountStore";
@@ -58,60 +59,61 @@ export function TopBar({ searchInputRef }: TopBarProps) {
 
 function LeftSection() {
   const accountType = useAccountStore((s) => s.accountType);
+  const tier = useAccountStore((s) => s.tier);
 
   const pill =
     accountType === "challenge"
       ? {
-          label: "Demo Challenge",
+          label: tier ? `$${tier.toLocaleString()} Demo` : "Demo Challenge",
           bg: "rgba(245,158,11,0.12)",
           border: "rgba(245,158,11,0.3)",
           color: T.amber,
         }
       : accountType === "funded"
         ? {
-            label: "Funded Account",
+            label: tier ? `$${tier.toLocaleString()} Live` : "Live Account",
             bg: "rgba(0,232,122,0.1)",
             border: T.greenMutedBorder,
             color: T.green,
           }
-        : {
-            label: "No Active Challenge",
-            bg: T.bgTertiary,
-            border: T.border,
-            color: T.textMuted,
-          };
+        : null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <LeniumMark size={28} variant="green" />
-      <span
-        style={{
-          color: T.textPrimary,
-          fontSize: 15,
-          fontWeight: 400,
-          letterSpacing: "0.15em",
-        }}
-      >
-        Lenium
-      </span>
-      <motion.span
-        key={pill.label}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          background: pill.bg,
-          border: T.hairline(pill.border),
-          color: pill.color,
-          borderRadius: T.radiusPill,
-          padding: "3px 10px",
-          fontSize: 11,
-          fontWeight: 500,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {pill.label}
-      </motion.span>
+    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <LeniumMark size={28} variant="green" />
+        <span
+          style={{
+            color: T.textPrimary,
+            fontSize: 15,
+            fontWeight: 400,
+            letterSpacing: "0.15em",
+          }}
+        >
+          Lenium
+        </span>
+        {pill && (
+          <motion.span
+            key={pill.label}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              background: pill.bg,
+              border: T.hairline(pill.border),
+              color: pill.color,
+              borderRadius: T.radiusPill,
+              padding: "3px 10px",
+              fontSize: 11,
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {pill.label}
+          </motion.span>
+        )}
+      </div>
+      <AccountModeSwitch />
     </div>
   );
 }
@@ -183,6 +185,7 @@ function RightSection() {
   const [bellOpen, setBellOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const name = useAccountStore((s) => s.name);
+  const avatarUrl = useAccountStore((s) => s.avatarUrl);
   const bellRef = useRef<HTMLButtonElement>(null);
 
   const initials = name
@@ -260,7 +263,7 @@ function RightSection() {
             width: 32,
             height: 32,
             borderRadius: "50%",
-            background: T.border,
+            background: avatarUrl ? "transparent" : T.border,
             border: T.hairline(T.borderHover),
             color: T.textPrimary,
             fontSize: 13,
@@ -270,9 +273,20 @@ function RightSection() {
             alignItems: "center",
             justifyContent: "center",
             fontFamily: T.font,
+            overflow: "hidden",
+            padding: 0,
           }}
         >
-          {initials || "?"}
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            initials || "?"
+          )}
         </button>
 
         <AnimatePresence>

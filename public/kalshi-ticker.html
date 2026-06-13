@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prediction Market Ticker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #111111;
+      --bg-elevated: #161616;
+      --bg-input: #1a1a1a;
+      --border: #222222;
+      --border-hover: #2e2e2e;
+      --text: #ffffff;
+      --text-secondary: #888888;
+      --text-tertiary: #555555;
+      --green: #00e87a;
+      --green-muted: rgba(0, 232, 122, 0.12);
+      --red: #ff6b7a;
+      --red-muted: rgba(255, 107, 122, 0.12);
+      --radius: 10px;
+      --radius-pill: 999px;
+      --font: "Inter", system-ui, -apple-system, sans-serif;
+      --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font-family: inherit; }
+
+    /* ── Page shell ─────────────────────────────────────────────── */
+    .page {
+      min-height: 100vh;
+      padding: 28px 24px 48px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .page-header p {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Card grid (Mode 1) ─────────────────────────────────────── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+
+    .market-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color var(--transition), transform 0.2s ease;
+    }
+
+    .market-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    .card-category {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .card-category-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .card-category-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.35;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .card-option {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .card-option:last-of-type { margin-bottom: 14px; }
+
+    .card-option-avatar { grid-row: 1 / 3; }
+
+    .card-option-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      align-self: end;
+    }
+
+    .card-option-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      align-self: end;
+    }
+
+    .card-option-multiplier {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-option-pill {
+      min-width: 42px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--green);
+      background: var(--green-muted);
+      border-radius: var(--radius-pill);
+      padding: 3px 8px;
+      font-variant-numeric: tabular-nums;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    .card-option-bar-wrap {
+      grid-column: 2 / 4;
+      height: 3px;
+      background: #1e1e1e;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .card-option-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width var(--transition), background-color var(--transition);
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* ── Avatar ───────────────────────────────────────────────────── */
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      inset: 0;
+    }
+
+    .avatar img.hidden { display: none; }
+
+    .avatar-lg {
+      width: 36px;
+      height: 36px;
+      font-size: 12px;
+    }
+
+    /* ── Expanded overlay (Mode 2) ────────────────────────────────── */
+    .expanded-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .expanded-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .expanded-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      transform: translateY(24px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease;
+    }
+
+    .expanded-panel.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .expanded-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .back-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .back-btn:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+    }
+
+    .expanded-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .expanded-left {
+      flex: 0 0 65%;
+      overflow-y: auto;
+      padding: 24px;
+      border-right: 1px solid var(--border);
+    }
+
+    .expanded-right {
+      flex: 0 0 35%;
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--bg);
+    }
+
+    .expanded-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .expanded-category-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .expanded-breadcrumb {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .expanded-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    /* Legend */
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-label { color: var(--text); font-weight: 500; }
+
+    .legend-pct {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Chart */
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+      margin-bottom: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 8px 8px 4px;
+    }
+
+    .chart-volume {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .chart-range-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .chart-range-btn {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .chart-range-btn.active {
+      color: var(--text);
+      background: var(--bg-elevated);
+    }
+
+    /* Options table */
+    .options-table {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: 36px 1fr auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .options-row:last-child { border-bottom: none; }
+
+    .options-row:hover,
+    .options-row.selected {
+      background: var(--bg-elevated);
+    }
+
+    .options-row-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .options-row-prob {
+      font-size: 14px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 64px;
+      justify-content: flex-end;
+    }
+
+    .delta-up { color: var(--green); font-size: 11px; }
+    .delta-down { color: var(--red); font-size: 11px; }
+
+    .options-row-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .price-btn {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .price-btn.yes {
+      color: var(--green);
+      background: rgba(0, 232, 122, 0.1);
+      border-color: rgba(0, 232, 122, 0.35);
+    }
+
+    .price-btn.yes:hover { border-color: var(--green); }
+
+    .price-btn.no {
+      color: var(--red);
+      background: rgba(255, 107, 122, 0.1);
+      border-color: rgba(255, 107, 122, 0.35);
+    }
+
+    .price-btn.no:hover { border-color: var(--red); }
+
+    /* Order panel */
+    .order-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+    }
+
+    .order-tabs {
+      display: flex;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .order-tab {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+
+    .order-tab.active { color: var(--text); }
+
+    .order-currency {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .order-selection {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .order-selection-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .order-side-toggle {
+      display: flex;
+      gap: 8px;
+    }
+
+    .side-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .side-btn.yes { color: var(--text-secondary); }
+    .side-btn.yes.active {
+      background: var(--green);
+      color: #0a0a0a;
+      border-color: var(--green);
+    }
+
+    .side-btn.no { color: var(--text-secondary); }
+    .side-btn.no.active {
+      background: var(--red-muted);
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .order-input-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .order-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .order-input:focus { border-color: var(--border-hover); }
+
+    .order-balance {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .order-summary {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .order-summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .order-summary-row .label { color: var(--text-secondary); }
+    .order-summary-row .value { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+    .order-summary-sub {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .review-btn {
+      margin-top: auto;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: var(--radius);
+      background: rgba(0, 232, 122, 0.35);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .review-btn:not(:disabled):hover {
+      background: rgba(0, 232, 122, 0.5);
+      color: #fff;
+    }
+
+    .review-btn:disabled { cursor: not-allowed; }
+
+    @media (max-width: 900px) {
+      .expanded-body { flex-direction: column; }
+      .expanded-left, .expanded-right { flex: 1 1 auto; }
+      .expanded-left { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>All markets</h1>
+      <p>Universal ticker — every market is data-driven. New markets register via <code>registerMarket()</code>.</p>
+    </header>
+    <div id="card-grid" class="card-grid"></div>
+  </div>
+
+  <div id="expanded-backdrop" class="expanded-backdrop"></div>
+
+  <div id="expanded-panel" class="expanded-panel" aria-hidden="true">
+    <div class="expanded-topbar">
+      <button type="button" class="back-btn" id="back-btn">← Back</button>
+      <span id="expanded-topbar-title" style="font-size:14px;color:var(--text-secondary)"></span>
+    </div>
+    <div class="expanded-body">
+      <div class="expanded-left" id="expanded-left"></div>
+      <div class="expanded-right" id="expanded-right"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ═══════════════════════════════════════════════════════════════════
+       UNIVERSAL PREDICTION MARKET TICKER
+       Everything is data-driven. registerMarket() is the only entry point.
+       ═══════════════════════════════════════════════════════════════════ */
+
+    const POLL_MS = 3000;
+    const HISTORY_MAX = 120; // ~6 min at 3s intervals
+    const ACCOUNT_BALANCE = 489.90;
+
+    /** @type {Map<string, MarketState>} */
+    const registry = new Map();
+
+    let expandedMarketId = null;
+    let selectedOptionId = null;
+    let orderSide = "yes";
+    let orderMode = "buy";
+    let chartInstance = null;
+    let pollTimer = null;
+
+    const $ = (sel) => document.querySelector(sel);
+    const gridEl = $("#card-grid");
+    const backdropEl = $("#expanded-backdrop");
+    const panelEl = $("#expanded-panel");
+    const leftEl = $("#expanded-left");
+    const rightEl = $("#expanded-right");
+
+    /* ── Utilities ─────────────────────────────────────────────────── */
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function initials(label) {
+      return label
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase();
+    }
+
+    function formatVolume(n) {
+      if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+      if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+      if (n >= 1e3) return `$${Math.round(n / 1e3)}K`;
+      return `$${Math.round(n)}`;
+    }
+
+    function formatMultiplier(prob) {
+      if (prob <= 0) return "—";
+      return (1 / prob).toFixed(2) + "x";
+    }
+
+    function formatPct(prob) {
+      return Math.round(prob * 100) + "%";
+    }
+
+    function yesCents(prob) {
+      return Math.round(prob * 100);
+    }
+
+    function noCents(prob) {
+      return 100 - yesCents(prob);
+    }
+
+    function formatTime(d) {
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    /* ── Avatar helper ─────────────────────────────────────────────── */
+
+    function createAvatar(option, sizeClass = "") {
+      const el = document.createElement("div");
+      el.className = `avatar ${sizeClass}`.trim();
+      el.style.background = option.color;
+
+      const span = document.createElement("span");
+      span.textContent = initials(option.label);
+
+      if (option.imageUrl) {
+        const img = document.createElement("img");
+        img.src = option.imageUrl;
+        img.alt = "";
+        img.loading = "lazy";
+        img.onerror = () => img.classList.add("hidden");
+        el.appendChild(img);
+      }
+
+      el.appendChild(span);
+      return el;
+    }
+
+    /* ── Probability drift (loosely normalized) ────────────────────── */
+
+    function driftOptions(options) {
+      const drifted = options.map((o) => {
+        const delta = (Math.random() - 0.5) * 0.06;
+        return clamp(o.probability + delta, 0.01, 0.98);
+      });
+      const sum = drifted.reduce((a, b) => a + b, 0);
+      return options.map((o, i) => ({
+        ...o,
+        prevProbability: o.probability,
+        probability: clamp(drifted[i] / sum, 0.01, 0.98),
+        delta: drifted[i] / sum - o.probability,
+      }));
+    }
+
+    /* ── Market state factory ──────────────────────────────────────── */
+
+    /**
+     * @typedef {Object} MarketOptionInput
+     * @property {string} id
+     * @property {string} label
+     * @property {string} [imageUrl]
+     * @property {string} color
+     * @property {number} probability 0–1
+     */
+
+    /**
+     * @typedef {Object} MarketInput
+     * @property {string} id
+     * @property {string} category
+     * @property {string} categoryIcon  emoji or short text for badge
+     * @property {string} categoryColor hex background for badge
+     * @property {string} title
+     * @property {string} resolutionDate
+     * @property {number} volume
+     * @property {MarketOptionInput[]} options
+     */
+
+    function createMarketState(data) {
+      const now = new Date();
+      const options = data.options.map((o) => ({
+        ...o,
+        prevProbability: o.probability,
+        delta: 0,
+        history: [{ t: now, v: o.probability }],
+      }));
+
+      return {
+        ...data,
+        options,
+        cardEl: null,
+        dom: {},
+      };
+    }
+
+    /* ── Card rendering (Mode 1) ───────────────────────────────────── */
+
+    function buildCard(market) {
+      const card = document.createElement("article");
+      card.className = "market-card";
+      card.dataset.marketId = market.id;
+      card.setAttribute("role", "button");
+      card.tabIndex = 0;
+
+      const category = document.createElement("div");
+      category.className = "card-category";
+      const badge = document.createElement("div");
+      badge.className = "card-category-badge";
+      badge.style.background = market.categoryColor;
+      badge.textContent = market.categoryIcon;
+      const catLabel = document.createElement("span");
+      catLabel.className = "card-category-label";
+      catLabel.textContent = market.category;
+      category.append(badge, catLabel);
+
+      const title = document.createElement("h2");
+      title.className = "card-title";
+      title.textContent = market.title;
+
+      const optionsWrap = document.createElement("div");
+      optionsWrap.className = "card-options";
+
+      const optionEls = market.options.map((opt) => {
+        const row = document.createElement("div");
+        row.className = "card-option";
+        row.dataset.optionId = opt.id;
+
+        const avatar = createAvatar(opt);
+        avatar.classList.add("card-option-avatar");
+
+        const label = document.createElement("div");
+        label.className = "card-option-label";
+        label.textContent = opt.label;
+
+        const right = document.createElement("div");
+        right.className = "card-option-right";
+        const mult = document.createElement("span");
+        mult.className = "card-option-multiplier";
+        const pill = document.createElement("span");
+        pill.className = "card-option-pill";
+        right.append(mult, pill);
+
+        const barWrap = document.createElement("div");
+        barWrap.className = "card-option-bar-wrap";
+        const bar = document.createElement("div");
+        bar.className = "card-option-bar";
+        bar.style.background = opt.color;
+        barWrap.append(bar);
+
+        row.append(avatar, label, right, barWrap);
+        optionsWrap.append(row);
+
+        return { row, mult, pill, bar, opt };
+      });
+
+      const footer = document.createElement("div");
+      footer.className = "card-footer";
+      const vol = document.createElement("span");
+      vol.className = "card-volume";
+      const subs = document.createElement("span");
+      subs.className = "card-submarkets";
+      footer.append(vol, subs);
+
+      card.append(category, title, optionsWrap, footer);
+      market.cardEl = card;
+      market.dom.card = { optionEls, vol, subs };
+
+      updateCardDOM(market);
+
+      card.addEventListener("click", () => openExpanded(market.id));
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openExpanded(market.id);
+        }
+      });
+
+      return card;
+    }
+
+    function updateCardDOM(market) {
+      const { optionEls, vol, subs } = market.dom.card;
+      optionEls.forEach(({ mult, pill, bar, opt }, i) => {
+        const o = market.options[i];
+        const pct = o.probability * 100;
+        mult.textContent = formatMultiplier(o.probability);
+        pill.textContent = formatPct(o.probability);
+        bar.style.width = pct + "%";
+        bar.style.background = o.color;
+      });
+      vol.textContent = formatVolume(market.volume) + " vol";
+      subs.textContent = market.options.length + " market" + (market.options.length !== 1 ? "s" : "");
+    }
+
+    /* ── Expanded view (Mode 2) ────────────────────────────────────── */
+
+    function openExpanded(marketId) {
+      const market = registry.get(marketId);
+      if (!market) return;
+
+      expandedMarketId = marketId;
+      selectedOptionId = market.options[0]?.id ?? null;
+      orderSide = "yes";
+      orderMode = "buy";
+
+      $("#expanded-topbar-title").textContent = market.title;
+      renderExpandedLeft(market);
+      renderExpandedRight(market);
+
+      backdropEl.classList.add("open");
+      panelEl.classList.add("open");
+      panelEl.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+
+      requestAnimationFrame(() => initChart(market));
+    }
+
+    function closeExpanded() {
+      backdropEl.classList.remove("open");
+      panelEl.classList.remove("open");
+      panelEl.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      expandedMarketId = null;
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+    }
+
+    function renderExpandedLeft(market) {
+      leftEl.innerHTML = "";
+
+      const header = document.createElement("div");
+      header.className = "expanded-header";
+      const badge = document.createElement("div");
+      badge.className = "expanded-category-badge";
+      badge.style.background = market.categoryColor;
+      badge.textContent = market.categoryIcon;
+      const meta = document.createElement("div");
+      const crumb = document.createElement("div");
+      crumb.className = "expanded-breadcrumb";
+      crumb.textContent = market.category;
+      const title = document.createElement("h1");
+      title.className = "expanded-title";
+      title.textContent = market.title;
+      meta.append(crumb, title);
+      header.append(badge, meta);
+
+      const legend = document.createElement("div");
+      legend.className = "legend-row";
+      legend.id = "legend-row";
+      market.options.forEach((o) => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.dataset.optionId = o.id;
+        const dot = document.createElement("span");
+        dot.className = "legend-dot";
+        dot.style.background = o.color;
+        const lbl = document.createElement("span");
+        lbl.className = "legend-label";
+        lbl.textContent = o.label;
+        const pct = document.createElement("span");
+        pct.className = "legend-pct";
+        pct.textContent = formatPct(o.probability);
+        item.append(dot, lbl, pct);
+        legend.append(item);
+      });
+
+      const chartVol = document.createElement("div");
+      chartVol.className = "chart-volume";
+      chartVol.innerHTML = `<span id="chart-vol">${formatVolume(market.volume)} vol</span>`;
+      const rangeBtns = document.createElement("div");
+      rangeBtns.className = "chart-range-btns";
+      ["1D", "1W", "1M", "ALL"].forEach((r, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chart-range-btn" + (i === 0 ? " active" : "");
+        b.textContent = r;
+        rangeBtns.append(b);
+      });
+      chartVol.append(rangeBtns);
+
+      const chartWrap = document.createElement("div");
+      chartWrap.className = "chart-wrap";
+      const canvas = document.createElement("canvas");
+      canvas.id = "live-chart";
+      chartWrap.append(canvas);
+
+      const table = document.createElement("div");
+      table.className = "options-table";
+      table.id = "options-table";
+      market.options.forEach((o) => {
+        const row = document.createElement("div");
+        row.className = "options-row" + (o.id === selectedOptionId ? " selected" : "");
+        row.dataset.optionId = o.id;
+
+        const avatar = createAvatar(o);
+        const lbl = document.createElement("span");
+        lbl.className = "options-row-label";
+        lbl.textContent = o.label;
+
+        const prob = document.createElement("span");
+        prob.className = "options-row-prob";
+        prob.dataset.optionId = o.id;
+
+        const btns = document.createElement("div");
+        btns.className = "options-row-btns";
+        const yesBtn = document.createElement("button");
+        yesBtn.type = "button";
+        yesBtn.className = "price-btn yes";
+        yesBtn.dataset.side = "yes";
+        const noBtn = document.createElement("button");
+        noBtn.type = "button";
+        noBtn.className = "price-btn no";
+        noBtn.dataset.side = "no";
+        btns.append(yesBtn, noBtn);
+
+        row.append(avatar, lbl, prob, btns);
+        table.append(row);
+
+        row.addEventListener("click", (e) => {
+          if (e.target.closest(".price-btn")) return;
+          selectOption(market.id, o.id);
+        });
+
+        yesBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectOption(market.id, o.id, "yes");
+        });
+
+        noBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectOption(market.id, o.id, "no");
+        });
+      });
+
+      leftEl.append(header, legend, chartVol, chartWrap, table);
+      updateExpandedTable(market);
+    }
+
+    function updateExpandedTable(market) {
+      market.options.forEach((o) => {
+        const probEl = leftEl.querySelector(`.options-row-prob[data-option-id="${o.id}"]`);
+        if (!probEl) return;
+
+        const delta = o.probability - (o.prevProbability ?? o.probability);
+        const deltaStr =
+          Math.abs(delta) < 0.001
+            ? ""
+            : delta > 0
+              ? `<span class="delta-up">▲ ${Math.round(delta * 100)}</span>`
+              : `<span class="delta-down">▼ ${Math.round(Math.abs(delta) * 100)}</span>`;
+
+        probEl.innerHTML = `${formatPct(o.probability)} ${deltaStr}`;
+
+        const row = leftEl.querySelector(`.options-row[data-option-id="${o.id}"]`);
+        if (row) {
+          row.classList.toggle("selected", o.id === selectedOptionId);
+          const yesBtn = row.querySelector(".price-btn.yes");
+          const noBtn = row.querySelector(".price-btn.no");
+          if (yesBtn) yesBtn.textContent = `Yes ${yesCents(o.probability)}¢`;
+          if (noBtn) noBtn.textContent = `No ${noCents(o.probability)}¢`;
+        }
+
+        const legendItem = leftEl.querySelector(`.legend-item[data-option-id="${o.id}"] .legend-pct`);
+        if (legendItem) legendItem.textContent = formatPct(o.probability);
+      });
+    }
+
+    function selectOption(marketId, optionId, side) {
+      selectedOptionId = optionId;
+      if (side) orderSide = side;
+      const market = registry.get(marketId);
+      if (!market) return;
+      updateExpandedTable(market);
+      renderExpandedRight(market);
+    }
+
+    function renderExpandedRight(market) {
+      const opt = market.options.find((o) => o.id === selectedOptionId) ?? market.options[0];
+      if (!opt) return;
+
+      rightEl.innerHTML = "";
+
+      const panel = document.createElement("div");
+      panel.className = "order-panel";
+
+      const tabs = document.createElement("div");
+      tabs.className = "order-tabs";
+      const buyTab = document.createElement("button");
+      buyTab.type = "button";
+      buyTab.className = "order-tab" + (orderMode === "buy" ? " active" : "");
+      buyTab.textContent = "BUY";
+      const sellTab = document.createElement("button");
+      sellTab.type = "button";
+      sellTab.className = "order-tab" + (orderMode === "sell" ? " active" : "");
+      sellTab.textContent = "SELL";
+      const currency = document.createElement("span");
+      currency.className = "order-currency";
+      currency.textContent = "DOLLARS ▾";
+      tabs.append(buyTab, sellTab, currency);
+
+      buyTab.addEventListener("click", () => {
+        orderMode = "buy";
+        renderExpandedRight(market);
+      });
+      sellTab.addEventListener("click", () => {
+        orderMode = "sell";
+        renderExpandedRight(market);
+      });
+
+      const selection = document.createElement("div");
+      selection.className = "order-selection";
+      selection.append(createAvatar(opt, "avatar-lg"));
+      const selName = document.createElement("span");
+      selName.className = "order-selection-name";
+      selName.textContent = opt.label;
+      selection.append(selName);
+
+      const sideToggle = document.createElement("div");
+      sideToggle.className = "order-side-toggle";
+      const yesBtn = document.createElement("button");
+      yesBtn.type = "button";
+      yesBtn.className = "side-btn yes" + (orderSide === "yes" ? " active" : "");
+      yesBtn.id = "order-yes-btn";
+      const noBtn = document.createElement("button");
+      noBtn.type = "button";
+      noBtn.className = "side-btn no" + (orderSide === "no" ? " active" : "");
+      noBtn.id = "order-no-btn";
+      sideToggle.append(yesBtn, noBtn);
+
+      yesBtn.addEventListener("click", () => {
+        orderSide = "yes";
+        renderExpandedRight(market);
+      });
+      noBtn.addEventListener("click", () => {
+        orderSide = "no";
+        renderExpandedRight(market);
+      });
+
+      const inputGroup = document.createElement("div");
+      inputGroup.className = "order-input-group";
+      const inputLabel = document.createElement("label");
+      inputLabel.textContent = "Dollars";
+      inputLabel.setAttribute("for", "order-amount");
+      const input = document.createElement("input");
+      input.type = "number";
+      input.id = "order-amount";
+      input.className = "order-input";
+      input.placeholder = "$0";
+      input.min = "0";
+      input.step = "1";
+      inputGroup.append(inputLabel, input);
+
+      const balance = document.createElement("div");
+      balance.className = "order-balance";
+      balance.textContent = `Predictions account · $${ACCOUNT_BALANCE.toFixed(2)} available`;
+
+      const summary = document.createElement("div");
+      summary.className = "order-summary";
+      summary.innerHTML = `
+        <div class="order-summary-row">
+          <span class="label">Odds</span>
+          <span class="value" id="order-odds"></span>
+        </div>
+        <div class="order-summary-row">
+          <div>
+            <div class="label">Max payout</div>
+            <div class="order-summary-sub">${market.resolutionDate}</div>
+          </div>
+          <span class="value" id="order-payout">$0</span>
+        </div>
+      `;
+
+      const reviewBtn = document.createElement("button");
+      reviewBtn.type = "button";
+      reviewBtn.className = "review-btn";
+      reviewBtn.id = "review-btn";
+      reviewBtn.textContent = orderMode === "buy" ? "Review Buy" : "Review Sell";
+      reviewBtn.disabled = true;
+
+      input.addEventListener("input", () => {
+        const amt = parseFloat(input.value) || 0;
+        const cents = orderSide === "yes" ? yesCents(opt.probability) : noCents(opt.probability);
+        const payout = cents > 0 ? (amt / (cents / 100)).toFixed(2) : "0";
+        $("#order-payout").textContent = "$" + payout;
+        reviewBtn.disabled = amt <= 0;
+      });
+
+      panel.append(tabs, selection, sideToggle, inputGroup, balance, summary, reviewBtn);
+      rightEl.append(panel);
+
+      updateOrderPanel(market);
+    }
+
+    function updateOrderPanel(market) {
+      const opt = market.options.find((o) => o.id === selectedOptionId);
+      if (!opt) return;
+
+      const yesBtn = $("#order-yes-btn");
+      const noBtn = $("#order-no-btn");
+      const oddsEl = $("#order-odds");
+
+      if (yesBtn) yesBtn.textContent = `YES ${yesCents(opt.probability)}¢`;
+      if (noBtn) noBtn.textContent = `NO ${noCents(opt.probability)}¢`;
+
+      if (oddsEl) {
+        const displayProb = orderSide === "yes" ? opt.probability : 1 - opt.probability;
+        oddsEl.textContent = formatPct(displayProb) + " chance";
+      }
+
+      const input = $("#order-amount");
+      if (input && input.value) {
+        input.dispatchEvent(new Event("input"));
+      }
+    }
+
+    /* ── Chart.js live multi-line chart ────────────────────────────── */
+
+    function initChart(market) {
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+
+      const canvas = $("#live-chart");
+      if (!canvas) return;
+
+      const datasets = market.options.map((o) => ({
+        label: o.label,
+        data: o.history.map((h) => ({ x: h.t.getTime(), y: h.v * 100 })),
+        borderColor: o.color,
+        backgroundColor: "transparent",
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.35,
+        fill: false,
+      }));
+
+      chartInstance = new Chart(canvas, {
+        type: "line",
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#161616",
+              borderColor: "#222",
+              borderWidth: 1,
+              titleColor: "#fff",
+              bodyColor: "#888",
+              callbacks: {
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              type: "linear",
+              display: true,
+              grid: { display: false },
+              border: { display: false },
+              ticks: {
+                color: "#555",
+                maxTicksLimit: 6,
+                callback: (v) => formatTime(new Date(v)),
+              },
+            },
+            y: {
+              position: "right",
+              min: 0,
+              max: 100,
+              grid: {
+                color: "#1e1e1e",
+                borderDash: [4, 4],
+              },
+              border: { display: false },
+              ticks: {
+                color: "#555",
+                callback: (v) => v + "%",
+                stepSize: 20,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function updateChart(market) {
+      if (!chartInstance || expandedMarketId !== market.id) return;
+
+      market.options.forEach((o, i) => {
+        if (!chartInstance.data.datasets[i]) return;
+        chartInstance.data.datasets[i].data = o.history.map((h) => ({
+          x: h.t.getTime(),
+          y: h.v * 100,
+        }));
+      });
+
+      chartInstance.update("none");
+    }
+
+    /* ── Live polling ──────────────────────────────────────────────── */
+
+    function tickAllMarkets() {
+      registry.forEach((market) => {
+        market.options = driftOptions(market.options);
+
+        const now = new Date();
+        market.options.forEach((o) => {
+          o.history.push({ t: now, v: o.probability });
+          if (o.history.length > HISTORY_MAX) o.history.shift();
+        });
+
+        // Slight volume drift
+        market.volume += Math.round((Math.random() - 0.4) * 800);
+
+        if (market.dom.card) updateCardDOM(market);
+
+        if (expandedMarketId === market.id) {
+          updateExpandedTable(market);
+          updateOrderPanel(market);
+          updateChart(market);
+        }
+      });
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(tickAllMarkets, POLL_MS);
+    }
+
+    /* ── registerMarket — the only public API ────────────────────── */
+
+    /**
+     * Register a new market. Creates its card, starts live polling, adds to grid.
+     * @param {MarketInput} data
+     * @returns {string} market id
+     */
+    function registerMarket(data) {
+      if (!data.id) throw new Error("registerMarket: id is required");
+      if (!data.options?.length) throw new Error("registerMarket: options required");
+
+      // Normalize probabilities on registration
+      const sum = data.options.reduce((a, o) => a + o.probability, 0);
+      data.options = data.options.map((o) => ({
+        ...o,
+        probability: o.probability / sum,
+      }));
+
+      const state = createMarketState(data);
+      registry.set(data.id, state);
+
+      const card = buildCard(state);
+      gridEl.append(card);
+
+      startPolling();
+      return data.id;
+    }
+
+    // Expose globally for the rest of the platform
+    window.registerMarket = registerMarket;
+
+    /* ── Event bindings ──────────────────────────────────────────── */
+
+    $("#back-btn").addEventListener("click", closeExpanded);
+    backdropEl.addEventListener("click", closeExpanded);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && expandedMarketId) closeExpanded();
+    });
+
+    /* ── Demo markets (prove universality — not hardcoded in UI logic) ─ */
+
+    registerMarket({
+      id: "election-2028-gop",
+      category: "ELECTIONS",
+      categoryIcon: "🐘",
+      categoryColor: "#8b1a1a",
+      title: "2028 Republican presidential nominee",
+      resolutionDate: "Nov 7, 2028",
+      volume: 47432623,
+      options: [
+        {
+          id: "vance",
+          label: "J.D. Vance",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/J.D._Vance_official_portrait_118th_Congress.jpg/220px-J.D._Vance_official_portrait_118th_Congress.jpg",
+          color: "#00e87a",
+          probability: 0.32,
+        },
+        {
+          id: "rubio",
+          label: "Marco Rubio",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Marco_Rubio%2C_Official_Portrait%2C_112th_Congress.jpg/220px-Marco_Rubio%2C_Official_Portrait%2C_112th_Congress.jpg",
+          color: "#4a9eff",
+          probability: 0.30,
+        },
+        {
+          id: "carlson",
+          label: "Tucker Carlson",
+          color: "#ff9f43",
+          probability: 0.056,
+        },
+      ],
+    });
+
+    registerMarket({
+      id: "ucl-final-2026",
+      category: "SOCCER",
+      categoryIcon: "⚽",
+      categoryColor: "#1a3a6b",
+      title: "Who will win the 2026 UEFA Champions League?",
+      resolutionDate: "May 30, 2026",
+      volume: 8234100,
+      options: [
+        {
+          id: "real-madrid",
+          label: "Real Madrid",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Real_Madrid_CF.svg/120px-Real_Madrid_CF.svg.png",
+          color: "#f5f5f5",
+          probability: 0.28,
+        },
+        {
+          id: "man-city",
+          label: "Manchester City",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/120px-Manchester_City_FC_badge.svg.png",
+          color: "#6cabdd",
+          probability: 0.24,
+        },
+        {
+          id: "bayern",
+          label: "Bayern Munich",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/FC_Bayern_München_logo_%282024%29.svg/120px-FC_Bayern_München_logo_%282024%29.svg.png",
+          color: "#dc052d",
+          probability: 0.18,
+        },
+      ],
+    });
+
+    registerMarket({
+      id: "btc-100k-2026",
+      category: "CRYPTO",
+      categoryIcon: "₿",
+      categoryColor: "#f7931a",
+      title: "Will Bitcoin exceed $100,000 before end of 2026?",
+      resolutionDate: "Dec 31, 2026",
+      volume: 15230000,
+      options: [
+        {
+          id: "yes",
+          label: "Yes",
+          imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/120px-Bitcoin.svg.png",
+          color: "#00e87a",
+          probability: 0.59,
+        },
+        {
+          id: "no",
+          label: "No",
+          color: "#ff6b7a",
+          probability: 0.41,
+        },
+      ],
+    });
+
+    registerMarket({
+      id: "nba-finals-2026",
+      category: "SPORTS",
+      categoryIcon: "🏀",
+      categoryColor: "#c45c26",
+      title: "2026 NBA Finals winner",
+      resolutionDate: "Jun 2026",
+      volume: 4102800,
+      options: [
+        {
+          id: "celtics",
+          label: "Boston Celtics",
+          color: "#007a33",
+          probability: 0.22,
+        },
+        {
+          id: "nuggets",
+          label: "Denver Nuggets",
+          color: "#fec524",
+          probability: 0.19,
+        },
+        {
+          id: "thunder",
+          label: "Oklahoma City Thunder",
+          color: "#007ac1",
+          probability: 0.17,
+        },
+        {
+          id: "other",
+          label: "Another team",
+          color: "#888888",
+          probability: 0.42,
+        },
+      ],
+    });
+  </script>
+</body>
+</html>
