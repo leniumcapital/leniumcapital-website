@@ -14,8 +14,8 @@ const VARIANT_CLASS: Record<string, string> = {
 };
 
 /**
- * Marketing-site primary CTA — shows the branded loader overlay, then
- * navigates to the login page.
+ * Marketing-site primary CTA — shows the branded loader overlay briefly,
+ * then navigates to the signup page.
  */
 export function StartChallengeCta({
   children = "Start your challenge",
@@ -33,7 +33,9 @@ export function StartChallengeCta({
   function handleClick() {
     onNavigate?.();
     startNavigationLoading();
-    router.push("/login");
+    window.setTimeout(() => {
+      router.push("/signup");
+    }, 900);
   }
 
   return (
