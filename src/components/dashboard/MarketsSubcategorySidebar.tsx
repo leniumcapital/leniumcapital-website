@@ -2,7 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useUiStore } from "@/stores/uiStore";
-import { useSubcategoriesForCategory } from "@/hooks/useMarkets";
+import {
+  useSubcategoriesForCategory,
+  categoryHasSubcategorySidebar,
+} from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
 const SIDEBAR_WIDTH = 200;
@@ -17,7 +20,8 @@ export function MarketsSubcategorySidebar() {
   const setSubCategoryFilter = useUiStore((s) => s.setSubCategoryFilter);
   const subcategories = useSubcategoriesForCategory(activeCategory);
 
-  const show = subcategories.length > 0;
+  const show =
+    categoryHasSubcategorySidebar(activeCategory) || subcategories.length > 0;
 
   return (
     <AnimatePresence initial={false}>
@@ -87,9 +91,9 @@ function NavItem({
         border: "none",
         borderLeft: active ? `2px solid ${T.green}` : "2px solid transparent",
         background: "transparent",
-        color: active ? T.textPrimary : T.textSecondary,
+        color: active ? T.green : T.textPrimary,
         fontSize: 14,
-        fontWeight: active ? 500 : 400,
+        fontWeight: active ? 600 : 400,
         cursor: "pointer",
         fontFamily: T.font,
         transition: `color ${T.transition}, border-color ${T.transition}`,
@@ -98,7 +102,7 @@ function NavItem({
         if (!active) e.currentTarget.style.color = "#CCCCCC";
       }}
       onMouseLeave={(e) => {
-        if (!active) e.currentTarget.style.color = T.textSecondary;
+        if (!active) e.currentTarget.style.color = T.textPrimary;
       }}
     >
       {label}

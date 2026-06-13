@@ -8,6 +8,7 @@ import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
 import {
   PRIMARY_TABS,
+  SUBCATEGORY_ORDER,
   TABS_WITHOUT_SIDEBAR,
   sortSubcategories,
 } from "@/lib/marketCategories";
@@ -54,8 +55,9 @@ export function useCategoryCounts(): Record<string, number> {
 }
 
 /**
- * Subcategories present in live data for a primary category, sorted with
- * preferred Kalshi order. Sidebar is generated from this list only.
+ * Subcategories for the left sidebar. Shows the full Kalshi list for categories
+ * that define one (e.g. Economics → Fed, GDP, …), merged with any extras
+ * discovered in live data.
  */
 export function useSubcategoriesForCategory(category: string): string[] {
   const subKey = useMarketStore(
@@ -73,15 +75,16 @@ export function useSubcategoriesForCategory(category: string): string[] {
     for (const sub of subKey) {
       if (sub) found.add(sub);
     }
-    return sortSubcategories(category, [...found]);
+    const preferred = SUBCATEGORY_ORDER[category] ?? [];
+    const merged = [...new Set([...preferred, ...found])];
+    return sortSubcategories(category, merged);
   }, [category, subKey]);
 }
 
-/** Whether the left subcategory sidebar should render for the active tab. */
-export function useShowSubcategorySidebar(): boolean {
-  const activeCategory = useUiStore((s) => s.activeCategory);
-  const subcategories = useSubcategoriesForCategory(activeCategory);
-  return !TABS_WITHOUT_SIDEBAR.has(activeCategory) && subcategories.length > 0;
+/** Categories that always get a left sidebar (Kalshi defines sub-tabs for them). */
+export function categoryHasSubcategorySidebar(category: string): boolean {
+  if (TABS_WITHOUT_SIDEBAR.has(category)) return false;
+  return (SUBCATEGORY_ORDER[category]?.length ?? 0) > 0;
 }
 
 // ─── Event-level grouping (one card per Kalshi event) ─────────────────────────
