@@ -3,6 +3,38 @@ import { prisma } from "@/lib/db";
 
 const BCRYPT_ROUNDS = 12;
 
+/** Runs once per process — adds profile columns if the deploy missed `db push`. */
+let schemaReady: Promise<void> | null = null;
+
+export async function ensureProfileSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone" TEXT`,
+      );
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT`,
+      );
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false`,
+      );
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "twoFactorMethod" TEXT`,
+      );
+    })().catch((e) => {
+      schemaReady = null;
+      throw e;
+    });
+  }
+  return schemaReady;
+}
+
+export function prismaErrorCode(e: unknown): string | undefined {
+  return e && typeof e === "object" && "code" in e
+    ? String((e as { code: unknown }).code)
+    : undefined;
+}
+
 export type UserProfile = {
   id: string;
   name: string;
@@ -14,6 +46,7 @@ export type UserProfile = {
 };
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  await ensureProfileSchema();
   return prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -54,6 +87,7 @@ export async function updateUserProfile(
   userId: string,
   input: ProfileUpdateInput,
 ): Promise<ProfileUpdateResult> {
+  await ensureProfileSchema();
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, error: "User not found." };
 
@@ -143,6 +177,7 @@ export async function changeUserPassword(
   newPassword: string,
   confirmPassword: string,
 ): Promise<PasswordChangeResult> {
+  await ensureProfileSchema();
   if (!currentPassword) {
     return { ok: false, error: "Enter your current password.", field: "currentPassword" };
   }
@@ -181,6 +216,7 @@ export async function updateTwoFactor(
   enabled: boolean,
   method?: TwoFactorMethod,
 ): Promise<ProfileUpdateResult> {
+  await ensureProfileSchema();
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, error: "User not found." };
 

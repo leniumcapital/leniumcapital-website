@@ -53,12 +53,26 @@ export function ProfilePanel() {
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/profile");
-      if (!res.ok) throw new Error("Failed to load profile");
-      const data = (await res.json()) as { profile: Profile };
-      setProfile(data.profile);
-      setAccount({ name: data.profile.name, email: data.profile.email });
+      const data = (await res.json()) as {
+        profile?: Profile;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok) {
+        setError(
+          data.error
+            ? data.code
+              ? `${data.error} (${data.code})`
+              : data.error
+            : "Could not load your profile. Please refresh the page.",
+        );
+        return;
+      }
+      setProfile(data.profile!);
+      setAccount({ name: data.profile!.name, email: data.profile!.email });
     } catch {
       setError("Could not load your profile. Please refresh the page.");
     } finally {
