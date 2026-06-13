@@ -14,14 +14,14 @@ interface UIState {
   marketsScrollTop: number;
   /** Page-level event search on the markets browser (separate from top bar). */
   eventSearch: string;
-  /** Active sport in the Sports tab's sub-menu ("All" = every sport). */
-  sportsFilter: string;
+  /** Active subcategory in the left sidebar ("All Markets" = entire category). */
+  subCategoryFilter: string;
   /** Challenge onboarding overlay — never navigates away from dashboard. */
   challengeModalOpen: boolean;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
-  setSportsFilter: (sport: string) => void;
+  setSubCategoryFilter: (subCategory: string) => void;
   openDrawer: (marketTicker: string) => void;
   closeDrawer: () => void;
   setViewMode: (mode: ViewMode) => void;
@@ -33,7 +33,7 @@ interface UIState {
 }
 
 const initial = {
-  activeCategory: "All Markets",
+  activeCategory: "Trending",
   searchQuery: "",
   drawerOpen: false,
   selectedMarketTicker: null as string | null,
@@ -41,17 +41,17 @@ const initial = {
   sortOrder: "volume" as SortOrder,
   marketsScrollTop: 0,
   eventSearch: "",
-  sportsFilter: "All",
+  subCategoryFilter: "All Markets",
   challengeModalOpen: false,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
   ...initial,
   setCategory: (activeCategory) =>
-    set({ activeCategory, eventSearch: "", sportsFilter: "All" }),
+    set({ activeCategory, eventSearch: "", subCategoryFilter: "All Markets" }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setEventSearch: (eventSearch) => set({ eventSearch }),
-  setSportsFilter: (sportsFilter) => set({ sportsFilter }),
+  setSubCategoryFilter: (subCategoryFilter) => set({ subCategoryFilter }),
   openDrawer: (selectedMarketTicker) =>
     set({ drawerOpen: true, selectedMarketTicker, searchQuery: "" }),
   closeDrawer: () => set({ drawerOpen: false }),

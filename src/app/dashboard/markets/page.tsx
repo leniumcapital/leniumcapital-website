@@ -10,9 +10,10 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import { useUiStore, type SortOrder, type ViewMode } from "@/stores/uiStore";
-import { useMarketsQuery, useSportsSubcategories } from "@/hooks/useMarkets";
+import { useMarketsQuery, useMarketsHeading } from "@/hooks/useMarkets";
 import { MarketGrid } from "@/components/dashboard/MarketGrid";
 import { CategoryTabs } from "@/components/dashboard/CategoryFilter";
+import { MarketsSubcategorySidebar } from "@/components/dashboard/MarketsSubcategorySidebar";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
 
@@ -24,127 +25,64 @@ const SORT_OPTIONS: { value: SortOrder; label: string }[] = [
 ];
 
 export default function MarketsPage() {
-  useMarketsQuery(); // initial fetch; the live feed keeps prices current
+  useMarketsQuery();
 
-  // Restore the grid scroll position when returning from a detail page.
   useEffect(() => {
     const main = document.getElementById("lenium-main");
     const top = useUiStore.getState().marketsScrollTop;
     if (main && top > 0) main.scrollTop = top;
   }, []);
 
-  const activeCategory = useUiStore((s) => s.activeCategory);
-  const heading =
-    activeCategory === "All Markets" ? "All markets" : activeCategory;
+  const heading = useMarketsHeading();
 
   return (
     <div style={{ fontFamily: T.font }}>
-      {/* Sticky category tab row */}
       <div style={{ position: "sticky", top: 0, zIndex: 31 }}>
         <CategoryTabs />
       </div>
 
-      {/* Heading row: section title + event search + filters */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          padding: "22px 24px 6px",
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            color: T.textPrimary,
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {heading}
-        </h1>
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
+        <MarketsSubcategorySidebar />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <EventSearchInput />
-          <FilterMenu />
-        </div>
-      </div>
-
-      {/* Sports sub-menu: pick a specific sport, Kalshi-style */}
-      {activeCategory === "Sports" && <SportsSubTabs />}
-
-      <ErrorBoundary name="Market grid">
-        <MarketGrid />
-      </ErrorBoundary>
-    </div>
-  );
-}
-
-// ─── Sports sub-menu: one chip per sport present in the live data ─────────────
-
-function SportsSubTabs() {
-  const sports = useSportsSubcategories();
-  const sportsFilter = useUiStore((s) => s.sportsFilter);
-  const setSportsFilter = useUiStore((s) => s.setSportsFilter);
-
-  if (sports.length === 0) return null;
-
-  const chips = [{ name: "All", count: 0 }, ...sports];
-
-  return (
-    <div
-      className="lenium-tabbar"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "10px 24px 4px",
-        overflowX: "auto",
-      }}
-    >
-      {chips.map(({ name }) => {
-        const active = sportsFilter === name;
-        return (
-          <button
-            key={name}
-            type="button"
-            onClick={() => setSportsFilter(name)}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
             style={{
-              height: 32,
-              padding: "0 14px",
-              borderRadius: 999,
-              border: `1px solid ${active ? "#3A3A3A" : "#2C2C2C"}`,
-              background: active ? T.bgTertiary : "transparent",
-              color: active ? T.textPrimary : T.textMuted,
-              fontSize: 13,
-              fontWeight: active ? 600 : 400,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              transition: `color ${T.transition}, background ${T.transition}, border-color ${T.transition}`,
-              fontFamily: T.font,
-            }}
-            onMouseEnter={(e) => {
-              if (!active) e.currentTarget.style.color = "#CCCCCC";
-            }}
-            onMouseLeave={(e) => {
-              if (!active) e.currentTarget.style.color = T.textMuted;
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              padding: "22px 24px 6px",
             }}
           >
-            {name}
-          </button>
-        );
-      })}
+            <h1
+              style={{
+                margin: 0,
+                color: T.textPrimary,
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {heading}
+            </h1>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <EventSearchInput />
+              <FilterMenu />
+            </div>
+          </div>
+
+          <ErrorBoundary name="Market grid">
+            <MarketGrid />
+          </ErrorBoundary>
+        </div>
+      </div>
     </div>
   );
 }
-
-// ─── Event search (filters the grid, separate from the global top-bar search) ─
 
 function EventSearchInput() {
   const eventSearch = useUiStore((s) => s.eventSearch);
@@ -188,8 +126,6 @@ function EventSearchInput() {
   );
 }
 
-// ─── Filter popover: sort order + view mode behind one adjustments button ─────
-
 function FilterMenu() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,7 +134,6 @@ function FilterMenu() {
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
 
-  // Close when clicking anywhere outside the popover.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {

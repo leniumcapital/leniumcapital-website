@@ -1,14 +1,13 @@
 "use client";
 
-import { IconTrendingUp } from "@tabler/icons-react";
+import { PRIMARY_TABS } from "@/lib/marketCategories";
 import { useUiStore } from "@/stores/uiStore";
-import { CATEGORY_ORDER } from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
 /**
- * Kalshi-style category tab bar: clean text tabs — Trending first, a thin
- * divider, then All Markets and every category. Active tab is bold white;
- * inactive tabs are muted and brighten on hover. No pills, no counts.
+ * Kalshi-style primary navigation: horizontal scrollable text tabs with a
+ * white underline on the active category. Always visible at the top of
+ * the markets page.
  */
 export function CategoryTabs() {
   const activeCategory = useUiStore((s) => s.activeCategory);
@@ -24,35 +23,14 @@ export function CategoryTabs() {
         borderBottom: T.hairline(),
         padding: "0 24px",
         display: "flex",
-        alignItems: "center",
+        alignItems: "stretch",
         gap: 28,
         overflowX: "auto",
         flexShrink: 0,
         fontFamily: T.font,
       }}
     >
-      <Tab
-        label="Trending"
-        active={activeCategory === "Trending"}
-        onClick={() => setCategory("Trending")}
-        icon={<IconTrendingUp size={15} stroke={2} />}
-      />
-
-      <span
-        style={{
-          width: 1,
-          height: 18,
-          background: T.borderHover,
-          flexShrink: 0,
-        }}
-      />
-
-      <Tab
-        label="All Markets"
-        active={activeCategory === "All Markets"}
-        onClick={() => setCategory("All Markets")}
-      />
-      {CATEGORY_ORDER.map((category) => (
+      {PRIMARY_TABS.map((category) => (
         <Tab
           key={category}
           label={category}
@@ -68,21 +46,19 @@ function Tab({
   label,
   active,
   onClick,
-  icon,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
-  icon?: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
-        gap: 6,
         height: "100%",
         padding: 0,
         border: "none",
@@ -103,8 +79,20 @@ function Tab({
         if (!active) e.currentTarget.style.color = "#888888";
       }}
     >
-      {icon}
       {label}
+      {active && (
+        <span
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 2,
+            background: T.textPrimary,
+            borderRadius: 1,
+          }}
+        />
+      )}
     </button>
   );
 }

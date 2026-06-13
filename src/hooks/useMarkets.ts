@@ -6,6 +6,11 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import {
+  PRIMARY_TABS,
+  TABS_WITHOUT_SIDEBAR,
+  sortSubcategories,
+} from "@/lib/marketCategories";
 
 export type MarketsPayload = {
   markets: Market[];
@@ -27,17 +32,8 @@ export function useMarketsQuery() {
   });
 }
 
-/** Fixed display order of category sections, mirroring Kalshi. */
-export const CATEGORY_ORDER = [
-  "Economics",
-  "Politics",
-  "Sports",
-  "Crypto",
-  "Culture",
-  "Climate",
-  "Science and Tech",
-  "Health",
-] as const;
+/** Fixed display order of category sections on the Trending tab. */
+export const CATEGORY_ORDER = PRIMARY_TABS.filter((t) => t !== "Trending");
 
 const TRENDING_TAB_SIZE = 20;
 const TRENDING_SECTION_SIZE = 6;
@@ -57,11 +53,44 @@ export function useCategoryCounts(): Record<string, number> {
   );
 }
 
+/**
+ * Subcategories present in live data for a primary category, sorted with
+ * preferred Kalshi order. Sidebar is generated from this list only.
+ */
+export function useSubcategoriesForCategory(category: string): string[] {
+  const subKey = useMarketStore(
+    useShallow((s) =>
+      s.eventOrder.map((t) => {
+        const ev = s.events[t];
+        if (!ev || ev.category !== category || !ev.subCategory) return "";
+        return ev.subCategory;
+      }),
+    ),
+  );
+
+  return useMemo(() => {
+    const found = new Set<string>();
+    for (const sub of subKey) {
+      if (sub) found.add(sub);
+    }
+    return sortSubcategories(category, [...found]);
+  }, [category, subKey]);
+}
+
+/** Whether the left subcategory sidebar should render for the active tab. */
+export function useShowSubcategorySidebar(): boolean {
+  const activeCategory = useUiStore((s) => s.activeCategory);
+  const subcategories = useSubcategoriesForCategory(activeCategory);
+  return !TABS_WITHOUT_SIDEBAR.has(activeCategory) && subcategories.length > 0;
+}
+
 // ─── Event-level grouping (one card per Kalshi event) ─────────────────────────
 
 export type EventSection = {
   category: string;
   eventTickers: string[];
+  /** Hide section header when browsing a single primary category. */
+  flat?: boolean;
 };
 
 export type GroupedEvents = {
@@ -101,50 +130,6 @@ function effectiveOrder(category: string, order: SortOrder): SortOrder {
   return category === "Sports" && order === "volume" ? "expiry" : order;
 }
 
-/** Curated sport display order, mirroring Kalshi's sports sidebar. */
-const SPORT_ORDER = [
-  "World Cup",
-  "Soccer",
-  "Basketball",
-  "Football",
-  "Baseball",
-  "Hockey",
-  "Tennis",
-  "Golf",
-  "MMA",
-  "Boxing",
-  "Motorsports",
-  "Cricket",
-  "Esports",
-  "Olympics",
-  "More Sports",
-];
-
-/** Sports present in the live data, with event counts, in curated order. */
-export function useSportsSubcategories(): { name: string; count: number }[] {
-  // Subscribe to primitives only — useShallow on fresh objects re-renders
-  // forever (the store updates every 250ms).
-  const sportsKey = useMarketStore(
-    useShallow((s) =>
-      s.eventOrder.map((t) => {
-        const ev = s.events[t];
-        return ev?.category === "Sports" ? (ev.subCategory ?? "More Sports") : "";
-      }),
-    ),
-  );
-  return useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const sport of sportsKey) {
-      if (!sport) continue;
-      counts.set(sport, (counts.get(sport) ?? 0) + 1);
-    }
-    return SPORT_ORDER.filter((name) => counts.has(name)).map((name) => ({
-      name,
-      count: counts.get(name) ?? 0,
-    }));
-  }, [sportsKey]);
-}
-
 function topEventsBy24h(
   tickers: string[],
   events: Record<string, DashboardEvent>,
@@ -159,19 +144,28 @@ function topEventsBy24h(
     .slice(0, count);
 }
 
+function eventSubCategory(ev: DashboardEvent): string | undefined {
+  return ev.subCategory;
+}
+
 /**
  * Events grouped into Kalshi-style category sections — one card per event.
- * "All Markets"/"Trending" show a Trending section then every category;
- * a specific category shows only its own section.
+ * Trending shows a Trending section then every category; a specific primary
+ * category shows a flat filtered grid.
  */
 export function useGroupedEvents(): GroupedEvents {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const sortOrder = useUiStore((s) => s.sortOrder);
   const eventSearch = useUiStore((s) => s.eventSearch);
-  const sportsFilter = useUiStore((s) => s.sportsFilter);
+  const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
 
   const eventCategoryKey = useMarketStore(
-    useShallow((s) => s.eventOrder.map((t) => `${t}:${s.events[t]?.category}`)),
+    useShallow((s) =>
+      s.eventOrder.map(
+        (t) =>
+          `${t}:${s.events[t]?.category}:${s.events[t]?.subCategory ?? ""}`,
+      ),
+    ),
   );
 
   return useMemo(() => {
@@ -179,7 +173,6 @@ export function useGroupedEvents(): GroupedEvents {
     const all = eventOrder.filter((t) => events[t]);
     if (all.length === 0) return { featured: null, sections: [] };
 
-    // Page-level search overrides category grouping entirely.
     const q = eventSearch.trim().toLowerCase();
     if (q) {
       const matches = all.filter((t) => {
@@ -195,6 +188,7 @@ export function useGroupedEvents(): GroupedEvents {
           {
             category: "Results",
             eventTickers: sortEventTickers(matches, events, "volume"),
+            flat: true,
           },
         ],
       };
@@ -202,17 +196,13 @@ export function useGroupedEvents(): GroupedEvents {
 
     const topEvent = topEventsBy24h(all, events, 1)[0];
     const featured = topEvent ? events[topEvent].leaderTicker : null;
-    const showAll =
-      activeCategory === "All Markets" || activeCategory === "Trending";
 
     const sections: EventSection[] = [];
 
-    if (showAll) {
-      const trendingSize =
-        activeCategory === "Trending" ? TRENDING_TAB_SIZE : TRENDING_SECTION_SIZE;
+    if (activeCategory === "Trending") {
       sections.push({
         category: "Trending",
-        eventTickers: topEventsBy24h(all, events, trendingSize),
+        eventTickers: topEventsBy24h(all, events, TRENDING_TAB_SIZE),
       });
       for (const category of CATEGORY_ORDER) {
         const tickers = all.filter((t) => events[t].category === category);
@@ -226,28 +216,46 @@ export function useGroupedEvents(): GroupedEvents {
           ),
         });
       }
-    } else {
-      let tickers = all.filter((t) => events[t].category === activeCategory);
-      // Sports sub-menu: narrow to one sport when picked.
-      if (activeCategory === "Sports" && sportsFilter !== "All") {
-        tickers = tickers.filter(
-          (t) => (events[t].subCategory ?? "More Sports") === sportsFilter,
-        );
-      }
-      sections.push({
-        category:
-          activeCategory === "Sports" && sportsFilter !== "All"
-            ? sportsFilter
-            : activeCategory,
-        eventTickers: sortEventTickers(
-          tickers,
-          events,
-          effectiveOrder(activeCategory, sortOrder),
-        ),
-      });
+      return { featured, sections };
     }
 
-    return { featured, sections };
+    let tickers = all.filter((t) => events[t].category === activeCategory);
+    if (subCategoryFilter !== "All Markets") {
+      tickers = tickers.filter(
+        (t) => eventSubCategory(events[t]) === subCategoryFilter,
+      );
+    }
+
+    const sectionTitle =
+      subCategoryFilter !== "All Markets" ? subCategoryFilter : activeCategory;
+
+    sections.push({
+      category: sectionTitle,
+      eventTickers: sortEventTickers(
+        tickers,
+        events,
+        effectiveOrder(activeCategory, sortOrder),
+      ),
+      flat: true,
+    });
+
+    return { featured: null, sections };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, sortOrder, eventSearch, sportsFilter, eventCategoryKey]);
+  }, [
+    activeCategory,
+    sortOrder,
+    eventSearch,
+    subCategoryFilter,
+    eventCategoryKey,
+  ]);
+}
+
+/** Page heading derived from active primary + subcategory selection. */
+export function useMarketsHeading(): string {
+  const activeCategory = useUiStore((s) => s.activeCategory);
+  const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
+
+  if (activeCategory === "Trending") return "Trending";
+  if (subCategoryFilter !== "All Markets") return subCategoryFilter;
+  return activeCategory;
 }

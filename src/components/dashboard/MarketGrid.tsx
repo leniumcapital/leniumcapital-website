@@ -70,16 +70,16 @@ export function MarketGrid() {
     }
   }, [data, queryClient]);
   const activeCategory = useUiStore((s) => s.activeCategory);
+  const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
   const viewMode = useUiStore((s) => s.viewMode);
 
   const [visibleSections, setVisibleSections] = useState(INITIAL_SECTIONS);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // New tab — start from the top with the first sections again. Adjusting
-  // state during render (guarded) avoids a cascading effect re-render.
-  const [prevCategory, setPrevCategory] = useState(activeCategory);
-  if (prevCategory !== activeCategory) {
-    setPrevCategory(activeCategory);
+  const filterKey = `${activeCategory}:${subCategoryFilter}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
     setVisibleSections(INITIAL_SECTIONS);
   }
 
@@ -99,8 +99,7 @@ export function MarketGrid() {
     return () => observer.disconnect();
   }, [sections.length, visibleSections]);
 
-  const showFeatured =
-    activeCategory === "All Markets" || activeCategory === "Trending";
+  const showFeatured = activeCategory === "Trending";
 
   if (sections.length === 0) {
     return isError ? <ErrorState onRetry={() => void refetch()} /> : <SkeletonGrid />;
@@ -120,7 +119,7 @@ export function MarketGrid() {
 
         {sections.slice(0, visibleSections).map((section) => (
           <CategorySection
-            key={section.category}
+            key={`${section.category}-${section.flat ? "flat" : "section"}`}
             section={section}
             viewMode={viewMode}
           />
@@ -152,54 +151,57 @@ function CategorySection({
 }) {
   const setCategory = useUiStore((s) => s.setCategory);
   const [headerHovered, setHeaderHovered] = useState(false);
+  const flat = section.flat === true;
 
   return (
     <section>
-      <div
-        style={{
-          height: 48,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 24px",
-          fontFamily: T.font,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setCategory(section.category)}
-          onMouseEnter={() => setHeaderHovered(true)}
-          onMouseLeave={() => setHeaderHovered(false)}
+      {!flat && (
+        <div
           style={{
+            height: 48,
             display: "flex",
             alignItems: "center",
-            gap: 4,
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            color: T.textPrimary,
-            fontSize: 16,
-            fontWeight: 600,
+            justifyContent: "space-between",
+            padding: "0 24px",
             fontFamily: T.font,
           }}
         >
-          {section.category}
-          <IconChevronRight
-            size={16}
-            color={headerHovered ? T.textSecondary : T.textMuted}
-            stroke={1.5}
+          <button
+            type="button"
+            onClick={() => setCategory(section.category)}
+            onMouseEnter={() => setHeaderHovered(true)}
+            onMouseLeave={() => setHeaderHovered(false)}
             style={{
-              transform: headerHovered ? "translateX(2px)" : "none",
-              transition: `transform ${T.transition}, color ${T.transition}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: T.textPrimary,
+              fontSize: 16,
+              fontWeight: 600,
+              fontFamily: T.font,
             }}
-          />
-        </button>
-        <span style={{ color: T.textMuted, fontSize: 13 }}>
-          {section.eventTickers.length} event
-          {section.eventTickers.length === 1 ? "" : "s"}
-        </span>
-      </div>
+          >
+            {section.category}
+            <IconChevronRight
+              size={16}
+              color={headerHovered ? T.textSecondary : T.textMuted}
+              stroke={1.5}
+              style={{
+                transform: headerHovered ? "translateX(2px)" : "none",
+                transition: `transform ${T.transition}, color ${T.transition}`,
+              }}
+            />
+          </button>
+          <span style={{ color: T.textMuted, fontSize: 13 }}>
+            {section.eventTickers.length} event
+            {section.eventTickers.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
 
       {viewMode === "list" ? (
         <div
@@ -215,16 +217,21 @@ function CategorySection({
           ))}
         </div>
       ) : section.eventTickers.length > VIRTUALIZE_THRESHOLD ? (
-        <VirtualCategoryGrid tickers={section.eventTickers} />
+        <VirtualCategoryGrid tickers={section.eventTickers} flat={flat} />
       ) : (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: CARD_GAP,
-            padding: "0 24px",
-            alignItems: "stretch",
-          }}
+          className={flat ? "markets-grid" : undefined}
+          style={
+            flat
+              ? { padding: "0 24px", alignItems: "stretch" }
+              : {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: CARD_GAP,
+                  padding: "0 24px",
+                  alignItems: "stretch",
+                }
+          }
         >
           {section.eventTickers.map((ticker) => (
             <EventCard key={ticker} eventTicker={ticker} />
@@ -232,21 +239,28 @@ function CategorySection({
         </div>
       )}
 
-      {/* Thin rule for clean separation before the next section header. */}
-      <div
-        style={{
-          height: 0.5,
-          background: T.bgTertiary,
-          margin: "8px 24px 32px",
-        }}
-      />
+      {!flat && (
+        <div
+          style={{
+            height: 0.5,
+            background: T.bgTertiary,
+            margin: "8px 24px 32px",
+          }}
+        />
+      )}
     </section>
   );
 }
 
 // ─── Virtualized fallback for oversized categories ───────────────────────────
 
-function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
+function VirtualCategoryGrid({
+  tickers,
+  flat = false,
+}: {
+  tickers: string[];
+  flat?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -261,7 +275,9 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
     return () => observer.disconnect();
   }, []);
 
-  const columnCount = Math.max(2, Math.floor(width / 280)) || 3;
+  const columnCount = flat
+    ? Math.min(4, Math.max(1, Math.floor(width / 280)) || 1)
+    : Math.max(2, Math.floor(width / 280)) || 3;
   const columnWidth = width > 0 ? Math.floor(width / columnCount) : 0;
   const rowCount = Math.ceil(tickers.length / columnCount);
   const height = Math.min(rowCount, 4) * VIRTUAL_ROW_HEIGHT;

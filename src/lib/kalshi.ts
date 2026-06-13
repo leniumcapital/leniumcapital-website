@@ -17,6 +17,12 @@ import {
   structuredTargetUrl,
   type StructuredTargetData,
 } from "@/lib/kalshiImages";
+import {
+  KALSHI_SERIES_CATEGORY,
+  normalizePrimaryCategory,
+  detectSubCategory,
+  type SeriesInfo,
+} from "@/lib/marketCategories";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -150,122 +156,53 @@ function marketVolume(m: KalshiMarketRaw): number {
   return num(m.volume_fp) || num(m.volume);
 }
 
-/** Normalize raw Kalshi categories into the dashboard's category set. */
+/** @deprecated Use normalizePrimaryCategory from marketCategories. */
 export function normalizeCategory(raw: string | undefined): string {
-  const c = (raw ?? "").toLowerCase();
-  if (c.includes("econ") || c.includes("financ") || c.includes("inflation"))
-    return "Economics";
-  if (c.includes("politic") || c.includes("elect") || c.includes("world") || c.includes("gov"))
-    return "Politics";
-  if (c.includes("sport") || c.includes("baseball") || c.includes("football") || c.includes("basketball") || c.includes("soccer") || c.includes("hockey"))
-    return "Sports";
-  if (c.includes("crypto")) return "Crypto";
-  if (c.includes("entertain") || c.includes("culture") || c.includes("media") || c.includes("music") || c.includes("movie"))
-    return "Culture";
-  if (c.includes("climate") || c.includes("weather")) return "Climate";
-  if (c.includes("tech") || c.includes("science") || c.includes("ai") || c.includes("space"))
-    return "Science and Tech";
-  if (c.includes("health")) return "Health";
-  return "Culture";
+  return normalizePrimaryCategory(raw);
 }
 
-// ─── Sport detection (sub-categories for the Sports tab) ──────────────────────
-// Matched against `${series_ticker} ${title}`; series tickers embed the league
-// acronym (KXNBAFINALS, KXWORLDCUP, ...) so acronyms match without boundaries.
-const SPORT_RULES: { name: string; pattern: RegExp }[] = [
-  { name: "World Cup", pattern: /world ?cup|fifa/i },
-  {
-    name: "Soccer",
-    pattern:
-      /soccer|premier league|champions league|la ?liga|serie ?a|bundesliga|ligue ?1|\bmls\b|uefa|europa/i,
-  },
-  { name: "Basketball", pattern: /nba|wnba|basketball|march madness/i },
-  { name: "Football", pattern: /nfl|college football|super bowl|heisman/i },
-  { name: "Baseball", pattern: /mlb|baseball|world series/i },
-  { name: "Hockey", pattern: /nhl|hockey|stanley cup/i },
-  {
-    name: "Tennis",
-    pattern: /tennis|wimbledon|atp|wta|roland garros|french open/i,
-  },
-  { name: "Golf", pattern: /golf|pga|ryder cup|masters/i },
-  { name: "MMA", pattern: /ufc|mma/i },
-  { name: "Boxing", pattern: /boxing/i },
-  {
-    name: "Motorsports",
-    pattern: /formula ?1|\bf1\b|nascar|grand prix|indycar|motogp/i,
-  },
-  { name: "Cricket", pattern: /cricket|\bipl\b|t20/i },
-  {
-    name: "Esports",
-    pattern: /esports|counter[- ]strike|league of legends|valorant|dota/i,
-  },
-  { name: "Olympics", pattern: /olympic/i },
-];
-
-/** Kalshi series tags → dashboard sport names. */
-const TAG_TO_SPORT: Record<string, string> = {
-  Soccer: "Soccer",
-  Basketball: "Basketball",
-  Football: "Football",
-  CFB: "Football",
-  Baseball: "Baseball",
-  Hockey: "Hockey",
-  Tennis: "Tennis",
-  Golf: "Golf",
-  MMA: "MMA",
-  UFC: "MMA",
-  Boxing: "Boxing",
-  Motorsport: "Motorsports",
-  Cricket: "Cricket",
-  Esports: "Esports",
-  "Video games": "Esports",
-  Olympics: "Olympics",
-};
-
-type SeriesInfo = { title: string; tags: string[] };
-
-/** Sports series directory (ticker → title/tags). One request, cached 6h. */
+/** Series directories (ticker → title/tags) for subcategory detection. Cached 6h. */
 let seriesDirCache: { at: number; map: Map<string, SeriesInfo> } | null = null;
 const SERIES_DIR_TTL_MS = 6 * 3600_000;
 
-async function fetchSportsSeriesDir(): Promise<Map<string, SeriesInfo>> {
+async function fetchAllSeriesDirectories(): Promise<Map<string, SeriesInfo>> {
   if (seriesDirCache && Date.now() - seriesDirCache.at < SERIES_DIR_TTL_MS) {
     return seriesDirCache.map;
   }
-  const data = await fetchJson<{
-    series?: { ticker?: string; title?: string; tags?: string[] }[];
-  }>(`${KALSHI_BASE}/series?category=Sports`, 10000, {
-    next: { revalidate: 21600 },
-  });
+  const kalshiCategories = [
+    ...new Set(
+      Object.values(KALSHI_SERIES_CATEGORY).filter(
+        (c): c is string => typeof c === "string" && c.length > 0,
+      ),
+    ),
+  ];
   const map = new Map<string, SeriesInfo>();
-  for (const s of data?.series ?? []) {
-    if (s.ticker) map.set(s.ticker, { title: s.title ?? "", tags: s.tags ?? [] });
+  const WAVE = 3;
+  for (let i = 0; i < kalshiCategories.length; i += WAVE) {
+    const wave = await Promise.all(
+      kalshiCategories.slice(i, i + WAVE).map((category) =>
+        fetchJson<{
+          series?: { ticker?: string; title?: string; tags?: string[] }[];
+        }>(
+          `${KALSHI_BASE}/series?category=${encodeURIComponent(category)}`,
+          10000,
+          { next: { revalidate: 21600 } },
+        ),
+      ),
+    );
+    for (const data of wave) {
+      for (const s of data?.series ?? []) {
+        if (s.ticker) {
+          map.set(s.ticker, { title: s.title ?? "", tags: s.tags ?? [] });
+        }
+      }
+    }
+    if (i + WAVE < kalshiCategories.length) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
   if (map.size > 0) seriesDirCache = { at: Date.now(), map };
   return seriesDirCache?.map ?? map;
-}
-
-function detectSport(
-  seriesTicker?: string,
-  title?: string,
-  series?: SeriesInfo,
-): string {
-  const text = `${series?.title ?? ""} ${title ?? ""}`;
-  // The FIFA World Cup gets its own tab (it's the headline event); the Club
-  // World Cup stays under Soccer.
-  if (/world ?cup|fifa/i.test(text) && !/club world/i.test(text)) {
-    const tag = series?.tags?.[0];
-    if (!tag || tag === "Soccer") return "World Cup";
-  }
-  for (const tag of series?.tags ?? []) {
-    const sport = TAG_TO_SPORT[tag];
-    if (sport) return sport;
-  }
-  const fallbackText = `${seriesTicker ?? ""} ${text}`;
-  for (const rule of SPORT_RULES) {
-    if (rule.pattern.test(fallbackText)) return rule.name;
-  }
-  return "More Sports";
 }
 
 // Game-level series for the major leagues, fetched directly so live and
@@ -643,7 +580,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   // rate limit.
   const nearTermPromise = fetchNearTermMarketsByEvent();
   const sportsGamesPromise = fetchSportsGameMarkets();
-  const seriesDirPromise = fetchSportsSeriesDir();
+  const seriesDirPromise = fetchAllSeriesDirectories();
 
   const rawEvents: KalshiEventRaw[] = [];
   let cursor: string | undefined;
@@ -687,7 +624,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
   for (const ev of rawEvents) {
     if (!ev.event_ticker) continue;
-    const category = normalizeCategory(ev.category);
+    const category = normalizePrimaryCategory(ev.category);
     const contracts = validContracts(ev, ev.is_game);
     if (contracts.length === 0) continue;
 
@@ -716,15 +653,19 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const volume24h = contracts.reduce((sum, c) => sum + c.volume24h, 0);
 
     const seriesTicker = ev.series_ticker ?? ev.event_ticker.split("-")[0];
+    const seriesInfo = seriesDir.get(seriesTicker);
+    const subCategory = detectSubCategory(
+      category,
+      seriesTicker,
+      ev.title,
+      seriesInfo,
+    );
     events.push({
       eventTicker: ev.event_ticker,
       seriesTicker,
       title: ev.title ?? ev.event_ticker,
       category,
-      subCategory:
-        category === "Sports"
-          ? detectSport(seriesTicker, ev.title, seriesDir.get(seriesTicker))
-          : undefined,
+      subCategory,
       closeTime: ev.is_game
         ? gameTime(leader.raw)
         : (leader.raw.close_time ?? ""),
@@ -850,7 +791,7 @@ export async function fetchMarketDetail(
     );
     const ev = eventData?.event;
     if (ev) {
-      category = normalizeCategory(ev.category);
+      category = normalizePrimaryCategory(ev.category);
       eventTitle = ev.title ?? eventTitle;
       const seriesTicker =
         ev.series_ticker ?? market.event_ticker?.split("-")[0] ?? "";

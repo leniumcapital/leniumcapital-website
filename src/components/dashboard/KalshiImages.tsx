@@ -15,6 +15,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   Crypto: "₿",
   Culture: "🎬",
   Climate: "🌎",
+  "Tech and Science": "🔬",
   "Science and Tech": "🔬",
   Health: "🩺",
 };
