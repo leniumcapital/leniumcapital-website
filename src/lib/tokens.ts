@@ -18,12 +18,12 @@ export const T = {
   textMuted: "#555555",
   amber: "#F59E0B",
   amberMuted: "rgba(245, 158, 11, 0.1)",
-  red: "#EF4444",
-  redMuted: "rgba(239, 68, 68, 0.1)",
-  redMutedBg: "rgba(239, 68, 68, 0.07)",
-  redMutedBorder: "#3A1A1A",
-  redBtnBg: "rgba(239, 68, 68, 0.1)",
-  redBtnBorder: "rgba(239, 68, 68, 0.35)",
+  red: "#FF6B7A",
+  redMuted: "rgba(255, 107, 122, 0.12)",
+  redMutedBg: "rgba(255, 107, 122, 0.08)",
+  redMutedBorder: "#4A2028",
+  redBtnBg: "rgba(255, 107, 122, 0.16)",
+  redBtnBorder: "rgba(255, 107, 122, 0.45)",
   font: "var(--font-inter, Inter), Inter, system-ui, sans-serif",
   radius: 8,
   radiusLg: 12,
@@ -64,7 +64,7 @@ export function tradeSidePanelStyle(side: "yes" | "no", selected: boolean) {
         : T.redBtnBg
       : isYes
         ? "rgba(0, 232, 122, 0.04)"
-        : T.redMuted,
+        : "rgba(255, 107, 122, 0.1)",
     border: selected
       ? `1.5px solid ${isYes ? T.green : T.red}`
       : T.hairline(isYes ? T.greenBtnBorder : T.redBtnBorder),
