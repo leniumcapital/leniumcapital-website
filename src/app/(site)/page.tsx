@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Container, CtaButton, PillBadge } from "@/components/ui";
+import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
@@ -105,12 +106,7 @@ export default function HomePage() {
           </p>
 
           <div className="pointer-events-auto mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
-            >
-              Start your challenge
-            </Link>
+            <StartChallengeCta variant="hero" />
             <Link
               href="/how-it-works"
               className="inline-flex items-center justify-center rounded-xl border border-white/20 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
@@ -270,7 +266,7 @@ export default function HomePage() {
             to every serious prediction market trader.
           </h2>
           <div className="mt-8 flex justify-center">
-            <CtaButton href="/signup">Start your challenge</CtaButton>
+            <StartChallengeCta variant="cta" />
           </div>
         </Container>
       </section>

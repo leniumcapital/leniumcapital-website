@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Logo } from "./Logo";
+import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { resetAllStores } from "@/stores";
 import { usd } from "@/lib/data";
 
@@ -103,12 +104,7 @@ export function Nav() {
               >
                 Login
               </Link>
-              <Link
-                href="/signup"
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
-              >
-                Start your challenge
-              </Link>
+              <StartChallengeCta variant="nav" />
             </>
           )}
         </div>
@@ -187,13 +183,11 @@ export function Nav() {
                   >
                     Login
                   </Link>
-                  <Link
-                    href="/signup"
-                    onClick={() => setOpen(false)}
-                    className="rounded-lg bg-brand px-4 py-3 text-center text-sm font-semibold text-[#04130b]"
-                  >
-                    Start your challenge
-                  </Link>
+                  <StartChallengeCta
+                    variant="navMobile"
+                    className="w-full"
+                    onNavigate={() => setOpen(false)}
+                  />
                 </>
               )}
             </div>

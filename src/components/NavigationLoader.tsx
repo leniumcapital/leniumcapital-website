@@ -19,9 +19,11 @@ const SAFETY_TIMEOUT_MS = 10_000;
 type Phase = "idle" | "pending" | "visible" | "leaving";
 
 // Programmatic navigations (router.push after login, etc.) call this.
-let externalStart: (() => void) | null = null;
-export function startNavigationLoading(): void {
-  externalStart?.();
+let externalStart: ((immediate?: boolean) => void) | null = null;
+
+/** Show the branded navigation overlay. Pass true to skip the brief delay. */
+export function startNavigationLoading(immediate = true): void {
+  externalStart?.(immediate);
 }
 
 function NavigationLoaderInner() {
@@ -47,13 +49,17 @@ function NavigationLoaderInner() {
     }
   }, []);
 
-  const begin = useCallback(() => {
+  const begin = useCallback((immediate = false) => {
     if (phaseRef.current === "pending" || phaseRef.current === "visible") return;
     clearTimers();
-    setPhaseSafe("pending");
-    showTimer.current = setTimeout(() => {
-      if (phaseRef.current === "pending") setPhaseSafe("visible");
-    }, SHOW_DELAY_MS);
+    if (immediate) {
+      setPhaseSafe("visible");
+    } else {
+      setPhaseSafe("pending");
+      showTimer.current = setTimeout(() => {
+        if (phaseRef.current === "pending") setPhaseSafe("visible");
+      }, SHOW_DELAY_MS);
+    }
     safetyTimer.current = setTimeout(() => {
       clearTimers();
       setPhaseSafe("idle");
@@ -77,7 +83,7 @@ function NavigationLoaderInner() {
     finish();
   }, [pathname, searchParams, finish]);
 
-  // Expose programmatic start (login/signup forms).
+  // Expose programmatic start (challenge CTA, login form, etc.).
   useEffect(() => {
     externalStart = begin;
     return () => {
