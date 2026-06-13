@@ -462,13 +462,24 @@
       border: 1px solid var(--border);
       background: transparent;
       cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
       font-variant-numeric: tabular-nums;
     }
 
-    .price-btn.yes { color: var(--green); }
+    .price-btn.yes {
+      color: var(--green);
+      background: rgba(0, 232, 122, 0.1);
+      border-color: rgba(0, 232, 122, 0.35);
+    }
+
     .price-btn.yes:hover { border-color: var(--green); }
-    .price-btn.no { color: var(--red); }
+
+    .price-btn.no {
+      color: var(--red);
+      background: rgba(255, 107, 122, 0.1);
+      border-color: rgba(255, 107, 122, 0.35);
+    }
+
     .price-btn.no:hover { border-color: var(--red); }
 
     /* Order panel */

@@ -25,7 +25,7 @@ import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { compactUsd } from "@/lib/data";
-import { T } from "@/lib/tokens";
+import { T, tradeSidePillStyle } from "@/lib/tokens";
 
 type Direction = "yes" | "no";
 
@@ -375,35 +375,14 @@ function OutcomesTable({
               <button
                 type="button"
                 onClick={() => onPick(o.ticker, "yes")}
-                style={{
-                  background: "rgba(0,232,122,0.1)",
-                  border: "0.5px solid rgba(0,232,122,0.3)",
-                  color: T.green,
-                  borderRadius: 6,
-                  padding: "6px 14px",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: T.font,
-                  whiteSpace: "nowrap",
-                }}
+                style={tradeSidePillStyle("yes")}
               >
                 Yes {o.yesPrice}¢
               </button>
               <button
                 type="button"
                 onClick={() => onPick(o.ticker, "no")}
-                style={{
-                  background: T.bgTertiary,
-                  border: T.hairline(),
-                  color: "#666666",
-                  borderRadius: 6,
-                  padding: "6px 14px",
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: T.font,
-                  whiteSpace: "nowrap",
-                }}
+                style={tradeSidePillStyle("no")}
               >
                 No {o.noPrice}¢
               </button>
