@@ -26,7 +26,7 @@ export function Footer() {
         <div>
           <h4 className="mb-3 text-sm font-semibold">Account</h4>
           <ul className="space-y-2 text-sm text-muted">
-            <li><Link href="/login" className="hover:text-foreground">Login</Link></li>
+            <li><Link href="/signup?mode=login" className="hover:text-foreground">Login</Link></li>
             <li><Link href="/signup" className="hover:text-foreground">Create account</Link></li>
             <li><Link href="/how-it-works#faq" className="hover:text-foreground">FAQ</Link></li>
           </ul>

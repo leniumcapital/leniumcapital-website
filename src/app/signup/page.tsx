@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Logo } from "@/components/Logo";
-import { SignupForm } from "@/components/SignupForm";
+import { AuthPanel } from "@/components/AuthPanel";
 
 export const metadata: Metadata = {
   title: "Create account",
   description:
-    "Create your free Lenium account. No payment required to sign up — you only pay when you start a challenge.",
+    "Create your free Lenium account or log in. No payment required to sign up — you only pay when you start a challenge.",
 };
 
 const HIGHLIGHTS = [
@@ -24,7 +24,18 @@ function Check() {
   );
 }
 
-export default function SignupPage() {
+type PageProps = {
+  searchParams: Promise<{ mode?: string; callbackUrl?: string }>;
+};
+
+export default async function SignupPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const initialMode = params.mode === "login" ? "login" : "signup";
+  const callbackUrl =
+    typeof params.callbackUrl === "string" && params.callbackUrl.startsWith("/")
+      ? params.callbackUrl
+      : "/dashboard";
+
   return (
     <section className="relative grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
@@ -96,23 +107,14 @@ export default function SignupPage() {
         </ul>
       </div>
 
-      {/* Form panel */}
+      {/* Form panel — signup and login on one page */}
       <div className="flex items-center justify-center px-6 py-16 sm:px-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Create your account
-          </h1>
-          <p className="mt-2 text-sm text-muted">
-            Free to start. No payment until you choose a challenge.
-          </p>
-
-          <div className="mt-7">
-            <SignupForm />
-          </div>
+          <AuthPanel initialMode={initialMode} callbackUrl={callbackUrl} />
         </div>
       </div>
     </section>

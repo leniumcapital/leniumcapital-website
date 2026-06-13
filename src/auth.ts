@@ -6,7 +6,7 @@ import type { AccountType, ChallengeStatus } from "@/lib/users";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  pages: { signIn: "/signup?mode=login" },
   providers: [
     Credentials({
       credentials: {
