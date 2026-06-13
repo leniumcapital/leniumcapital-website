@@ -1,28 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { IconChevronRight, IconAlertCircle } from "@tabler/icons-react";
+import { FixedSizeGrid } from "react-window";
 import { useQueryClient } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
+import { useUiStore } from "@/stores/uiStore";
 import { useMarketStore } from "@/stores/marketStore";
 import {
   fetchMarketHistoryClient,
   marketHistoryQueryKey,
 } from "@/lib/clientApi";
 import {
-  useFilteredEventTickers,
+  useGroupedEvents,
   useMarketsQuery,
+  type EventSection,
 } from "@/hooks/useMarkets";
 import { EventCard, SkeletonEventCard } from "@/components/dashboard/EventCard";
-import { IconAlertCircle } from "@tabler/icons-react";
 import { T } from "@/lib/tokens";
 
+const CARD_GAP = 12;
+const INITIAL_SECTIONS = 2;
+const VIRTUALIZE_THRESHOLD = 100;
+const VIRTUAL_ROW_HEIGHT = 224;
+
 /**
- * Kalshi-style flat market grid — max four columns, consistent 16px gaps,
- * filtered by the category sidebar. No stacked section headers.
+ * Kalshi-style market browser: a compact featured trending strip, then
+ * markets grouped into named category sections. Sections lazy-load as the
+ * user scrolls; only oversized categories (>100 markets) use react-window.
  */
 export function MarketGrid() {
   const { data, isError, refetch } = useMarketsQuery();
-  const { tickers } = useFilteredEventTickers();
+  const { featured, sections } = useGroupedEvents();
 
+  // Seed the store from the query result directly so the grid renders as
+  // soon as data exists, independent of the polling feed's timing.
   useEffect(() => {
     if (!data) return;
     if (data.markets.length > 0) {
@@ -33,12 +53,14 @@ export function MarketGrid() {
     }
   }, [data]);
 
+  // Prefetch 1D history for the leaders of the top 10 events so clicking
+  // those cards renders the detail chart instantly.
   const queryClient = useQueryClient();
   useEffect(() => {
     if (!data || data.events.length === 0) return;
     const top = [...data.events]
       .sort((a, b) => b.totalVolume - a.totalVolume)
-      .slice(0, 8);
+      .slice(0, 10);
     for (const ev of top) {
       void queryClient.prefetchQuery({
         queryKey: marketHistoryQueryKey(ev.leaderTicker, "1D"),
@@ -47,24 +69,334 @@ export function MarketGrid() {
       });
     }
   }, [data, queryClient]);
+  const activeCategory = useUiStore((s) => s.activeCategory);
+  const viewMode = useUiStore((s) => s.viewMode);
 
-  if (tickers.length === 0) {
+  const [visibleSections, setVisibleSections] = useState(INITIAL_SECTIONS);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // New tab — start from the top with the first sections again. Adjusting
+  // state during render (guarded) avoids a cascading effect re-render.
+  const [prevCategory, setPrevCategory] = useState(activeCategory);
+  if (prevCategory !== activeCategory) {
+    setPrevCategory(activeCategory);
+    setVisibleSections(INITIAL_SECTIONS);
+  }
+
+  // Load the next section shortly before the user reaches the end.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleSections((n) => Math.min(n + 1, sections.length));
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [sections.length, visibleSections]);
+
+  const showFeatured =
+    activeCategory === "All Markets" || activeCategory === "Trending";
+
+  if (sections.length === 0) {
     return isError ? <ErrorState onRetry={() => void refetch()} /> : <SkeletonGrid />;
   }
 
   return (
-    <div className="markets-grid">
-      {tickers.map((ticker) => (
-        <EventCard key={ticker} eventTicker={ticker} />
-      ))}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={activeCategory}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        style={{ paddingTop: 16, paddingBottom: 48 }}
+      >
+        {showFeatured && featured && <FeaturedMarketStrip ticker={featured} />}
+
+        {sections.slice(0, visibleSections).map((section) => (
+          <CategorySection
+            key={section.category}
+            section={section}
+            viewMode={viewMode}
+          />
+        ))}
+
+        <div ref={sentinelRef} style={{ height: 1 }} />
+
+        {visibleSections < sections.length && (
+          <div style={{ padding: "0 24px" }}>
+            <div
+              className="lenium-skeleton"
+              style={{ height: 48, borderRadius: 10 }}
+            />
+          </div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Category section ─────────────────────────────────────────────────────────
+
+function CategorySection({
+  section,
+  viewMode,
+}: {
+  section: EventSection;
+  viewMode: "grid" | "list";
+}) {
+  const setCategory = useUiStore((s) => s.setCategory);
+  const [headerHovered, setHeaderHovered] = useState(false);
+
+  return (
+    <section>
+      <div
+        style={{
+          height: 48,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          fontFamily: T.font,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setCategory(section.category)}
+          onMouseEnter={() => setHeaderHovered(true)}
+          onMouseLeave={() => setHeaderHovered(false)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            color: T.textPrimary,
+            fontSize: 16,
+            fontWeight: 600,
+            fontFamily: T.font,
+          }}
+        >
+          {section.category}
+          <IconChevronRight
+            size={16}
+            color={headerHovered ? T.textSecondary : T.textMuted}
+            stroke={1.5}
+            style={{
+              transform: headerHovered ? "translateX(2px)" : "none",
+              transition: `transform ${T.transition}, color ${T.transition}`,
+            }}
+          />
+        </button>
+        <span style={{ color: T.textMuted, fontSize: 13 }}>
+          {section.eventTickers.length} event
+          {section.eventTickers.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {viewMode === "list" ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: "0 24px",
+          }}
+        >
+          {section.eventTickers.map((ticker) => (
+            <EventCard key={ticker} eventTicker={ticker} variant="row" />
+          ))}
+        </div>
+      ) : section.eventTickers.length > VIRTUALIZE_THRESHOLD ? (
+        <VirtualCategoryGrid tickers={section.eventTickers} />
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: CARD_GAP,
+            padding: "0 24px",
+            alignItems: "stretch",
+          }}
+        >
+          {section.eventTickers.map((ticker) => (
+            <EventCard key={ticker} eventTicker={ticker} />
+          ))}
+        </div>
+      )}
+
+      {/* Thin rule for clean separation before the next section header. */}
+      <div
+        style={{
+          height: 0.5,
+          background: T.bgTertiary,
+          margin: "8px 24px 32px",
+        }}
+      />
+    </section>
+  );
+}
+
+// ─── Virtualized fallback for oversized categories ───────────────────────────
+
+function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setWidth(rect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const columnCount = Math.max(2, Math.floor(width / 280)) || 3;
+  const columnWidth = width > 0 ? Math.floor(width / columnCount) : 0;
+  const rowCount = Math.ceil(tickers.length / columnCount);
+  const height = Math.min(rowCount, 4) * VIRTUAL_ROW_HEIGHT;
+
+  const Cell = useCallback(
+    ({
+      columnIndex,
+      rowIndex,
+      style,
+    }: {
+      columnIndex: number;
+      rowIndex: number;
+      style: CSSProperties;
+    }) => {
+      const ticker = tickers[rowIndex * columnCount + columnIndex];
+      if (!ticker) return null;
+      return (
+        <div style={{ ...style, padding: CARD_GAP / 2, boxSizing: "border-box" }}>
+          <EventCard eventTicker={ticker} />
+        </div>
+      );
+    },
+    [tickers, columnCount],
+  );
+
+  return (
+    <div ref={containerRef} style={{ padding: "0 24px" }}>
+      {width > 0 && (
+        <FixedSizeGrid
+          columnCount={columnCount}
+          columnWidth={columnWidth}
+          rowCount={rowCount}
+          rowHeight={VIRTUAL_ROW_HEIGHT}
+          width={width}
+          height={height}
+          style={{ overflowX: "hidden" }}
+        >
+          {Cell}
+        </FixedSizeGrid>
+      )}
     </div>
   );
 }
 
+// ─── Featured trending strip ──────────────────────────────────────────────────
+
+function FeaturedMarketStrip({ ticker }: { ticker: string }) {
+  const market = useMarketStore(
+    useShallow((s) => {
+      const m = s.markets[ticker];
+      if (!m) return null;
+      return { question: m.question, yesPrice: m.yesPrice, volume: m.volume };
+    }),
+  );
+  const router = useRouter();
+  const [hovered, setHovered] = useState(false);
+
+  if (!market || market.yesPrice <= 0 || market.volume <= 0) return null;
+
+  return (
+    <div
+      onClick={() => router.push(`/dashboard/markets/${encodeURIComponent(ticker)}`)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        height: 72,
+        boxSizing: "border-box",
+        margin: "0 24px 24px",
+        padding: "16px 20px",
+        background: T.bgSecondary,
+        border: T.hairline(hovered ? T.borderHover : T.border),
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        cursor: "pointer",
+        boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.5)" : "none",
+        transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
+        fontFamily: T.font,
+      }}
+    >
+      <span
+        style={{
+          color: T.green,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          minWidth: 72,
+        }}
+      >
+        TRENDING
+      </span>
+      <span
+        title={market.question}
+        style={{
+          flex: 1,
+          color: T.textPrimary,
+          fontSize: 14,
+          fontWeight: 500,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {market.question}
+      </span>
+      <span
+        style={{
+          color: T.textPrimary,
+          fontSize: 20,
+          fontWeight: 600,
+          minWidth: 60,
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {market.yesPrice}%
+      </span>
+    </div>
+  );
+}
+
+// ─── Loading and error states ─────────────────────────────────────────────────
+
 function SkeletonGrid() {
   return (
-    <div className="markets-grid">
-      {Array.from({ length: 8 }, (_, i) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: CARD_GAP,
+        padding: "16px 24px",
+      }}
+    >
+      {Array.from({ length: 9 }, (_, i) => (
         <SkeletonEventCard key={i} />
       ))}
     </div>
@@ -72,6 +404,7 @@ function SkeletonGrid() {
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <div
       style={{
@@ -80,29 +413,34 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         alignItems: "center",
         justifyContent: "center",
         gap: 10,
-        padding: "80px 24px",
+        padding: "120px 24px",
         fontFamily: T.font,
         textAlign: "center",
       }}
     >
       <IconAlertCircle size={32} color={T.textMuted} stroke={1.5} />
-      <span style={{ color: T.textPrimary, fontSize: 15 }}>Unable to load markets</span>
+      <span style={{ color: T.textPrimary, fontSize: 15 }}>
+        Unable to load markets
+      </span>
       <span style={{ color: T.textMuted, fontSize: 13 }}>
-        Check your connection and try again.
+        Check your Kalshi API credentials in .env.local
       </span>
       <button
         type="button"
         onClick={onRetry}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           marginTop: 6,
-          border: T.hairline(),
+          border: T.hairline(hovered ? T.borderHover : T.border),
           color: T.textSecondary,
           background: "transparent",
-          borderRadius: T.radius,
+          borderRadius: 6,
           padding: "8px 16px",
           fontSize: 13,
           cursor: "pointer",
           fontFamily: T.font,
+          transition: `border-color ${T.transition}`,
         }}
       >
         Try again
