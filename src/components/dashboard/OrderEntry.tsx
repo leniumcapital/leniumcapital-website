@@ -97,8 +97,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
           label="YES"
           price={market.yesPrice}
           active={direction === "yes"}
-          activeBg="rgba(0,232,122,0.12)"
-          activeBorder={T.green}
+          side="yes"
           onClick={() => setDirection("yes")}
         />
         <div style={{ width: 0.5, background: T.border }} />
@@ -106,8 +105,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
           label="NO"
           price={market.noPrice}
           active={direction === "no"}
-          activeBg={T.redMuted}
-          activeBorder={T.red}
+          side="no"
           onClick={() => setDirection("no")}
         />
       </div>
@@ -298,17 +296,19 @@ function ToggleButton({
   label,
   price,
   active,
-  activeBg,
-  activeBorder,
+  side,
   onClick,
 }: {
   label: string;
   price: number;
   active: boolean;
-  activeBg: string;
-  activeBorder: string;
+  side: "yes" | "no";
   onClick: () => void;
 }) {
+  const isYes = side === "yes";
+  const accent = isYes ? T.green : T.red;
+  const activeBg = isYes ? T.greenBtnBg : T.redBtnBg;
+
   return (
     <button
       type="button"
@@ -316,12 +316,12 @@ function ToggleButton({
       style={{
         flex: 1,
         padding: "10px 0 8px",
-        background: active ? activeBg : "transparent",
+        background: active ? activeBg : isYes ? "rgba(0,232,122,0.04)" : T.redMuted,
         border: "none",
         borderBottom: active
-          ? `2px solid ${activeBorder}`
-          : "2px solid transparent",
-        color: active ? T.textPrimary : T.textMuted,
+          ? `2px solid ${accent}`
+          : `2px solid ${isYes ? T.greenBtnBorder : T.redBtnBorder}`,
+        color: accent,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
@@ -329,10 +329,11 @@ function ToggleButton({
         gap: 2,
         fontFamily: T.font,
         transition: `background ${T.transition}`,
+        opacity: active ? 1 : 0.9,
       }}
     >
       <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 12, opacity: 0.8 }}>{price}¢</span>
+      <span style={{ fontSize: 12, opacity: 0.85 }}>{price}¢</span>
     </button>
   );
 }
