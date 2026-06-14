@@ -9,15 +9,12 @@ import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { SeriesIcon, OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
+import { compactUsd } from "@/lib/data";
+import { MARKET_CARD_MIN_HEIGHT } from "@/lib/marketGrid";
 import { T } from "@/lib/tokens";
 
-/**
- * Kalshi-style event card: series icon + category label, event title, close
- * time, favored outcome rows (real Kalshi image, name, multiplier odds, live
- * percentage pill), and a footer with total volume and contract count.
- */
-
-const UNDERLINE_COLORS = [T.green, "#3B82F6"] as const;
+const AVATAR_SIZE = 28;
+const PILL_MIN_WIDTH = 52;
 
 function formatCloseTime(iso: string, now: number): string {
   if (!iso) return "";
@@ -37,7 +34,6 @@ function formatCloseTime(iso: string, now: number): string {
   return `${date} @ ${time}`;
 }
 
-/** Flash state: snaps to green/red on price moves, fades back over 600ms. */
 function usePillFlash(price: number): string | null {
   const [prevPrice, setPrevPrice] = useState(price);
   const [flash, setFlash] = useState<string | null>(null);
@@ -53,12 +49,12 @@ function usePillFlash(price: number): string | null {
   return flash;
 }
 
-interface EventCardProps {
+export interface MarketCardProps {
   eventTicker: string;
   variant?: "card" | "row";
 }
 
-function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
+function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
   const event = useMarketStore(
     useShallow((s): DashboardEvent | null => s.events[eventTicker] ?? null),
   );
@@ -75,9 +71,6 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
   };
 
   const closeMs = event.closeTime ? new Date(event.closeTime).getTime() : 0;
-  // "Happening now" proxy: resolves within a few hours (live games, hourly
-  // strikes), with grace after the expected end for overtime. Same-day
-  // events get the "Today @ ..." label instead.
   const isLive =
     now > 0 &&
     closeMs > 0 &&
@@ -161,27 +154,38 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
       style={{
         display: "flex",
         flexDirection: "column",
+        boxSizing: "border-box",
+        height: "100%",
+        minHeight: MARKET_CARD_MIN_HEIGHT,
         background: T.bgSecondary,
         border: T.hairline(hovered ? T.borderHover : T.border),
         borderRadius: 12,
         padding: 16,
         cursor: "pointer",
-        minHeight: 196,
         boxShadow: hovered ? "0 4px 24px rgba(0,0,0,0.45)" : "none",
         transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
         fontFamily: T.font,
+        overflow: "hidden",
       }}
     >
-      {/* Header: series image + category label */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
         <SeriesIcon
           seriesTicker={event.seriesTicker}
           category={event.category}
           title={event.title}
-          size={26}
+          size={24}
         />
         <span
           style={{
+            flex: 1,
+            minWidth: 0,
             color: T.textMuted,
             fontSize: 10,
             fontWeight: 600,
@@ -196,7 +200,6 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         </span>
       </div>
 
-      {/* Title */}
       <div
         title={event.title}
         style={{
@@ -214,7 +217,6 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         {event.title}
       </div>
 
-      {/* Close time / live row */}
       <div
         style={{
           marginTop: 6,
@@ -237,7 +239,9 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
                 flexShrink: 0,
               }}
             />
-            <span style={{ color: T.red, fontWeight: 600, letterSpacing: "0.04em" }}>
+            <span
+              style={{ color: T.red, fontWeight: 600, letterSpacing: "0.04em" }}
+            >
               LIVE
             </span>
           </>
@@ -245,7 +249,6 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         <span>{formatCloseTime(event.closeTime, now)}</span>
       </div>
 
-      {/* Favored outcome rows */}
       <div
         style={{
           marginTop: 12,
@@ -253,6 +256,7 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
           flexDirection: "column",
           gap: 10,
           flex: 1,
+          minWidth: 0,
         }}
       >
         {event.outcomes.map((outcome, i) => (
@@ -265,20 +269,24 @@ function EventCardInner({ eventTicker, variant = "card" }: EventCardProps) {
         ))}
       </div>
 
-      {/* Footer */}
       <div
         style={{
-          marginTop: 14,
+          marginTop: "auto",
+          paddingTop: 12,
+          borderTop: T.hairline(),
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 12,
           color: T.textMuted,
           fontSize: 11,
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        <span>${Math.round(event.totalVolume).toLocaleString()} vol</span>
-        <span>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {compactUsd(event.totalVolume)} vol
+        </span>
+        <span style={{ whiteSpace: "nowrap" }}>
           {event.marketCount} market{event.marketCount === 1 ? "" : "s"}
         </span>
       </div>
@@ -295,29 +303,44 @@ function OutcomeRow({
   category: string;
   index: number;
 }) {
-  const underline = UNDERLINE_COLORS[index % UNDERLINE_COLORS.length];
-
-  // Live price from the streaming store, falling back to the snapshot.
   const livePrice = useMarketStore(
     (s) => s.markets[outcome.ticker]?.yesPrice ?? outcome.yesPrice,
   );
   const multiplier = livePrice > 0 ? 100 / livePrice : 0;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-      <OutcomeAvatar
-        ticker={outcome.ticker}
-        name={outcome.name}
-        category={category}
-        imageUrl={outcome.imageUrl}
-        size={26}
-        colorIndex={index}
-      />
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `${AVATAR_SIZE}px minmax(0, 1fr) auto auto`,
+        columnGap: 8,
+        alignItems: "center",
+        width: "100%",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          width: AVATAR_SIZE,
+          height: AVATAR_SIZE,
+          flexShrink: 0,
+          overflow: "hidden",
+          borderRadius: "50%",
+        }}
+      >
+        <OutcomeAvatar
+          ticker={outcome.ticker}
+          name={outcome.name}
+          category={category}
+          imageUrl={outcome.imageUrl}
+          size={AVATAR_SIZE}
+          colorIndex={index}
+        />
+      </div>
 
       <span
         title={outcome.name}
         style={{
-          flex: 1,
           minWidth: 0,
           color: T.textPrimary,
           fontSize: 13,
@@ -325,9 +348,6 @@ function OutcomeRow({
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
-          paddingBottom: 3,
-          borderBottom: `1.5px solid ${underline}`,
-          alignSelf: "flex-start",
         }}
       >
         {outcome.name}
@@ -339,6 +359,7 @@ function OutcomeRow({
           fontSize: 12,
           fontVariantNumeric: "tabular-nums",
           flexShrink: 0,
+          whiteSpace: "nowrap",
         }}
       >
         {multiplier >= 10 ? multiplier.toFixed(1) : multiplier.toFixed(2)}x
@@ -349,7 +370,6 @@ function OutcomeRow({
   );
 }
 
-/** Percentage pill that flashes green/red when the live price changes. */
 function LivePricePill({
   ticker,
   fallback,
@@ -368,15 +388,19 @@ function LivePricePill({
       }}
       transition={{ duration: flash ? 0.05 : 0.6, ease: "easeOut" }}
       style={{
+        justifySelf: "end",
         border: "1px solid #2E4F3C",
         borderRadius: 999,
-        padding: "4px 12px",
+        padding: "4px 10px",
         color: T.textPrimary,
         fontSize: 13,
         fontWeight: 600,
         fontVariantNumeric: "tabular-nums",
         flexShrink: 0,
         lineHeight: 1.2,
+        minWidth: PILL_MIN_WIDTH,
+        textAlign: "center",
+        whiteSpace: "nowrap",
       }}
     >
       {price}%
@@ -384,14 +408,13 @@ function LivePricePill({
   );
 }
 
-export const EventCard = React.memo(
-  EventCardInner,
+export const MarketCard = React.memo(
+  MarketCardInner,
   (prev, next) =>
     prev.eventTicker === next.eventTicker && prev.variant === next.variant,
 );
 
-/** Shimmer placeholder matching the event card footprint. */
-export function SkeletonEventCard() {
+export function SkeletonMarketCard() {
   return (
     <div
       style={{
@@ -399,7 +422,9 @@ export function SkeletonEventCard() {
         border: T.hairline(),
         borderRadius: 12,
         padding: 16,
-        minHeight: 196,
+        minHeight: MARKET_CARD_MIN_HEIGHT,
+        height: "100%",
+        boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
         gap: 12,
@@ -407,8 +432,14 @@ export function SkeletonEventCard() {
     >
       <div className="lenium-skeleton" style={{ width: 90, height: 14 }} />
       <div className="lenium-skeleton" style={{ width: "85%", height: 18 }} />
-      <div className="lenium-skeleton" style={{ width: "70%", height: 26, borderRadius: 999 }} />
-      <div className="lenium-skeleton" style={{ width: "70%", height: 26, borderRadius: 999 }} />
+      <div
+        className="lenium-skeleton"
+        style={{ width: "70%", height: 26, borderRadius: 999 }}
+      />
+      <div
+        className="lenium-skeleton"
+        style={{ width: "70%", height: 26, borderRadius: 999 }}
+      />
       <div style={{ flex: 1 }} />
       <div className="lenium-skeleton" style={{ width: "50%", height: 12 }} />
     </div>

@@ -24,13 +24,16 @@ import {
   useMarketsQuery,
   type EventSection,
 } from "@/hooks/useMarkets";
-import { EventCard, SkeletonEventCard } from "@/components/dashboard/EventCard";
+import { MarketCard, SkeletonMarketCard } from "@/components/dashboard/MarketCard";
+import {
+  MARKET_GRID_GAP,
+  MARKET_GRID_ROW_HEIGHT,
+  marketGridColumns,
+} from "@/lib/marketGrid";
 import { T } from "@/lib/tokens";
 
-const CARD_GAP = 12;
 const INITIAL_SECTIONS = 2;
 const VIRTUALIZE_THRESHOLD = 100;
-const VIRTUAL_ROW_HEIGHT = 224;
 
 /**
  * Kalshi-style market browser: a compact featured trending strip, then
@@ -213,28 +216,15 @@ function CategorySection({
           }}
         >
           {section.eventTickers.map((ticker) => (
-            <EventCard key={ticker} eventTicker={ticker} variant="row" />
+            <MarketCard key={ticker} eventTicker={ticker} variant="row" />
           ))}
         </div>
       ) : section.eventTickers.length > VIRTUALIZE_THRESHOLD ? (
-        <VirtualCategoryGrid tickers={section.eventTickers} flat={flat} />
+        <VirtualCategoryGrid tickers={section.eventTickers} />
       ) : (
-        <div
-          className={flat ? "markets-grid" : undefined}
-          style={
-            flat
-              ? { padding: "0 24px", alignItems: "stretch" }
-              : {
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: CARD_GAP,
-                  padding: "0 24px",
-                  alignItems: "stretch",
-                }
-          }
-        >
+        <div className="markets-grid" style={{ padding: "0 24px" }}>
           {section.eventTickers.map((ticker) => (
-            <EventCard key={ticker} eventTicker={ticker} />
+            <MarketCard key={ticker} eventTicker={ticker} />
           ))}
         </div>
       )}
@@ -254,13 +244,7 @@ function CategorySection({
 
 // ─── Virtualized fallback for oversized categories ───────────────────────────
 
-function VirtualCategoryGrid({
-  tickers,
-  flat = false,
-}: {
-  tickers: string[];
-  flat?: boolean;
-}) {
+function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -275,12 +259,10 @@ function VirtualCategoryGrid({
     return () => observer.disconnect();
   }, []);
 
-  const columnCount = flat
-    ? Math.min(4, Math.max(1, Math.floor(width / 280)) || 1)
-    : Math.max(2, Math.floor(width / 280)) || 3;
+  const columnCount = width > 0 ? marketGridColumns(width) : 3;
   const columnWidth = width > 0 ? Math.floor(width / columnCount) : 0;
   const rowCount = Math.ceil(tickers.length / columnCount);
-  const height = Math.min(rowCount, 4) * VIRTUAL_ROW_HEIGHT;
+  const height = Math.min(rowCount, 4) * MARKET_GRID_ROW_HEIGHT;
 
   const Cell = useCallback(
     ({
@@ -295,8 +277,14 @@ function VirtualCategoryGrid({
       const ticker = tickers[rowIndex * columnCount + columnIndex];
       if (!ticker) return null;
       return (
-        <div style={{ ...style, padding: CARD_GAP / 2, boxSizing: "border-box" }}>
-          <EventCard eventTicker={ticker} />
+        <div
+          style={{
+            ...style,
+            padding: MARKET_GRID_GAP / 2,
+            boxSizing: "border-box",
+          }}
+        >
+          <MarketCard eventTicker={ticker} />
         </div>
       );
     },
@@ -310,7 +298,7 @@ function VirtualCategoryGrid({
           columnCount={columnCount}
           columnWidth={columnWidth}
           rowCount={rowCount}
-          rowHeight={VIRTUAL_ROW_HEIGHT}
+          rowHeight={MARKET_GRID_ROW_HEIGHT}
           width={width}
           height={height}
           style={{ overflowX: "hidden" }}
@@ -404,16 +392,9 @@ function FeaturedMarketStrip({ ticker }: { ticker: string }) {
 
 function SkeletonGrid() {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-        gap: CARD_GAP,
-        padding: "16px 24px",
-      }}
-    >
+    <div className="markets-grid" style={{ padding: "16px 24px" }}>
       {Array.from({ length: 9 }, (_, i) => (
-        <SkeletonEventCard key={i} />
+        <SkeletonMarketCard key={i} />
       ))}
     </div>
   );

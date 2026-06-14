@@ -8,13 +8,11 @@ import {
 } from "@/hooks/useMarkets";
 import { T } from "@/lib/tokens";
 
-const SIDEBAR_WIDTH = 200;
-
 /**
- * Context-sensitive secondary navigation — appears only when the active
- * top-level category has subcategories in the live market data.
+ * Horizontal subcategory tabs — shown below the section heading when the
+ * active primary category has subcategories (President, Senate, Basketball, …).
  */
-export function MarketsSubcategorySidebar() {
+export function MarketsSubcategoryTabs() {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
   const setSubCategoryFilter = useUiStore((s) => s.setSubCategoryFilter);
@@ -26,51 +24,48 @@ export function MarketsSubcategorySidebar() {
   return (
     <AnimatePresence initial={false}>
       {show && (
-        <motion.aside
+        <motion.div
           key={activeCategory}
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: SIDEBAR_WIDTH, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-          style={{
-            flexShrink: 0,
-            overflow: "hidden",
-            fontFamily: T.font,
-            position: "sticky",
-            top: 48,
-            alignSelf: "flex-start",
-            maxHeight: "calc(100vh - 48px)",
-          }}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          style={{ overflow: "hidden" }}
         >
-          <nav
+          <div
+            className="lenium-tabbar"
             style={{
-              width: SIDEBAR_WIDTH,
-              padding: "20px 0 32px",
-              overflowY: "auto",
-              maxHeight: "calc(100vh - 48px)",
+              display: "flex",
+              alignItems: "stretch",
+              gap: 20,
+              padding: "0 24px",
+              marginBottom: 8,
+              overflowX: "auto",
+              borderBottom: T.hairline(),
+              fontFamily: T.font,
             }}
           >
-            <NavItem
+            <SubTab
               label="All markets"
               active={subCategoryFilter === "All Markets"}
               onClick={() => setSubCategoryFilter("All Markets")}
             />
             {subcategories.map((sub) => (
-              <NavItem
+              <SubTab
                 key={sub}
                 label={sub}
                 active={subCategoryFilter === sub}
                 onClick={() => setSubCategoryFilter(sub)}
               />
             ))}
-          </nav>
-        </motion.aside>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-function NavItem({
+function SubTab({
   label,
   active,
   onClick,
@@ -84,28 +79,43 @@ function NavItem({
       type="button"
       onClick={onClick}
       style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "11px 20px",
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        height: 40,
+        padding: 0,
         border: "none",
-        borderLeft: active ? `2px solid ${T.green}` : "2px solid transparent",
         background: "transparent",
-        color: active ? T.green : T.textPrimary,
-        fontSize: 14,
+        color: active ? T.textPrimary : "#888888",
+        fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "color 120ms ease",
         fontFamily: T.font,
-        transition: `color ${T.transition}, border-color ${T.transition}`,
+        flexShrink: 0,
       }}
       onMouseEnter={(e) => {
         if (!active) e.currentTarget.style.color = "#CCCCCC";
       }}
       onMouseLeave={(e) => {
-        if (!active) e.currentTarget.style.color = T.textPrimary;
+        if (!active) e.currentTarget.style.color = active ? T.textPrimary : "#888888";
       }}
     >
       {label}
+      {active && (
+        <span
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 2,
+            background: T.green,
+            borderRadius: 1,
+          }}
+        />
+      )}
     </button>
   );
 }

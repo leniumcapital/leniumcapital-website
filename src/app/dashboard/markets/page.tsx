@@ -13,7 +13,7 @@ import { useUiStore, type SortOrder, type ViewMode } from "@/stores/uiStore";
 import { useMarketsQuery, useMarketsHeading } from "@/hooks/useMarkets";
 import { MarketGrid } from "@/components/dashboard/MarketGrid";
 import { CategoryTabs } from "@/components/dashboard/CategoryFilter";
-import { MarketsSubcategorySidebar } from "@/components/dashboard/MarketsSubcategorySidebar";
+import { MarketsSubcategoryTabs } from "@/components/dashboard/MarketsSubcategoryTabs";
 import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
@@ -42,10 +42,7 @@ export default function MarketsPage() {
         <CategoryTabs />
       </div>
 
-      <div style={{ display: "flex", alignItems: "flex-start" }}>
-        <MarketsSubcategorySidebar />
-
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ minWidth: 0 }}>
           <div
             style={{
               display: "flex",
@@ -79,10 +76,11 @@ export default function MarketsPage() {
             </div>
           </div>
 
+          <MarketsSubcategoryTabs />
+
           <ErrorBoundary name="Market grid">
             <MarketGrid />
           </ErrorBoundary>
-        </div>
       </div>
     </div>
   );
