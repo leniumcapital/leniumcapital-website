@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { ResponsiveContainer } from "recharts";
 import type { MarketOutcome, ChartRange } from "@/lib/marketDetail";
-import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import {
   fetchMarketHistoryClient,
   marketHistoryQueryKey,
@@ -144,14 +144,11 @@ export function DetailChart({
               key={o.ticker}
               style={{ display: "flex", alignItems: "center", gap: 6 }}
             >
-              <OutcomeAvatar
-                ticker={o.ticker}
+              <MarketOutcomeAvatar
                 name={o.name}
                 category={category}
-                imageUrl={o.imageUrl}
-                size={20}
-                color={OUTCOME_COLORS[i]}
-                colorIndex={i}
+                directUrl={o.imageUrl ?? null}
+                size={28}
               />
               <span style={{ color: T.textSecondary, fontSize: 12 }}>
                 {o.name}
@@ -283,16 +280,11 @@ export function DetailChart({
                               }}
                             >
                               {outcome ? (
-                                <OutcomeAvatar
-                                  ticker={outcome.ticker}
+                                <MarketOutcomeAvatar
                                   name={outcome.name}
                                   category={category}
-                                  imageUrl={outcome.imageUrl}
-                                  size={18}
-                                  color={
-                                    idx >= 0 ? OUTCOME_COLORS[idx] : undefined
-                                  }
-                                  colorIndex={idx >= 0 ? idx : undefined}
+                                  directUrl={outcome.imageUrl ?? null}
+                                  size={28}
                                 />
                               ) : (
                                 <span

@@ -7,7 +7,8 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
-import { SeriesIcon, OutcomeAvatar } from "@/components/dashboard/KalshiImages";
+import { SeriesIcon } from "@/components/dashboard/KalshiImages";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
 import { compactUsd } from "@/lib/data";
 import { MARKET_CARD_MIN_HEIGHT } from "@/lib/marketGrid";
@@ -259,12 +260,11 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           minWidth: 0,
         }}
       >
-        {event.outcomes.map((outcome, i) => (
+        {event.outcomes.map((outcome) => (
           <OutcomeRow
             key={outcome.ticker}
             outcome={outcome}
             category={event.category}
-            index={i}
           />
         ))}
       </div>
@@ -297,11 +297,9 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
 function OutcomeRow({
   outcome,
   category,
-  index,
 }: {
   outcome: EventOutcome;
   category: string;
-  index: number;
 }) {
   const livePrice = useMarketStore(
     (s) => s.markets[outcome.ticker]?.yesPrice ?? outcome.yesPrice,
@@ -319,24 +317,12 @@ function OutcomeRow({
         minWidth: 0,
       }}
     >
-      <div
-        style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          flexShrink: 0,
-          overflow: "hidden",
-          borderRadius: "50%",
-        }}
-      >
-        <OutcomeAvatar
-          ticker={outcome.ticker}
-          name={outcome.name}
-          category={category}
-          imageUrl={outcome.imageUrl}
-          size={AVATAR_SIZE}
-          colorIndex={index}
-        />
-      </div>
+      <MarketOutcomeAvatar
+        name={outcome.name}
+        category={category}
+        directUrl={outcome.imageUrl ?? null}
+        size={AVATAR_SIZE}
+      />
 
       <span
         title={outcome.name}

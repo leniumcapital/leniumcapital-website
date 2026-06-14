@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { IconFlask } from "@tabler/icons-react";
 import { toast } from "sonner";
 import type { MarketDetail } from "@/lib/marketDetail";
-import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { DemoOrderDisclaimer } from "@/components/dashboard/ModeSwitcher";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
@@ -259,12 +259,11 @@ export function DetailOrderPanel({
                     marginBottom: 8,
                   }}
                 >
-                  <OutcomeAvatar
-                    ticker={outcome?.ticker ?? detail.ticker}
+                  <MarketOutcomeAvatar
                     name={outcome?.name ?? detail.question}
                     category={detail.category}
-                    imageUrl={outcome?.imageUrl}
-                    size={32}
+                    directUrl={outcome?.imageUrl ?? null}
+                    size={36}
                   />
                   <span
                     style={{
@@ -313,12 +312,11 @@ export function DetailOrderPanel({
                   marginBottom: 12,
                 }}
               >
-                <OutcomeAvatar
-                  ticker={detail.ticker}
+                <MarketOutcomeAvatar
                   name={detail.question}
                   category={detail.category}
-                  imageUrl={detail.outcomes[0]?.imageUrl}
-                  size={32}
+                  directUrl={detail.outcomes[0]?.imageUrl ?? null}
+                  size={36}
                 />
                 <span
                   style={{

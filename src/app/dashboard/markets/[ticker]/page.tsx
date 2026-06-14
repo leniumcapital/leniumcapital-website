@@ -21,7 +21,7 @@ import { detectUnderlying, parseStrike } from "@/lib/underlying";
 import { DetailChart, OUTCOME_COLORS } from "@/components/dashboard/DetailChart";
 import { UnderlyingChart } from "@/components/dashboard/UnderlyingChart";
 import { DetailOrderPanel } from "@/components/dashboard/DetailOrderPanel";
-import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
@@ -315,13 +315,11 @@ function OutcomesTable({
               borderRadius: selected ? 8 : 0,
             }}
           >
-            <OutcomeAvatar
-              ticker={o.ticker}
+            <MarketOutcomeAvatar
               name={o.name}
               category={category}
-              imageUrl={o.imageUrl}
-              size={28}
-              colorIndex={i}
+              directUrl={o.imageUrl ?? null}
+              size={36}
             />
 
             <span

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { fetchDashboardData } from "@/lib/kalshi";
+import { backgroundIconPrefetchFromEvents } from "@/lib/icon-resolvers";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /** Live events + market list for the dashboard grid. Session required. */
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,6 +22,14 @@ export async function GET() {
       { status: 502 },
     );
   }
+
+  const origin = new URL(req.url).origin;
+  backgroundIconPrefetchFromEvents(
+    events,
+    req.headers.get("cookie"),
+    origin,
+  );
+
   return NextResponse.json(
     { markets, events },
     { headers: { "Cache-Control": "private, max-age=30" } },

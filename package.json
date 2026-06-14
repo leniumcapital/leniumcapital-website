@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "seed:icons": "tsx scripts/seed-icons.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

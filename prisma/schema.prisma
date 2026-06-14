@@ -66,3 +66,22 @@ model Order {
   @@index([accountId])
   @@index([status])
 }
+
+model IconMapping {
+  id            String   @id @default(cuid())
+  nameKey       String   @map("name_key") @db.VarChar(500)
+  displayName   String   @map("display_name") @db.VarChar(500)
+  imageUrl      String   @map("image_url") @db.Text
+  category      String   @db.VarChar(100)
+  source        String   @db.VarChar(50)
+  isVerified    Boolean  @default(false) @map("is_verified")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  failCount     Int      @default(0) @map("fail_count") @db.SmallInt
+  isInvalidated Boolean  @default(false) @map("is_invalidated")
+
+  @@unique([nameKey, category])
+  @@index([category])
+  @@index([isInvalidated])
+  @@map("icon_mappings")
+}
