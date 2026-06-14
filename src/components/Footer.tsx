@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
+import {
+  SITE_EMAIL,
+  SITE_TWITTER_HANDLE,
+  SITE_TWITTER_URL,
+} from "@/lib/site";
 
 export function Footer() {
   return (
@@ -33,11 +38,26 @@ export function Footer() {
         </div>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold">Community</h4>
+          <h4 className="mb-3 text-sm font-semibold">Contact</h4>
           <ul className="space-y-2 text-sm text-muted">
-            <li><span className="cursor-default">Discord</span></li>
-            <li><span className="cursor-default">X / Twitter</span></li>
-            <li><span className="cursor-default">support@lenium.capital</span></li>
+            <li>
+              <a
+                href={SITE_TWITTER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground"
+              >
+                {SITE_TWITTER_HANDLE}
+              </a>
+            </li>
+            <li>
+              <a
+                href={`mailto:${SITE_EMAIL}`}
+                className="hover:text-foreground"
+              >
+                {SITE_EMAIL}
+              </a>
+            </li>
           </ul>
         </div>
       </div>

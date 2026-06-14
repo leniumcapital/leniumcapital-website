@@ -5,6 +5,7 @@ import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
 import { TIERS, STATS, usd } from "@/lib/data";
+import { SITE_EMAIL, SITE_TWITTER_HANDLE, SITE_TWITTER_URL } from "@/lib/site";
 
 const FOUNDATION = [
   { title: "Fully regulated foundation", value: "Built on Kalshi, a CFTC-licensed exchange" },
@@ -267,6 +268,22 @@ export default function HomePage() {
           </h2>
           <div className="mt-8 flex justify-center">
             <StartChallengeCta variant="cta" />
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
+            <a
+              href={SITE_TWITTER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground"
+            >
+              {SITE_TWITTER_HANDLE}
+            </a>
+            <a
+              href={`mailto:${SITE_EMAIL}`}
+              className="hover:text-foreground"
+            >
+              {SITE_EMAIL}
+            </a>
           </div>
         </Container>
       </section>
