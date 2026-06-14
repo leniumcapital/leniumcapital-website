@@ -6,7 +6,7 @@ import { RULE_ROWS, TIERS, type Tier } from "@/lib/data";
 export const metadata: Metadata = {
   title: "Rules",
   description:
-    "Five challenge rules for all nine tiers — calibrated for binary prediction market contract mechanics.",
+    "Five challenge rules for all six tiers — calibrated for binary prediction market contract mechanics.",
 };
 
 /** Min–max span of a rule across all tiers, e.g. "11%–25%" or "7–15 days". */

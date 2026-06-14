@@ -8,11 +8,14 @@ import {
   fundedTargetUsd,
   DEFAULT_TRADER_SPLIT_PCT,
   PAYOUT_CYCLE_DAYS,
+  compactTier,
   usd,
 } from "@/lib/data";
 
+const DEFAULT_TIER_IDX = TIERS.findIndex((t) => t.size === 25_000);
+
 export function RulesExplorer() {
-  const [idx, setIdx] = useState(4); // default $25k
+  const [idx, setIdx] = useState(DEFAULT_TIER_IDX >= 0 ? DEFAULT_TIER_IDX : 0);
   const tier = TIERS[idx];
 
   return (
@@ -32,6 +35,39 @@ export function RulesExplorer() {
             {usd(t.size)}
           </button>
         ))}
+      </div>
+
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-muted">
+              <th className="px-4 py-3 text-left font-medium text-muted">Rule</th>
+              {TIERS.map((t) => (
+                <th
+                  key={t.size}
+                  className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted"
+                >
+                  {compactTier(t.size)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {RULE_ROWS.map((r) => (
+              <tr key={r.key as string}>
+                <td className="px-4 py-3 text-muted">{r.label}</td>
+                {TIERS.map((t) => (
+                  <td
+                    key={t.size}
+                    className="px-3 py-3 text-center font-semibold tabular-nums"
+                  >
+                    {r.format(t)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">

@@ -37,7 +37,8 @@ function Panel({ onClose }: { onClose: () => void }) {
   const setAccount = useAccountStore((s) => s.setAccount);
   const resetChallenge = useChallengeStore((s) => s.reset);
 
-  const [tierIdx, setTierIdx] = useState(1);
+  const defaultTierIdx = TIERS.findIndex((t) => t.size === 25_000);
+  const [tierIdx, setTierIdx] = useState(defaultTierIdx >= 0 ? defaultTierIdx : 0);
   const [selected, setSelected] = useState<AddonId[]>([]);
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");

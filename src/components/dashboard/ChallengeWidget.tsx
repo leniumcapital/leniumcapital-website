@@ -5,7 +5,7 @@ import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
 import { usePositionStore } from "@/stores/positionStore";
 import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
-import { fundedTargetUsd, PAYOUT_CYCLE_DAYS, TIERS } from "@/lib/data";
+import { fundedTargetUsd, PAYOUT_CYCLE_DAYS, resolveTierBySize } from "@/lib/data";
 import { usd } from "@/lib/data";
 import { T } from "@/lib/tokens";
 
@@ -122,7 +122,7 @@ function ProgressState() {
 function FundedState() {
   const tierSize = useAccountStore((s) => s.tier);
   const closedTrades = usePositionStore((s) => s.closedTrades);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
   const monthlyTarget = tier ? fundedTargetUsd(tier) : 0;
 
   const now = new Date();

@@ -7,7 +7,7 @@ import {
   useChallengeStore,
   subscribeChallengeToPositions,
 } from "@/stores/challengeStore";
-import { TIERS } from "@/lib/data";
+import { resolveTierBySize } from "@/lib/data";
 
 export type ChallengeProgress = {
   profitTarget: number;
@@ -37,7 +37,7 @@ export function useChallengeSync(): void {
 
   useEffect(() => {
     if (!tierSize || accountType === "none") return;
-    const tier = TIERS.find((t) => t.size === tierSize);
+    const tier = resolveTierBySize(tierSize);
     if (!tier) return;
 
     const challenge = useChallengeStore.getState();
@@ -92,7 +92,7 @@ export function useChallengeProgress(): ChallengeProgress {
     })),
   );
   const tierSize = useAccountStore((s) => s.tier);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
 
   const now = useMinuteNow();
   const remainingMs = useMemo(

@@ -1,12 +1,13 @@
 import {
   TIERS as PRICING_TIERS,
   ADDONS as PRICING_ADDONS,
-  getTierBySize,
+  getTierBySize as getPurchasableTierBySize,
   computePrice as computePricingPrice,
   addonPrice as pricingAddonPrice,
   SPLIT_ADDON_IDS,
   PAYOUT_CYCLE_DAYS,
   type AddonId,
+  type PricingTier,
 } from "./pricing";
 
 export type { AddonId };
@@ -25,12 +26,12 @@ export type Tier = {
   windowDays: number;
   /** Demo consistency cap: max share of total profit from a single day. */
   consistencyCapPct: number;
-  /** Tier offered only by Lenium ($15k, $20k, $35k, $75k). */
+  /** Tier offered only by Lenium ($75k among current purchasable tiers). */
   exclusive: boolean;
 };
 
 /**
- * Nine evaluation tiers. Values are derived from `pricing.ts` so the pricing
+ * Six evaluation tiers. Values are derived from `pricing.ts` so the pricing
  * page and dashboard always stay in sync.
  */
 type LegacyTierMeta = {
@@ -38,6 +39,49 @@ type LegacyTierMeta = {
   windowDays: number;
   consistencyCapPct: number;
   exclusive: boolean;
+};
+
+/** Archived pricing for retired tiers — used for existing accounts only. */
+const ARCHIVED_PRICING: Record<
+  number,
+  Pick<
+    PricingTier,
+    | "fee"
+    | "resetFee"
+    | "profitTarget"
+    | "maxDrawdown"
+    | "dailyLossLimit"
+    | "minTradingDays"
+    | "maxPositionSize"
+  >
+> = {
+  15000: {
+    fee: 149,
+    resetFee: 111,
+    profitTarget: 0.2,
+    maxDrawdown: 0.08,
+    dailyLossLimit: 0.04,
+    minTradingDays: 8,
+    maxPositionSize: 0.12,
+  },
+  20000: {
+    fee: 189,
+    resetFee: 141,
+    profitTarget: 0.2,
+    maxDrawdown: 0.07,
+    dailyLossLimit: 0.04,
+    minTradingDays: 9,
+    maxPositionSize: 0.12,
+  },
+  35000: {
+    fee: 319,
+    resetFee: 239,
+    profitTarget: 0.16,
+    maxDrawdown: 0.07,
+    dailyLossLimit: 0.03,
+    minTradingDays: 11,
+    maxPositionSize: 0.1,
+  },
 };
 
 const LEGACY_TIER_META: Record<number, LegacyTierMeta> = {
@@ -54,6 +98,10 @@ const LEGACY_TIER_META: Record<number, LegacyTierMeta> = {
 
 export const TIERS: Tier[] = PRICING_TIERS.map((t) => {
   const meta = LEGACY_TIER_META[t.size];
+  return pricingTierToTier(t, meta);
+});
+
+function pricingTierToTier(t: PricingTier, meta: LegacyTierMeta): Tier {
   return {
     size: t.size,
     baseFee: t.fee,
@@ -67,16 +115,43 @@ export const TIERS: Tier[] = PRICING_TIERS.map((t) => {
     consistencyCapPct: meta.consistencyCapPct,
     exclusive: meta.exclusive,
   };
-});
+}
 
-/** Reset fee from the canonical pricing schedule. */
+/** Resolve a tier by size — includes retired tiers for existing accounts. */
+export function resolveTierBySize(size: number): Tier | undefined {
+  const current = TIERS.find((t) => t.size === size);
+  if (current) return current;
+
+  const archived = ARCHIVED_PRICING[size];
+  const meta = LEGACY_TIER_META[size];
+  if (!archived || !meta) return undefined;
+
+  return pricingTierToTier(
+    {
+      size,
+      fee: archived.fee,
+      resetFee: archived.resetFee,
+      profitTarget: archived.profitTarget,
+      maxDrawdown: archived.maxDrawdown,
+      dailyLossLimit: archived.dailyLossLimit,
+      minTradingDays: archived.minTradingDays,
+      maxPositionSize: archived.maxPositionSize,
+      popular: false,
+    },
+    meta,
+  );
+}
+
+/** Reset fee from the canonical pricing schedule (includes retired tiers). */
 export const resetFee = (tier: Tier) =>
-  getTierBySize(tier.size)?.resetFee ?? Math.floor(tier.baseFee * 0.75);
+  getPurchasableTierBySize(tier.size)?.resetFee ??
+  ARCHIVED_PRICING[tier.size]?.resetFee ??
+  Math.floor(tier.baseFee * 0.75);
 /** What a trader saves by resetting instead of buying a fresh challenge. */
 export const resetSavings = (tier: Tier) => tier.baseFee - resetFee(tier);
 /**
- * The $35,000 reset fee ($239) equals the $25,000 base fee, so the reset label
- * must always name the account size on that tier to avoid cross-tier confusion.
+ * The retired $35,000 reset fee ($239) equals the $25,000 base fee, so the reset
+ * label must name the account size on that tier to avoid cross-tier confusion.
  */
 export const resetNeedsSize = (tier: Tier) => tier.size === 35000;
 
@@ -159,7 +234,7 @@ export type PriceBreakdown = {
 
 /** Compute a full price breakdown for a tier + selected add-ons. */
 export function computePrice(tier: Tier, selected: AddonId[]): PriceBreakdown {
-  const pricingTier = getTierBySize(tier.size);
+  const pricingTier = getPurchasableTierBySize(tier.size);
   if (!pricingTier) {
     return {
       baseFee: tier.baseFee,
@@ -304,6 +379,9 @@ export const STATS = {
 
 export const usd = (n: number) =>
   `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+/** Compact tier label for tables, e.g. 5000 -> "$5K". */
+export const compactTier = (size: number) => `$${size / 1000}K`;
 
 /** Compact dollar formatting for ticker volumes, e.g. 1_280_000 -> "$1.28M". */
 export const compactUsd = (n: number) => {

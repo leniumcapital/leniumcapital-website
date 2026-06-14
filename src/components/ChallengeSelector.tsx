@@ -131,7 +131,7 @@ export function ChallengeSelector({
               Account size
             </h2>
             <div
-              className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9"
+              className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6"
               role="tablist"
               aria-label="Account size tiers"
             >

@@ -22,7 +22,7 @@ import {
 import { useChallengeStore } from "@/stores/challengeStore";
 import { usePositionStore, realizedPnlTodayUtc } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
-import { TIERS, resetFee, usd } from "@/lib/data";
+import { TIERS, resetFee, resolveTierBySize, usd } from "@/lib/data";
 import {
   T,
   TOP_BAR_HEIGHT,
@@ -253,7 +253,7 @@ function useRuleEnforcement(): void {
     const unsubscribe = usePositionStore.subscribe((positions) => {
       const account = useAccountStore.getState();
       if (account.tradingMode !== "demo") return;
-      const tier = TIERS.find((t) => t.size === account.tier);
+      const tier = resolveTierBySize(account.tier);
       if (!tier) return;
       const limit = (tier.size * tier.dailyLimitPct) / 100;
       const dailyPnl = realizedPnlTodayUtc(positions.closedTrades);
@@ -343,7 +343,7 @@ function BreachOverlay() {
   const challengeStatus = useAccountStore((s) => s.challengeStatus);
   const tradingMode = useAccountStore((s) => s.tradingMode);
   const tierSize = useAccountStore((s) => s.tier);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
   const fee = tier ? resetFee(tier) : 0;
 
   return (

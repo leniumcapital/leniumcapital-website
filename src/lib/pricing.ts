@@ -40,6 +40,14 @@ export const FAST_PAYOUT_CYCLE_DAYS = 7;
 
 export const DEFAULT_TIER_SIZE = 25_000;
 
+/** Account sizes available for new challenge purchases. */
+export const PURCHASABLE_TIER_SIZES = [
+  5_000, 10_000, 25_000, 50_000, 75_000, 100_000,
+] as const;
+
+/** Retired tiers — existing accounts keep access; new purchases are rejected. */
+export const DEPRECATED_TIER_SIZES = [15_000, 20_000, 35_000] as const;
+
 export const TIERS: PricingTier[] = [
   {
     size: 5_000,
@@ -64,28 +72,6 @@ export const TIERS: PricingTier[] = [
     popular: false,
   },
   {
-    size: 15_000,
-    fee: 149,
-    resetFee: 111,
-    profitTarget: 0.2,
-    maxDrawdown: 0.08,
-    dailyLossLimit: 0.04,
-    minTradingDays: 8,
-    maxPositionSize: 0.12,
-    popular: false,
-  },
-  {
-    size: 20_000,
-    fee: 189,
-    resetFee: 141,
-    profitTarget: 0.2,
-    maxDrawdown: 0.07,
-    dailyLossLimit: 0.04,
-    minTradingDays: 9,
-    maxPositionSize: 0.12,
-    popular: false,
-  },
-  {
     size: 25_000,
     fee: 239,
     resetFee: 179,
@@ -95,17 +81,6 @@ export const TIERS: PricingTier[] = [
     minTradingDays: 10,
     maxPositionSize: 0.1,
     popular: true,
-  },
-  {
-    size: 35_000,
-    fee: 319,
-    resetFee: 239,
-    profitTarget: 0.16,
-    maxDrawdown: 0.07,
-    dailyLossLimit: 0.03,
-    minTradingDays: 11,
-    maxPositionSize: 0.1,
-    popular: false,
   },
   {
     size: 50_000,
@@ -203,7 +178,19 @@ export function getTierBySize(size: number): PricingTier | undefined {
 }
 
 export function getDefaultTier(): PricingTier {
-  return getTierBySize(DEFAULT_TIER_SIZE) ?? TIERS[4];
+  return getTierBySize(DEFAULT_TIER_SIZE) ?? TIERS[2];
+}
+
+export function isPurchasableTierSize(size: number): boolean {
+  return PURCHASABLE_TIER_SIZES.includes(
+    size as (typeof PURCHASABLE_TIER_SIZES)[number],
+  );
+}
+
+export function isDeprecatedTierSize(size: number): boolean {
+  return DEPRECATED_TIER_SIZES.includes(
+    size as (typeof DEPRECATED_TIER_SIZES)[number],
+  );
 }
 
 export function addonPrice(addon: Addon, baseFee: number): number {

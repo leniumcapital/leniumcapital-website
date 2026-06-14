@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container, CtaButton, Card, PillBadge } from "@/components/ui";
 import { FaqList } from "@/components/Faq";
-import { FAQS, EARLY_WITHDRAWAL } from "@/lib/data";
+import { FAQS, EARLY_WITHDRAWAL, TIERS, compactTier } from "@/lib/data";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function HowItWorksPage() {
           <Step
             n="01"
             title="Choose your account size and add-ons"
-            body="Pick from nine tiers between $5,000 and $100,000. Layer on a higher profit split, a drawdown boost, more time, or faster payouts. Your fee is computed live at checkout — one simple, upfront price."
+            body="Pick from six tiers between $5,000 and $100,000. Layer on a higher profit split, a drawdown boost, more time, or faster payouts. Your fee is computed live at checkout — one simple, upfront price."
             cta={<CtaButton href="/pricing">Build your challenge</CtaButton>}
             mock={<MockSelect />}
           />
@@ -154,16 +154,16 @@ function MockSelect() {
         Account size
       </div>
       <div className="grid grid-cols-3 gap-2">
-        {["$10k", "$25k", "$50k"].map((s, i) => (
+        {TIERS.map((t, i) => (
           <div
-            key={s}
+            key={t.size}
             className={`rounded-lg border p-3 text-center text-sm font-semibold ${
-              i === 1
+              i === 2
                 ? "border-brand bg-brand-soft text-brand-strong"
                 : "border-border"
             }`}
           >
-            {s}
+            {compactTier(t.size)}
           </div>
         ))}
       </div>

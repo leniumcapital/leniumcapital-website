@@ -7,7 +7,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { fetchMarketPrice } from "@/lib/kalshi";
-import { TIERS } from "@/lib/data";
+import { resolveTierBySize } from "@/lib/data";
 
 export type OrderRequest = {
   marketTicker: string;
@@ -31,14 +31,14 @@ export type OrderResult =
 
 /** Max position size in dollars for a tier (account size). */
 export function maxPositionForTier(tierSize: number): number {
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
   if (!tier) return 0;
   return Math.round((tier.size * tier.maxPositionPct) / 100);
 }
 
 /** Daily loss limit in dollars for a tier. */
 export function dailyLossLimitForTier(tierSize: number): number {
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
   if (!tier) return 0;
   return Math.round((tier.size * tier.dailyLimitPct) / 100);
 }

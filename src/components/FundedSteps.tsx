@@ -3,6 +3,7 @@
 import { motion, type Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { CtaButton } from "@/components/ui";
+import { TIERS, compactTier } from "@/lib/data";
 
 const container: Variants = {
   hidden: {},
@@ -20,7 +21,7 @@ const item: Variants = {
 
 /** Step 01 — account-size chips that light up in sequence. */
 function ChooseVisual() {
-  const chips = ["$5K", "$15K", "$50K", "$100K"];
+  const chips = TIERS.map((t) => compactTier(t.size));
   const [active, setActive] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setActive((a) => (a + 1) % chips.length), 1100);

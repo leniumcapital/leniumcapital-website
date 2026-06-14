@@ -13,7 +13,7 @@ import {
   usePositionForMarket,
 } from "@/hooks/usePositions";
 import { computedPnl, computedPnlPercent } from "@/stores/positionStore";
-import { TIERS } from "@/lib/data";
+import { resolveTierBySize } from "@/lib/data";
 import { T } from "@/lib/tokens";
 
 interface OrderEntryProps {
@@ -45,7 +45,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
   const closePosition = useClosePosition();
   const position = usePositionForMarket(ticker);
 
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
   const maxPosition = tier
     ? Math.round((tier.size * tier.maxPositionPct) / 100)
     : 0;

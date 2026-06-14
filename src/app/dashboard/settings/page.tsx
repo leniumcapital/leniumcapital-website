@@ -1,14 +1,14 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import { TIERS } from "@/lib/data";
+import { resolveTierBySize } from "@/lib/data";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
 
 export default function SettingsPage() {
   const tierSize = useAccountStore((s) => s.tier);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const tier = resolveTierBySize(tierSize);
 
   return (
     <ErrorBoundary name="Settings">

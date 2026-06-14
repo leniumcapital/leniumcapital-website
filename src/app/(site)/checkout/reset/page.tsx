@@ -12,9 +12,8 @@ import {
 } from "@/lib/data";
 
 export default function ResetCheckoutPage() {
-  // Default to the $35,000 tier, where the reset fee collides with the
-  // $25,000 base fee and the account size must be stated explicitly.
-  const [idx, setIdx] = useState(5);
+  const defaultIdx = TIERS.findIndex((t) => t.size === 25_000);
+  const [idx, setIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0);
   const tier = TIERS[idx];
 
   return (

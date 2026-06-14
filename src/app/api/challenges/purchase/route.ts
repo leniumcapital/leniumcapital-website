@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { TIERS, computePrice, type AddonId } from "@/lib/pricing";
+import {
+  TIERS,
+  computePrice,
+  isDeprecatedTierSize,
+  isPurchasableTierSize,
+  type AddonId,
+} from "@/lib/pricing";
+
+const DEPRECATED_TIER_MESSAGE =
+  "That account tier is no longer available. Please choose from our current six options: $5,000, $10,000, $25,000, $50,000, $75,000, or $100,000.";
 
 /** Mock checkout — creates a trading account after tier selection. */
 export async function POST(req: Request) {
@@ -16,6 +25,15 @@ export async function POST(req: Request) {
   };
 
   const tierSize = Number(body.tierSize);
+
+  if (isDeprecatedTierSize(tierSize)) {
+    return NextResponse.json({ error: DEPRECATED_TIER_MESSAGE }, { status: 400 });
+  }
+
+  if (!isPurchasableTierSize(tierSize)) {
+    return NextResponse.json({ error: "Invalid account tier." }, { status: 400 });
+  }
+
   const tier = TIERS.find((t) => t.size === tierSize);
   if (!tier) {
     return NextResponse.json({ error: "Invalid account tier." }, { status: 400 });

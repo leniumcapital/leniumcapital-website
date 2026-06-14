@@ -12,7 +12,7 @@ const FOUNDATION = [
   { title: "Paid in real US dollars", value: "Withdrawals straight to your bank account" },
   { title: "Available nationwide", value: "All 50 US states" },
   { title: "No crypto, ever", value: "No wallet, no blockchain, no USDC" },
-  { title: "Capital that scales with you", value: "Nine tiers from $5K to $100K" },
+  { title: "Capital that scales with you", value: "Six tiers from $5K to $100K" },
   { title: "Keep more of your profits", value: "Profit splits up to 95% in your favor" },
   { title: "Rules made for prediction markets", value: "Calibrated for binary contract mechanics" },
   { title: "Fast, flexible payouts", value: "14-day cycles, plus 7-day and early access" },
@@ -219,11 +219,11 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-xl">
               <h2 className="text-3xl font-semibold tracking-tight">
-                Nine tiers. Four of them uncontested.
+                Six tiers. One of them exclusive.
               </h2>
               <p className="mt-4 text-muted">
-                Any trader who wants $15k, $20k, $35k, or $75k in prediction
-                market funding has exactly one option in the world.
+                Any trader who wants $75k in prediction market funding has
+                exactly one option in the world.
               </p>
             </div>
             <CtaButton href="/pricing">Compare all tiers</CtaButton>
