@@ -26,7 +26,7 @@ export default function DashboardChallengeSelectPage() {
         Pick your account size and add-ons. Your total updates as you configure.
       </p>
 
-      <div style={{ marginTop: 28, maxWidth: 960 }}>
+      <div style={{ marginTop: 28 }}>
         <Suspense fallback={null}>
           <ChallengeSelector isAuthenticated />
         </Suspense>

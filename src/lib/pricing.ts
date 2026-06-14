@@ -255,6 +255,11 @@ export function formatUsd(n: number): string {
   return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+/** Compact tier label for selector buttons, e.g. 5000 -> "$5K". */
+export function formatTierCompact(size: number): string {
+  return `$${size / 1000}K`;
+}
+
 export function formatPct(decimal: number): string {
   const pct = decimal * 100;
   return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;

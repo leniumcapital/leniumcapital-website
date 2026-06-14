@@ -17,6 +17,7 @@ import {
   computePrice,
   addonPrice,
   formatUsd,
+  formatTierCompact,
   formatPct,
   getTierBySize,
   getDefaultTier,
@@ -56,6 +57,13 @@ export function ChallengeSelector({
     () => computePrice(tier, selectedAddons),
     [tier, selectedAddons],
   );
+
+  // Clamp retired tier sizes from stale URLs or session state.
+  useEffect(() => {
+    if (!getTierBySize(selectedSize)) {
+      setSelectedSize(getDefaultTier().size);
+    }
+  }, [selectedSize]);
 
   const syncUrl = useCallback(
     (size: number, addons: AddonId[]) => {
@@ -123,7 +131,7 @@ export function ChallengeSelector({
     <>
       <Toaster position="top-center" />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
         {/* Left — configuration */}
         <div className="space-y-8">
           <section aria-label="Account size">
@@ -131,7 +139,7 @@ export function ChallengeSelector({
               Account size
             </h2>
             <div
-              className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6"
+              className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3"
               role="tablist"
               aria-label="Account size tiers"
             >
@@ -145,16 +153,21 @@ export function ChallengeSelector({
                     aria-selected={active}
                     aria-label={`${formatUsd(t.size)}, ${formatUsd(t.fee)}`}
                     onClick={() => setSelectedSize(t.size)}
-                    className={`rounded-xl border px-2 py-3 text-center transition-colors ${
+                    className={`relative rounded-xl border px-3 py-3 text-center transition-colors ${
                       active
                         ? "border-brand bg-brand-soft"
                         : "border-border bg-background hover:border-brand/40"
                     }`}
                   >
-                    <div className="text-sm font-semibold tracking-tight">
-                      {formatUsd(t.size)}
+                    {t.popular && (
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#04130b]">
+                        Popular
+                      </span>
+                    )}
+                    <div className="text-base font-semibold tracking-tight tabular-nums">
+                      {formatTierCompact(t.size)}
                     </div>
-                    <div className="mt-0.5 text-xs text-muted">
+                    <div className="mt-0.5 text-xs tabular-nums text-muted">
                       {formatUsd(t.fee)}
                     </div>
                   </button>
@@ -191,7 +204,7 @@ export function ChallengeSelector({
         </div>
 
         {/* Right — order summary */}
-        <aside className="lg:sticky lg:top-24">
+        <aside className="xl:sticky xl:top-24">
           <OrderSummary
             tier={tier}
             price={price}
