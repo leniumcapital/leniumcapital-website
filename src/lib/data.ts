@@ -8,7 +8,18 @@ import {
   PAYOUT_CYCLE_DAYS,
   type AddonId,
   type PricingTier,
+  MIN_TRADING_DAYS,
+  CHALLENGE_TIME_UNLIMITED,
+  formatMinTradingDays,
+  formatChallengeTimeLimit,
 } from "./pricing";
+
+export {
+  MIN_TRADING_DAYS,
+  CHALLENGE_TIME_UNLIMITED,
+  formatMinTradingDays,
+  formatChallengeTimeLimit,
+};
 
 export type { AddonId };
 
@@ -61,7 +72,7 @@ const ARCHIVED_PRICING: Record<
     profitTarget: 0.2,
     maxDrawdown: 0.08,
     dailyLossLimit: 0.04,
-    minTradingDays: 8,
+    minTradingDays: 4,
     maxPositionSize: 0.12,
   },
   20000: {
@@ -70,7 +81,7 @@ const ARCHIVED_PRICING: Record<
     profitTarget: 0.2,
     maxDrawdown: 0.07,
     dailyLossLimit: 0.04,
-    minTradingDays: 9,
+    minTradingDays: 4,
     maxPositionSize: 0.12,
   },
   35000: {
@@ -79,7 +90,7 @@ const ARCHIVED_PRICING: Record<
     profitTarget: 0.16,
     maxDrawdown: 0.07,
     dailyLossLimit: 0.03,
-    minTradingDays: 11,
+    minTradingDays: 4,
     maxPositionSize: 0.1,
   },
 };
@@ -279,9 +290,9 @@ export const RULE_ROWS: RuleRow[] = [
   {
     key: "minTradingDays",
     label: "Minimum trading days",
-    format: (t) => `${t.minTradingDays} days`,
+    format: (_t) => formatMinTradingDays(),
     plain:
-      "The minimum number of distinct days you must trade. Proves a repeatable process, not a single lucky session.",
+      "Trade on at least 4 distinct days. There is no deadline — take as long as you need to pass.",
   },
   {
     key: "maxPositionPct",
@@ -321,7 +332,7 @@ export const FAQS: FAQ[] = [
   },
   {
     q: "How does the challenge work?",
-    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your profit target without breaching the max drawdown or daily loss limit, keep within the max position size, and meet the minimum trading days — and you receive a funded account.",
+    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your profit target without breaching the max drawdown or daily loss limit, keep within the max position size, trade on at least 4 distinct days, and you receive a funded account. There is no time limit — pass at your own pace.",
   },
   {
     q: "What happens when I pass?",

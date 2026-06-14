@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container, Card } from "@/components/ui";
 import { RulesExplorer } from "@/components/RulesExplorer";
-import { RULE_ROWS, TIERS, type Tier } from "@/lib/data";
+import { RULE_ROWS, TIERS, formatChallengeTimeLimit, formatMinTradingDays, type Tier } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Rules",
@@ -9,12 +9,13 @@ export const metadata: Metadata = {
     "Five challenge rules for all six tiers — calibrated for binary prediction market contract mechanics.",
 };
 
-/** Min–max span of a rule across all tiers, e.g. "11%–25%" or "7–15 days". */
+/** Min–max span of a rule across all tiers, e.g. "11%–25%" or "4 days minimum". */
 function ruleRange(key: keyof Tier): string {
+  if (key === "minTradingDays") return formatMinTradingDays();
   const vals = TIERS.map((t) => t[key] as number);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  return key === "minTradingDays" ? `${min}–${max} days` : `${min}%–${max}%`;
+  return `${min}%–${max}%`;
 }
 
 export default function RulesPage() {

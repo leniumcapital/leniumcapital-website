@@ -15,6 +15,8 @@ import {
   SPLIT_ADDONS,
   computePrice,
   usd,
+  formatMinTradingDays,
+  formatChallengeTimeLimit,
   type AddonId,
 } from "@/lib/data";
 import { T } from "@/lib/tokens";
@@ -331,8 +333,8 @@ function Panel({ onClose }: { onClose: () => void }) {
             <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
             <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
             <RuleRow label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
-            <RuleRow label="Min trading days" value={`${tier.minTradingDays} days`} />
-            <RuleRow label="Challenge window" value={`${tier.windowDays} days`} />
+            <RuleRow label="Min trading days" value={formatMinTradingDays()} />
+            <RuleRow label="Time to pass" value={formatChallengeTimeLimit()} />
             <RuleRow
               label="Max position"
               value={`${tier.maxPositionPct}% of account`}

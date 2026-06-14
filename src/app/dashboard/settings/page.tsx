@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import { resolveTierBySize } from "@/lib/data";
+import { resolveTierBySize, formatMinTradingDays, formatChallengeTimeLimit } from "@/lib/data";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
@@ -22,8 +22,8 @@ export default function SettingsPage() {
               label="Max position size"
               value={`${tier.maxPositionPct}% ($${Math.round((tier.size * tier.maxPositionPct) / 100).toLocaleString()})`}
             />
-            <RuleRow label="Minimum trading days" value={`${tier.minTradingDays} days`} />
-            <RuleRow label="Challenge window" value={`${tier.windowDays} days`} />
+            <RuleRow label="Minimum trading days" value={formatMinTradingDays()} />
+            <RuleRow label="Time to pass" value={formatChallengeTimeLimit()} />
           </DashboardCard>
         ) : (
           <div

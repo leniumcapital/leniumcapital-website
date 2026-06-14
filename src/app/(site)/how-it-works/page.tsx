@@ -37,7 +37,7 @@ export default function HowItWorksPage() {
           <Step
             n="02"
             title="Trade prediction markets on your Lenium account"
-            body="Your evaluation account mirrors live Kalshi prices in real time on a simulated balance. Hit your profit target without breaching the drawdown, daily loss, or position-size limits, across the minimum number of trading days."
+            body="Your evaluation account mirrors live Kalshi prices in real time on a simulated balance. Hit your profit target without breaching the drawdown, daily loss, or position-size limits. Trade on at least 4 distinct days — there is no deadline, so you can pass at your own pace."
             cta={<CtaButton href="/rules" variant="ghost">Read the rules</CtaButton>}
             mock={<MockDashboard />}
             reverse

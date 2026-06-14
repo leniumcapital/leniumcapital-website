@@ -75,7 +75,7 @@ export default function ProgressPage() {
           {p.daysTraded} of {p.minTradingDays} minimum trading days completed
         </div>
 
-        {/* Time remaining */}
+        {/* Time to pass */}
         <div
           style={{
             display: "flex",
@@ -87,7 +87,9 @@ export default function ProgressPage() {
           }}
         >
           <IconClock size={16} stroke={1.5} color={T.textMuted} />
-          {p.daysRemaining} days, {p.hoursRemaining} hours remaining
+          {p.timeUnlimited
+            ? "No time limit — pass at your own pace"
+            : `${p.daysRemaining} days, ${p.hoursRemaining} hours remaining`}
         </div>
 
         <ClosedTradesTable />

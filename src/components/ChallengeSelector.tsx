@@ -27,8 +27,9 @@ import {
   profitNeededUsd,
   safetyLimitUsd,
   resetSavingsUsd,
-  CHALLENGE_WINDOW_DAYS,
   PAYOUT_CYCLE_DAYS,
+  formatMinTradingDays,
+  formatChallengeTimeLimit,
   type AddonId,
   type PricingTier,
 } from "@/lib/pricing";
@@ -226,9 +227,9 @@ function TierRulesCard({ tier }: { tier: PricingTier }) {
     { label: "Profit target", value: formatPct(tier.profitTarget) },
     { label: "Max drawdown", value: formatPct(tier.maxDrawdown) },
     { label: "Daily loss limit", value: formatPct(tier.dailyLossLimit) },
-    { label: "Min trading days", value: String(tier.minTradingDays) },
+    { label: "Min trading days", value: formatMinTradingDays() },
     { label: "Max position size", value: formatPct(tier.maxPositionSize) },
-    { label: "Challenge window", value: `${CHALLENGE_WINDOW_DAYS} days` },
+    { label: "Time to pass", value: formatChallengeTimeLimit() },
     { label: "Payout cycle", value: `${PAYOUT_CYCLE_DAYS} days` },
   ];
 

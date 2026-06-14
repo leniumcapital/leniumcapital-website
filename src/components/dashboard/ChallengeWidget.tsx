@@ -84,7 +84,7 @@ function ProgressState() {
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span style={{ color: T.textMuted, fontSize: 12 }}>Days traded</span>
           <span style={{ color: T.textPrimary, fontSize: 12 }}>
-            {p.daysTraded} of {p.minTradingDays} days
+            {p.daysTraded} of {p.minTradingDays} minimum
           </span>
         </div>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -113,7 +113,7 @@ function ProgressState() {
         }}
       >
         <IconClock size={13} stroke={1.5} />
-        {p.daysRemaining} days remaining
+        {p.timeUnlimited ? "No time limit" : `${p.daysRemaining} days remaining`}
       </div>
     </div>
   );

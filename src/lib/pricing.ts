@@ -38,6 +38,12 @@ export const CHALLENGE_WINDOW_DAYS = 30;
 export const PAYOUT_CYCLE_DAYS = 14;
 export const FAST_PAYOUT_CYCLE_DAYS = 7;
 
+/** Minimum distinct trading days required to pass any challenge tier. */
+export const MIN_TRADING_DAYS = 4;
+
+/** Evaluation challenges have no calendar deadline — traders pass at their own pace. */
+export const CHALLENGE_TIME_UNLIMITED = true;
+
 export const DEFAULT_TIER_SIZE = 25_000;
 
 /** Account sizes available for new challenge purchases. */
@@ -56,7 +62,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.25,
     maxDrawdown: 0.08,
     dailyLossLimit: 0.04,
-    minTradingDays: 7,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.15,
     popular: false,
   },
@@ -67,7 +73,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.22,
     maxDrawdown: 0.08,
     dailyLossLimit: 0.04,
-    minTradingDays: 8,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.12,
     popular: false,
   },
@@ -78,7 +84,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.18,
     maxDrawdown: 0.07,
     dailyLossLimit: 0.04,
-    minTradingDays: 10,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.1,
     popular: true,
   },
@@ -89,7 +95,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.15,
     maxDrawdown: 0.07,
     dailyLossLimit: 0.03,
-    minTradingDays: 12,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.08,
     popular: false,
   },
@@ -100,7 +106,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.13,
     maxDrawdown: 0.06,
     dailyLossLimit: 0.03,
-    minTradingDays: 14,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.06,
     popular: false,
   },
@@ -111,7 +117,7 @@ export const TIERS: PricingTier[] = [
     profitTarget: 0.11,
     maxDrawdown: 0.06,
     dailyLossLimit: 0.02,
-    minTradingDays: 15,
+    minTradingDays: MIN_TRADING_DAYS,
     maxPositionSize: 0.05,
     popular: false,
   },
@@ -152,7 +158,7 @@ export const ADDONS: Addon[] = [
     id: "doubletime",
     name: "Double time",
     description:
-      "Doubles your challenge window from 30 to 60 days. More time to hit the profit target — no other rule changes.",
+      "Optional add-on for your challenge. Combine with other upgrades to unlock a bigger bundle discount on your fee.",
     priceType: "percent",
     priceValue: 0.09,
     exclusive: false,
@@ -291,11 +297,19 @@ export function buildPricingQuery(tierSize: number, addons: AddonId[]): string {
   return params.toString();
 }
 
-/** Challenge window days for display (doubles with doubletime add-on). */
-export function challengeWindowDays(selected: AddonId[]): number {
-  return selected.includes("doubletime")
-    ? CHALLENGE_WINDOW_DAYS * 2
-    : CHALLENGE_WINDOW_DAYS;
+/** Human-readable minimum trading days rule. */
+export function formatMinTradingDays(days = MIN_TRADING_DAYS): string {
+  return `${days} days minimum`;
+}
+
+/** Human-readable challenge time limit (unlimited for all tiers). */
+export function formatChallengeTimeLimit(): string {
+  return CHALLENGE_TIME_UNLIMITED ? "Unlimited" : `${CHALLENGE_WINDOW_DAYS} days`;
+}
+
+/** Challenge window days for display (legacy add-on path; base time is unlimited). */
+export function challengeWindowDays(_selected: AddonId[]): number | null {
+  return CHALLENGE_TIME_UNLIMITED ? null : CHALLENGE_WINDOW_DAYS;
 }
 
 /** Payout cycle days for display (7 with fastpayout add-on). */
