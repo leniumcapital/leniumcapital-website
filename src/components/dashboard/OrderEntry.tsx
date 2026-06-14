@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { IconArrowUpRight, IconArrowDownRight } from "@tabler/icons-react";
+import { IconArrowUpRight, IconArrowDownRight, IconFlask } from "@tabler/icons-react";
+import { DemoOrderDisclaimer } from "@/components/dashboard/ModeSwitcher";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
@@ -35,6 +36,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
   );
   const tierSize = useAccountStore((s) => s.tier);
   const dailyLockout = useAccountStore((s) => s.dailyLockout);
+  const tradingMode = useAccountStore((s) => s.tradingMode);
 
   const [direction, setDirection] = useState<"yes" | "no">("yes");
   const [size, setSize] = useState(0);
@@ -232,20 +234,18 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
         >
           {placeOrder.isPending
             ? "Placing order…"
-            : `Buy ${direction.toUpperCase()} for $${size.toLocaleString()}`}
+            : tradingMode === "demo"
+              ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <IconFlask size={15} stroke={1.5} />
+                    Place simulated order
+                  </span>
+                )
+              : `Buy ${direction.toUpperCase()} for $${size.toLocaleString()}`}
         </button>
       </div>
 
-      <p
-        style={{
-          marginTop: 10,
-          textAlign: "center",
-          color: T.textMuted,
-          fontSize: 11,
-        }}
-      >
-        Simulated account — this order mirrors live Kalshi prices.
-      </p>
+      <DemoOrderDisclaimer />
 
       {/* Open position */}
       {position && (

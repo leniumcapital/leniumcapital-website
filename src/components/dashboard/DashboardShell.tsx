@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
 import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
+import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useChallengeSync, useChallengeProgress } from "@/hooks/useChallengeProgress";
+import { useAccountStatusSync } from "@/hooks/useAccountStatus";
 import {
   useAccountStore,
   type AccountType,
@@ -68,6 +70,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
+  useAccountStatusSync();
   useChallengeSync();
   useRuleEnforcement();
 
@@ -80,11 +83,27 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
       if (e.key === "Escape" && useUiStore.getState().challengeModalOpen) {
         useUiStore.getState().closeChallengeModal();
+      } else if (e.key === "Escape" && useUiStore.getState().accountGateOpen) {
+        useUiStore.getState().closeAccountGate();
       } else if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
         useUiStore.getState().closeDrawer();
       } else if (e.key === "/") {
         e.preventDefault();
         searchInputRef.current?.focus();
+      } else if (e.key === "d" || e.key === "D") {
+        const store = useAccountStore.getState();
+        if (store.tradingMode !== "demo") {
+          store.setTradingMode("demo");
+          toast("Switched to demo challenge account", { duration: 2000 });
+        }
+      } else if (e.key === "l" || e.key === "L") {
+        const store = useAccountStore.getState();
+        if (!store.hasFundedAccount) {
+          useUiStore.getState().openAccountGate();
+        } else if (store.tradingMode !== "live") {
+          store.setTradingMode("live");
+          toast("Switched to funded account", { duration: 2000 });
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -176,11 +195,13 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
       <ChallengeStartModal />
 
+      <AccountGateModal />
+
       <BreachOverlay />
 
       <Toaster
         theme="dark"
-        position="bottom-right"
+        position="bottom-center"
         toastOptions={{
           style: {
             background: T.bgTertiary,
@@ -202,6 +223,7 @@ function useRuleEnforcement(): void {
   useEffect(() => {
     const unsubscribe = useChallengeStore.subscribe((challenge) => {
       const account = useAccountStore.getState();
+      if (account.tradingMode !== "demo") return;
       if (account.accountType === "none" || account.accountSize <= 0) return;
 
       // Drawdown breach — trips once.
@@ -230,6 +252,7 @@ function useRuleEnforcement(): void {
   useEffect(() => {
     const unsubscribe = usePositionStore.subscribe((positions) => {
       const account = useAccountStore.getState();
+      if (account.tradingMode !== "demo") return;
       const tier = TIERS.find((t) => t.size === account.tier);
       if (!tier) return;
       const limit = (tier.size * tier.dailyLimitPct) / 100;
@@ -246,10 +269,10 @@ function useRuleEnforcement(): void {
 function RuleBanners() {
   const progress = useChallengeProgress();
   const dailyLockout = useAccountStore((s) => s.dailyLockout);
-  const accountType = useAccountStore((s) => s.accountType);
+  const tradingMode = useAccountStore((s) => s.tradingMode);
   const closedTrades = usePositionStore((s) => s.closedTrades);
 
-  if (accountType === "none") return null;
+  if (tradingMode !== "demo") return null;
 
   const banners: { key: string; color: string; bg: string; text: string }[] = [];
 
@@ -318,13 +341,14 @@ function RuleBanners() {
 
 function BreachOverlay() {
   const challengeStatus = useAccountStore((s) => s.challengeStatus);
+  const tradingMode = useAccountStore((s) => s.tradingMode);
   const tierSize = useAccountStore((s) => s.tier);
   const tier = TIERS.find((t) => t.size === tierSize);
   const fee = tier ? resetFee(tier) : 0;
 
   return (
     <AnimatePresence>
-      {challengeStatus === "breached" && (
+      {tradingMode === "demo" && challengeStatus === "breached" && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

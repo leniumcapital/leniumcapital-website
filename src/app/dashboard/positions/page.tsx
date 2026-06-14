@@ -11,6 +11,7 @@ import {
 } from "@/stores/positionStore";
 import { useMarketsQuery } from "@/hooks/useMarkets";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { SimulatedPositionsLabel } from "@/components/dashboard/ModeSwitcher";
 import { T } from "@/lib/tokens";
 
 const COLUMNS = [
@@ -42,6 +43,7 @@ export default function PositionsPage() {
   return (
     <ErrorBoundary name="Positions table">
       <div style={{ flex: 1, fontFamily: T.font }}>
+        <SimulatedPositionsLabel />
         {positions.length === 0 ? (
           <EmptyState />
         ) : (

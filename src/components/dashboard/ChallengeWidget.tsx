@@ -3,12 +3,17 @@
 import { IconClock } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
+import { usePositionStore } from "@/stores/positionStore";
 import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
+import { fundedTargetUsd, PAYOUT_CYCLE_DAYS, TIERS } from "@/lib/data";
+import { usd } from "@/lib/data";
 import { T } from "@/lib/tokens";
 
 /** Compact challenge progress card pinned to the bottom of the sidebar. */
 export function ChallengeWidget() {
+  const tradingMode = useAccountStore((s) => s.tradingMode);
   const challengeStatus = useAccountStore((s) => s.challengeStatus);
+  const hasActiveChallenge = useAccountStore((s) => s.hasActiveChallenge);
 
   return (
     <div
@@ -20,7 +25,13 @@ export function ChallengeWidget() {
         fontFamily: T.font,
       }}
     >
-      {challengeStatus === "none" ? <EmptyState /> : <ProgressState />}
+      {tradingMode === "live" ? (
+        <FundedState />
+      ) : !hasActiveChallenge || challengeStatus === "none" ? (
+        <EmptyState />
+      ) : (
+        <ProgressState />
+      )}
     </div>
   );
 }
@@ -103,6 +114,68 @@ function ProgressState() {
       >
         <IconClock size={13} stroke={1.5} />
         {p.daysRemaining} days remaining
+      </div>
+    </div>
+  );
+}
+
+function FundedState() {
+  const tierSize = useAccountStore((s) => s.tier);
+  const closedTrades = usePositionStore((s) => s.closedTrades);
+  const tier = TIERS.find((t) => t.size === tierSize);
+  const monthlyTarget = tier ? fundedTargetUsd(tier) : 0;
+
+  const now = new Date();
+  const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const monthlyPnl = closedTrades
+    .filter((t) => t.closedAt >= monthStart)
+    .reduce((sum, t) => sum + t.pnl, 0);
+
+  const nextPayout = new Date();
+  nextPayout.setDate(nextPayout.getDate() + PAYOUT_CYCLE_DAYS);
+
+  const pct =
+    monthlyTarget > 0
+      ? Math.min(100, Math.max(0, (monthlyPnl / monthlyTarget) * 100))
+      : 0;
+
+  return (
+    <div>
+      <ProgressRow
+        label="Monthly target"
+        value={`$${Math.max(0, Math.round(monthlyPnl)).toLocaleString()} of ${usd(monthlyTarget)}`}
+        pct={pct}
+        barColor={T.green}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 10,
+          fontSize: 12,
+        }}
+      >
+        <span style={{ color: T.textMuted }}>Monthly P&L</span>
+        <span
+          style={{
+            color: monthlyPnl >= 0 ? T.green : T.red,
+            fontWeight: 500,
+          }}
+        >
+          {monthlyPnl >= 0 ? "+" : "−"}${Math.abs(monthlyPnl).toFixed(0)}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          color: T.textMuted,
+          fontSize: 12,
+        }}
+      >
+        <IconClock size={13} stroke={1.5} />
+        Next payout {nextPayout.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
       </div>
     </div>
   );

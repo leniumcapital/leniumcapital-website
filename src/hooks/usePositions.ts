@@ -31,6 +31,7 @@ type OrderResponse = {
     size: number;
     entryPrice: number;
     openedAt: number;
+    simulated?: boolean;
   };
 };
 
@@ -38,10 +39,22 @@ function todayUtcIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Place a simulated order through the server, then record it client-side. */
+/** Place an order through the server, then record it client-side. */
 export function usePlaceOrder() {
+  const tradingMode = useAccountStore((s) => s.tradingMode);
+  const challengeAccountId = useAccountStore((s) => s.challengeAccountId);
+  const fundedAccountId = useAccountStore((s) => s.fundedAccountId);
+
   return useMutation({
     mutationFn: async (input: PlaceOrderInput) => {
+      const accountId =
+        tradingMode === "live" ? fundedAccountId : challengeAccountId;
+      const simulated = tradingMode === "demo";
+
+      if (!accountId) {
+        throw new Error("No active account for this trading mode.");
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,6 +62,10 @@ export function usePlaceOrder() {
           marketTicker: input.marketTicker,
           direction: input.direction,
           size: input.size,
+          simulated,
+          accountId,
+          question: input.question,
+          category: input.category,
         }),
       });
       const data = (await res.json()) as OrderResponse;
@@ -68,7 +85,9 @@ export function usePlaceOrder() {
         entryPrice: fill.entryPrice,
         openedAt: fill.openedAt,
       });
-      useChallengeStore.getState().addTradedDate(todayUtcIso());
+      if (useAccountStore.getState().tradingMode === "demo") {
+        useChallengeStore.getState().addTradedDate(todayUtcIso());
+      }
       toast.success(
         `Order placed — buying ${fill.direction.toUpperCase()} $${fill.size.toLocaleString()} on ${fill.question}`,
       );
@@ -79,7 +98,12 @@ export function usePlaceOrder() {
   });
 }
 
-type CloseResponse = { ok?: boolean; error?: string; exitPrice?: number };
+type CloseResponse = {
+  ok?: boolean;
+  error?: string;
+  exitPrice?: number;
+  simulated?: boolean;
+};
 
 /** Close a position at the live price via the server. */
 export function useClosePosition() {

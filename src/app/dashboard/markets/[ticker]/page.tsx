@@ -23,6 +23,7 @@ import { UnderlyingChart } from "@/components/dashboard/UnderlyingChart";
 import { DetailOrderPanel } from "@/components/dashboard/DetailOrderPanel";
 import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
 import { Sparkline } from "@/components/dashboard/Sparkline";
+import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { compactUsd } from "@/lib/data";
 import { T } from "@/lib/tokens";
@@ -150,7 +151,10 @@ export default function MarketDetailPage() {
         >
           <span style={{ color: T.textMuted }}>Markets</span>
           <span style={{ color: T.textMuted, padding: "0 6px" }}>/</span>
-          <span style={{ color: T.textPrimary }}>{detail.category}</span>
+          <span style={{ color: T.textPrimary, display: "inline-flex", alignItems: "center" }}>
+            {detail.category}
+            <DemoModePill />
+          </span>
         </div>
 
         {/* Title */}

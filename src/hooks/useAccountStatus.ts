@@ -1,0 +1,29 @@
+"use client";
+
+import { useEffect } from "react";
+import { useAccountStore } from "@/stores/accountStore";
+import type { AccountStatusPayload } from "@/lib/account-status";
+
+/** Fetch /api/account/status once on dashboard mount and hydrate the store. */
+export function useAccountStatusSync() {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await fetch("/api/account/status");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as AccountStatusPayload;
+        if (cancelled) return;
+        useAccountStore.getState().applyAccountStatus(data);
+      } catch {
+        // Session layout already seeded basics; status is best-effort.
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+}

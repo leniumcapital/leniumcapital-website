@@ -18,6 +18,8 @@ interface UIState {
   subCategoryFilter: string;
   /** Challenge onboarding overlay — never navigates away from dashboard. */
   challengeModalOpen: boolean;
+  /** Shown when a non-funded user tries to switch to live mode. */
+  accountGateOpen: boolean;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
@@ -29,6 +31,8 @@ interface UIState {
   setMarketsScrollTop: (top: number) => void;
   openChallengeModal: () => void;
   closeChallengeModal: () => void;
+  openAccountGate: () => void;
+  closeAccountGate: () => void;
   reset: () => void;
 }
 
@@ -43,6 +47,7 @@ const initial = {
   eventSearch: "",
   subCategoryFilter: "All Markets",
   challengeModalOpen: false,
+  accountGateOpen: false,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
@@ -60,5 +65,7 @@ export const useUiStore = create<UIState>()((set) => ({
   setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
   openChallengeModal: () => set({ challengeModalOpen: true }),
   closeChallengeModal: () => set({ challengeModalOpen: false }),
+  openAccountGate: () => set({ accountGateOpen: true }),
+  closeAccountGate: () => set({ accountGateOpen: false }),
   reset: () => set(initial),
 }));

@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { IconFlask } from "@tabler/icons-react";
 import { toast } from "sonner";
 import type { MarketDetail } from "@/lib/marketDetail";
 import { OutcomeAvatar } from "@/components/dashboard/KalshiImages";
+import { DemoOrderDisclaimer } from "@/components/dashboard/ModeSwitcher";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
@@ -46,7 +48,7 @@ export function DetailOrderPanel({
   const [amount, setAmount] = useState("");
   const [reviewing, setReviewing] = useState(false);
 
-  const accountType = useAccountStore((s) => s.accountType);
+  const tradingMode = useAccountStore((s) => s.tradingMode);
   const balance = useAccountStore((s) => s.balance);
   const placeOrder = usePlaceOrder();
 
@@ -78,7 +80,7 @@ export function DetailOrderPanel({
   const canReview = dollars > 0 && !!outcome;
 
   const handleSellTab = () => {
-    if (accountType !== "funded") {
+    if (tradingMode !== "live") {
       toast("Selling is available on funded accounts");
       return;
     }
@@ -176,8 +178,18 @@ export function DetailOrderPanel({
                 fontFamily: T.font,
               }}
             >
-              {placeOrder.isPending ? "Placing order…" : "Confirm Order"}
+              {placeOrder.isPending ? (
+                "Placing order…"
+              ) : tradingMode === "demo" ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <IconFlask size={15} stroke={1.5} />
+                  Place simulated order
+                </span>
+              ) : (
+                "Confirm Order"
+              )}
             </button>
+            <DemoOrderDisclaimer />
             <button
               type="button"
               onClick={() => setReviewing(false)}

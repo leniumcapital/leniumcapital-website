@@ -15,6 +15,7 @@ import {
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { BalanceDisplay } from "@/components/dashboard/BalanceDisplay";
+import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher";
 import { SearchModal } from "@/components/dashboard/SearchModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useAccountStore } from "@/stores/accountStore";
@@ -57,22 +58,23 @@ export function TopBar({ searchInputRef }: TopBarProps) {
 // ─── Left: seal, wordmark, account-state pill ────────────────────────────────
 
 function LeftSection() {
-  const accountType = useAccountStore((s) => s.accountType);
+  const tradingMode = useAccountStore((s) => s.tradingMode);
+  const hasActiveChallenge = useAccountStore((s) => s.hasActiveChallenge);
 
   const pill =
-    accountType === "challenge"
+    tradingMode === "live"
       ? {
-          label: "Demo Challenge",
-          bg: "rgba(245,158,11,0.12)",
-          border: "rgba(245,158,11,0.3)",
-          color: T.amber,
+          label: "Funded Account",
+          bg: "rgba(0,232,122,0.1)",
+          border: T.greenMutedBorder,
+          color: T.green,
         }
-      : accountType === "funded"
+      : hasActiveChallenge
         ? {
-            label: "Funded Account",
-            bg: "rgba(0,232,122,0.1)",
-            border: T.greenMutedBorder,
-            color: T.green,
+            label: "Demo Challenge",
+            bg: "rgba(245,158,11,0.12)",
+            border: "rgba(245,158,11,0.3)",
+            color: T.amber,
           }
         : {
             label: "No Active Challenge",
@@ -203,6 +205,7 @@ function RightSection() {
       style={{ display: "flex", alignItems: "center", gap: 20, position: "relative" }}
     >
       <ConnectionStatus />
+      <ModeSwitcher />
       <BalanceDisplay />
 
       <button
