@@ -4,31 +4,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type KeyboardEvent,
 } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import {
-  motion,
-  AnimatePresence,
-  useSpring,
-  useTransform,
-} from "framer-motion";
 import { toast, Toaster } from "sonner";
-import {
-  IconTarget,
-  IconTrendingDown,
-  IconCalendarOff,
-  IconCalendar,
-  IconChartPie,
-  IconShield,
-  IconMapPin,
-  IconCreditCard,
-  IconCheck,
-  IconRefresh,
-} from "@tabler/icons-react";
-import { T } from "@/lib/tokens";
+import { Card, PillBadge } from "@/components/ui";
 import {
   TIERS,
   ADDONS,
@@ -45,17 +26,11 @@ import {
   profitNeededUsd,
   safetyLimitUsd,
   resetSavingsUsd,
-  challengeWindowDays,
-  payoutCycleDays,
   CHALLENGE_WINDOW_DAYS,
   PAYOUT_CYCLE_DAYS,
   type AddonId,
   type PricingTier,
 } from "@/lib/pricing";
-
-const PANEL_WIDTH = 320;
-const PANEL_GAP = 32;
-const CONTENT_PR = PANEL_WIDTH + PANEL_GAP;
 
 type ChallengeSelectorProps = {
   isAuthenticated?: boolean;
@@ -68,13 +43,12 @@ export function ChallengeSelector({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const initialTier = parseTierParam(searchParams.get("tier"));
-  const initialAddons = parseAddonsParam(searchParams.get("addons"));
-
-  const [selectedSize, setSelectedSize] = useState(initialTier.size);
-  const [selectedAddons, setSelectedAddons] =
-    useState<AddonId[]>(initialAddons);
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [selectedSize, setSelectedSize] = useState(
+    () => parseTierParam(searchParams.get("tier")).size,
+  );
+  const [selectedAddons, setSelectedAddons] = useState<AddonId[]>(() =>
+    parseAddonsParam(searchParams.get("addons")),
+  );
   const [checkingOut, setCheckingOut] = useState(false);
 
   const tier = getTierBySize(selectedSize) ?? getDefaultTier();
@@ -94,8 +68,6 @@ export function ChallengeSelector({
   useEffect(() => {
     syncUrl(selectedSize, selectedAddons);
   }, [selectedSize, selectedAddons, syncUrl]);
-
-  const selectTier = (size: number) => setSelectedSize(size);
 
   const toggleAddon = (id: AddonId) => {
     setSelectedAddons((prev) => {
@@ -147,667 +119,154 @@ export function ChallengeSelector({
     );
   };
 
-  const bundleDiscount = price.discountPct > 0;
-
   return (
-    <div
-      style={{
-        background: T.bgPrimary,
-        color: T.textPrimary,
-        fontFamily: T.font,
-        minHeight: "100%",
-      }}
-    >
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          style: {
-            background: T.bgSecondary,
-            border: T.hairline(),
-            color: T.textPrimary,
-            fontFamily: T.font,
-          },
-        }}
-      />
+    <>
+      <Toaster position="top-center" />
 
-      {/* Section 1 — Header */}
-      <header
-        style={{
-          padding: "80px 24px 48px",
-          textAlign: "center",
-          maxWidth: 720,
-          margin: "0 auto",
-        }}
-      >
-        <span
-          style={{
-            display: "inline-block",
-            background: T.greenMutedBg,
-            border: T.hairline(T.greenMutedBorder),
-            color: T.green,
-            borderRadius: T.radiusPill,
-            padding: "4px 14px",
-            fontSize: 12,
-            fontWeight: 500,
-          }}
-        >
-          Build your challenge
-        </span>
-        <h1
-          style={{
-            marginTop: 20,
-            fontSize: 42,
-            fontWeight: 500,
-            lineHeight: 1.15,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Nine sizes. One process. Your capital.
-        </h1>
-        <p
-          style={{
-            marginTop: 16,
-            fontSize: 16,
-            color: T.textMuted,
-            lineHeight: 1.5,
-          }}
-        >
-          Pick a size, configure your add-ons, and see exactly what you pay —
-          before you commit.
-        </p>
-      </header>
-
-      {/* Main layout with room for sticky panel */}
-      <div
-        className="challenge-selector-main"
-        style={{
-          maxWidth: 1120,
-          margin: "0 auto",
-          padding: "0 24px 120px",
-        }}
-      >
-        {/* Section 2 — Tier selector */}
-        <section aria-label="Challenge tier selection">
-          <TierTabs
-            tiers={TIERS}
-            selectedSize={selectedSize}
-            onSelect={selectTier}
-          />
-
-          <div style={{ marginTop: 16 }}>
-            <AnimatePresence mode="wait">
-              <TierDetailCard key={tier.size} tier={tier} />
-            </AnimatePresence>
-          </div>
-        </section>
-
-        {/* Section 3 — Add-ons */}
-        <section style={{ marginTop: 48 }} aria-label="Challenge add-ons">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-              marginBottom: 16,
-            }}
-          >
-            <h2 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>
-              Customize your challenge
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+        {/* Left — configuration */}
+        <div className="space-y-8">
+          <section aria-label="Account size">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              Account size
             </h2>
-            <span style={{ fontSize: 13, color: T.textMuted }}>
-              Optional add-ons — saved automatically
-            </span>
-          </div>
+            <div
+              className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9"
+              role="tablist"
+              aria-label="Account size tiers"
+            >
+              {TIERS.map((t) => {
+                const active = t.size === selectedSize;
+                return (
+                  <button
+                    key={t.size}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-label={`${formatUsd(t.size)}, ${formatUsd(t.fee)}`}
+                    onClick={() => setSelectedSize(t.size)}
+                    className={`rounded-xl border px-2 py-3 text-center transition-colors ${
+                      active
+                        ? "border-brand bg-brand-soft"
+                        : "border-border bg-background hover:border-brand/40"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold tracking-tight">
+                      {formatUsd(t.size)}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted">
+                      {formatUsd(t.fee)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {ADDONS.map((addon) => (
-              <AddonCard
-                key={addon.id}
-                addon={addon}
-                baseFee={tier.fee}
-                selected={selectedAddons.includes(addon.id)}
-                onToggle={() => toggleAddon(addon.id)}
-              />
-            ))}
-          </div>
+          <TierRulesCard tier={tier} />
 
-          <AnimatePresence>
-            {bundleDiscount && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.15 }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 14,
-                  background: T.greenMutedBg,
-                  border: T.hairline(T.greenMutedBorder),
-                  borderRadius: T.radiusPill,
-                  padding: "6px 14px",
-                  fontSize: 13,
-                  color: T.green,
-                  fontWeight: 500,
-                }}
-              >
-                <IconCheck size={14} aria-hidden />
-                Bundle discount applied — {Math.round(price.discountPct * 100)}%
-                off add-ons
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
-      </div>
+          <section aria-label="Add-ons">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Add-ons
+              </h2>
+              {price.discountPct > 0 && (
+                <span className="text-xs font-medium text-brand-strong">
+                  {Math.round(price.discountPct * 100)}% bundle discount applied
+                </span>
+              )}
+            </div>
+            <div className="mt-3 space-y-2">
+              {ADDONS.map((addon) => (
+                <AddonRow
+                  key={addon.id}
+                  addon={addon}
+                  baseFee={tier.fee}
+                  selected={selectedAddons.includes(addon.id)}
+                  onToggle={() => toggleAddon(addon.id)}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
 
-      {/* Desktop sticky order summary */}
-      <div className="challenge-selector-panel-desktop">
-        <OrderSummaryPanel
-          tier={tier}
-          price={price}
-          selectedAddons={selectedAddons}
-          onCheckout={handleCheckout}
-          checkingOut={checkingOut}
-        />
-      </div>
-
-      {/* Mobile bottom bar + sheet */}
-      <MobileOrderBar
-        total={price.total}
-        onCheckout={handleCheckout}
-        checkingOut={checkingOut}
-        sheetOpen={mobileSheetOpen}
-        onToggleSheet={() => setMobileSheetOpen((o) => !o)}
-        onCloseSheet={() => setMobileSheetOpen(false)}
-        panel={
-          <OrderSummaryPanel
+        {/* Right — order summary */}
+        <aside className="lg:sticky lg:top-24">
+          <OrderSummary
             tier={tier}
             price={price}
-            selectedAddons={selectedAddons}
-            onCheckout={handleCheckout}
             checkingOut={checkingOut}
-            embedded
+            onCheckout={handleCheckout}
           />
-        }
-      />
-
-      <style jsx global>{`
-        .challenge-selector-main {
-          padding-right: 24px;
-        }
-        @media (min-width: 768px) {
-          .challenge-selector-main {
-            padding-right: ${CONTENT_PR}px;
-          }
-        }
-        .challenge-selector-panel-desktop {
-          display: none;
-        }
-        @media (min-width: 768px) {
-          .challenge-selector-panel-desktop {
-            display: block;
-            position: fixed;
-            top: 80px;
-            right: max(24px, calc((100vw - 1120px) / 2 + 24px));
-            width: ${PANEL_WIDTH}px;
-            z-index: 40;
-          }
-        }
-        .tier-tabs-scroll::-webkit-scrollbar {
-          display: none;
-        }
-        .tier-tabs-scroll {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
-    </div>
+        </aside>
+      </div>
+    </>
   );
 }
 
-function TierTabs({
-  tiers,
-  selectedSize,
-  onSelect,
-}: {
-  tiers: PricingTier[];
-  selectedSize: number;
-  onSelect: (size: number) => void;
-}) {
-  const tabRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      const next = tiers[Math.min(idx + 1, tiers.length - 1)];
-      onSelect(next.size);
-      tabRefs.current.get(next.size)?.focus();
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      const prev = tiers[Math.max(idx - 1, 0)];
-      onSelect(prev.size);
-      tabRefs.current.get(prev.size)?.focus();
-    }
-  };
-
-  return (
-    <div
-      role="tablist"
-      aria-label="Account size tiers"
-      className="tier-tabs-scroll"
-      style={{
-        display: "flex",
-        gap: 8,
-        overflowX: "auto",
-        scrollSnapType: "x mandatory",
-        paddingBottom: 4,
-      }}
-    >
-      {tiers.map((t, idx) => {
-        const active = t.size === selectedSize;
-        return (
-          <button
-            key={t.size}
-            ref={(el) => {
-              if (el) tabRefs.current.set(t.size, el);
-            }}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={`${formatUsd(t.size)} account, from ${formatUsd(t.fee)}`}
-            tabIndex={active ? 0 : -1}
-            onClick={() => onSelect(t.size)}
-            onKeyDown={(e) => handleKeyDown(e, idx)}
-            style={{
-              position: "relative",
-              flex: "0 0 auto",
-              minWidth: 110,
-              height: 64,
-              padding: "0 16px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              background: active ? "rgba(0,232,122,0.05)" : T.bgSecondary,
-              border: active
-                ? "0.5px solid rgba(0,232,122,0.5)"
-                : T.hairline(),
-              borderRadius: 8,
-              cursor: "pointer",
-              transition: T.transition,
-              scrollSnapAlign: "start",
-              textAlign: "left",
-            }}
-          >
-            {active && (
-              <motion.div
-                layoutId="activeTab"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  background: T.green,
-                  borderRadius: "2px 2px 0 0",
-                }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            )}
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: active ? 600 : 500,
-                color: T.textPrimary,
-              }}
-            >
-              {formatUsd(t.size)}
-            </span>
-            <span style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-              from {formatUsd(t.fee)}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function TierDetailCard({ tier }: { tier: PricingTier }) {
-  const profitPct = tier.profitTarget * 100;
+function TierRulesCard({ tier }: { tier: PricingTier }) {
   const profitGoal = profitNeededUsd(tier);
   const safety = safetyLimitUsd(tier);
   const savings = resetSavingsUsd(tier);
 
-  const rules = [
-    {
-      icon: IconTarget,
-      label: "Profit target",
-      value: formatPct(tier.profitTarget),
-    },
-    {
-      icon: IconTrendingDown,
-      label: "Max drawdown",
-      value: formatPct(tier.maxDrawdown),
-    },
-    {
-      icon: IconCalendarOff,
-      label: "Daily loss limit",
-      value: formatPct(tier.dailyLossLimit),
-    },
-    {
-      icon: IconCalendar,
-      label: "Min trading days",
-      value: String(tier.minTradingDays),
-    },
-    {
-      icon: IconChartPie,
-      label: "Max position size",
-      value: formatPct(tier.maxPositionSize),
-    },
+  const rules: { label: string; value: string }[] = [
+    { label: "Profit target", value: formatPct(tier.profitTarget) },
+    { label: "Max drawdown", value: formatPct(tier.maxDrawdown) },
+    { label: "Daily loss limit", value: formatPct(tier.dailyLossLimit) },
+    { label: "Min trading days", value: String(tier.minTradingDays) },
+    { label: "Max position size", value: formatPct(tier.maxPositionSize) },
+    { label: "Challenge window", value: `${CHALLENGE_WINDOW_DAYS} days` },
+    { label: "Payout cycle", value: `${PAYOUT_CYCLE_DAYS} days` },
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.99 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 8, scale: 0.99 }}
-      transition={{
-        duration: 0.2,
-        ease: "easeOut",
-      }}
-      style={{
-        background: T.bgSecondary,
-        border: T.hairline(),
-        borderRadius: 12,
-        padding: 40,
-      }}
-    >
-      <div
-        className="tier-detail-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 48,
-        }}
-      >
-        {/* Left column */}
+    <Card className="!p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          <h3 className="text-2xl font-semibold tracking-tight">
+            {formatUsd(tier.size)}
+          </h3>
+          <p className="mt-1 text-sm text-muted">
+            One-time fee · {formatUsd(tier.fee)}
+          </p>
+        </div>
+        {tier.popular && <PillBadge tone="brand">Most popular</PillBadge>}
+      </div>
+
+      <dl className="mt-5 divide-y divide-border">
+        {rules.map((rule) => (
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
+            key={rule.label}
+            className="flex items-center justify-between gap-4 py-3 text-sm"
           >
-            <span style={{ fontSize: 48, fontWeight: 600 }}>
-              {formatUsd(tier.size)}
-            </span>
-            {tier.popular && (
-              <span
-                style={{
-                  background: "rgba(0,232,122,0.1)",
-                  border: T.hairline(T.greenMutedBorder),
-                  color: T.green,
-                  borderRadius: T.radiusPill,
-                  padding: "4px 14px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                Most Popular
-              </span>
-            )}
+            <dt className="text-muted">{rule.label}</dt>
+            <dd className="font-medium">{rule.value}</dd>
           </div>
+        ))}
+      </dl>
 
-          <div style={{ marginTop: 28 }}>
-            {rules.map((rule) => (
-              <RuleRow
-                key={rule.label}
-                icon={rule.icon}
-                label={rule.label}
-                value={rule.value}
-              />
-            ))}
-            <RuleRow
-              icon={IconRefresh}
-              label={`Restart from ${formatUsd(tier.resetFee)} (save ${formatUsd(savings)} vs buying fresh)`}
-              value=""
-              hideValue
-            />
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-background px-4 py-3">
+          <div className="text-lg font-semibold text-brand-strong">
+            {formatUsd(profitGoal)}
           </div>
+          <div className="text-xs text-muted">Profit to pass</div>
         </div>
-
-        {/* Right column */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <ProfitRing percent={profitPct} />
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              width: "100%",
-              marginTop: 28,
-            }}
-          >
-            <StatBox
-              value={formatUsd(profitGoal)}
-              label="to pass"
-              accent
-            />
-            <StatBox value={formatUsd(safety)} label="max drawdown" />
-          </div>
-          <div style={{ width: "100%", marginTop: 20 }}>
-            <RuleRow
-              icon={IconCalendar}
-              label="Challenge window"
-              value={`${CHALLENGE_WINDOW_DAYS} days`}
-            />
-            <RuleRow
-              icon={IconCreditCard}
-              label="Payout cycle"
-              value={`${PAYOUT_CYCLE_DAYS} days`}
-            />
-          </div>
+        <div className="rounded-xl border border-border bg-background px-4 py-3">
+          <div className="text-lg font-semibold">{formatUsd(safety)}</div>
+          <div className="text-xs text-muted">Max drawdown</div>
         </div>
       </div>
 
-      <style jsx>{`
-        @media (min-width: 768px) {
-          .tier-detail-grid {
-            grid-template-columns: 55% 45% !important;
-          }
-        }
-      `}</style>
-    </motion.div>
+      <p className="mt-4 text-xs text-muted">
+        Reset a failed attempt for {formatUsd(tier.resetFee)} (save{" "}
+        {formatUsd(savings)} vs buying fresh).
+      </p>
+    </Card>
   );
 }
 
-function RuleRow({
-  icon: Icon,
-  label,
-  value,
-  hideValue,
-}: {
-  icon: React.ComponentType<{ size?: number; stroke?: number; color?: string }>;
-  label: string;
-  value: string;
-  hideValue?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        height: 52,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderBottom: T.hairline(),
-        padding: "0 4px",
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          color: T.textSecondary,
-          fontSize: 14,
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
-        <Icon size={16} stroke={1.5} color={T.textMuted} aria-hidden />
-        <span style={{ lineHeight: 1.3 }}>{label}</span>
-      </div>
-      {!hideValue && (
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: T.textPrimary,
-            flexShrink: 0,
-          }}
-        >
-          {value}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function ProfitRing({ percent }: { percent: number }) {
-  const size = 200;
-  const stroke = 6;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        width: size,
-        height: size,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      aria-hidden
-    >
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#1C1C1C"
-          strokeWidth={stroke}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={T.green}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 400ms ease-in-out" }}
-        />
-      </svg>
-      <div
-        style={{
-          position: "absolute",
-          textAlign: "center",
-        }}
-      >
-        <div style={{ fontSize: 32, fontWeight: 600 }}>{percent}%</div>
-        <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-          profit target
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatBox({
-  value,
-  label,
-  accent,
-}: {
-  value: string;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: "#0D0D0D",
-        border: T.hairline(),
-        borderRadius: 8,
-        padding: 16,
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 500,
-          color: accent ? T.green : T.textPrimary,
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: T.textMuted, marginTop: 4 }}>
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function AddonToggle({ on }: { on: boolean }) {
-  return (
-    <div
-      aria-hidden
-      style={{
-        width: 44,
-        height: 24,
-        borderRadius: 12,
-        background: on ? T.green : "#1C1C1C",
-        position: "relative",
-        flexShrink: 0,
-        transition: `background ${T.transition}`,
-      }}
-    >
-      <motion.div
-        animate={{ x: on ? 22 : 2 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        style={{
-          position: "absolute",
-          top: 2,
-          width: 20,
-          height: 20,
-          borderRadius: "50%",
-          background: "#FFFFFF",
-        }}
-      />
-    </div>
-  );
-}
-
-function AddonCard({
+function AddonRow({
   addon,
   baseFee,
   selected,
@@ -818,9 +277,9 @@ function AddonCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const price = addonPrice(addon, baseFee);
+  const linePrice = addonPrice(addon, baseFee);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       onToggle();
@@ -828,440 +287,139 @@ function AddonCard({
   };
 
   return (
-    <div
+    <button
+      type="button"
       role="switch"
       aria-checked={selected}
-      aria-label={`${addon.name}, ${selected ? "enabled" : "disabled"}, +${formatUsd(price)}`}
-      tabIndex={0}
+      aria-label={`${addon.name}, +${formatUsd(linePrice)}`}
       onClick={onToggle}
-      onKeyDown={handleKeyDown}
-      style={{
-        width: "100%",
-        background: selected ? "rgba(0,232,122,0.04)" : T.bgSecondary,
-        border: selected
-          ? "0.5px solid rgba(0,232,122,0.4)"
-          : T.hairline(),
-        borderRadius: 10,
-        padding: "20px 24px",
-        display: "flex",
-        alignItems: "center",
-        gap: 20,
-        cursor: "pointer",
-        transition: T.transition,
-      }}
-      onMouseEnter={(e) => {
-        if (!selected)
-          e.currentTarget.style.borderColor = T.borderHover;
-      }}
-      onMouseLeave={(e) => {
-        if (!selected) e.currentTarget.style.borderColor = T.border;
-      }}
+      onKeyDown={onKeyDown}
+      className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+        selected
+          ? "border-brand bg-brand-soft"
+          : "border-border bg-background hover:border-brand/40"
+      }`}
     >
-      <AddonToggle on={selected} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 15,
-            fontWeight: 500,
-          }}
-        >
-          {addon.name}
-          {addon.badge && (
-            <span style={{ color: T.green, fontSize: 12 }}>{addon.badge}</span>
-          )}
-        </div>
-        <p
-          style={{
-            margin: "4px 0 0",
-            fontSize: 13,
-            color: T.textMuted,
-            lineHeight: 1.5,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {addon.description}
-        </p>
-      </div>
-      <span style={{ fontSize: 15, fontWeight: 500, flexShrink: 0 }}>
-        +{formatUsd(price)}
+      <span
+        className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border ${
+          selected
+            ? "border-brand bg-brand text-[#04130b]"
+            : "border-border bg-surface"
+        }`}
+        aria-hidden
+      >
+        {selected && (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        )}
       </span>
-    </div>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2">
+          <span className="font-medium">
+            {addon.name}
+            {addon.badge && (
+              <span className="ml-1 text-brand-strong">{addon.badge}</span>
+            )}
+          </span>
+          <span className="shrink-0 font-semibold">+{formatUsd(linePrice)}</span>
+        </span>
+        <span className="mt-1 block text-sm text-muted">{addon.description}</span>
+      </span>
+    </button>
   );
 }
 
-function AnimatedTotal({ value }: { value: number }) {
-  const spring = useSpring(value, { stiffness: 200, damping: 25 });
-
-  useEffect(() => {
-    spring.set(value);
-  }, [value, spring]);
-
-  const display = useTransform(spring, (v) =>
-    `$${Math.round(v).toLocaleString("en-US")}`,
-  );
-
-  return (
-    <motion.span style={{ fontSize: 24, fontWeight: 600 }}>{display}</motion.span>
-  );
-}
-
-function OrderSummaryPanel({
+function OrderSummary({
   tier,
   price,
-  selectedAddons,
-  onCheckout,
   checkingOut,
-  embedded,
+  onCheckout,
 }: {
   tier: PricingTier;
   price: ReturnType<typeof computePrice>;
-  selectedAddons: AddonId[];
-  onCheckout: () => void;
   checkingOut: boolean;
-  embedded?: boolean;
+  onCheckout: () => void;
 }) {
   const profitGoal = profitNeededUsd(tier);
-  const windowDays = challengeWindowDays(selectedAddons);
-  const payoutDays = payoutCycleDays(selectedAddons);
 
   return (
-    <aside
-      aria-label="Order summary"
-      style={{
-        background: T.bgSecondary,
-        border: embedded ? "none" : T.hairline(),
-        borderRadius: embedded ? 0 : 12,
-        padding: embedded ? "0 0 16px" : 24,
-      }}
-    >
-      <div style={{ fontSize: 14, color: T.textPrimary }}>
-        {formatUsd(tier.size)} evaluation account
-      </div>
+    <Card aria-label="Order summary">
+      <p className="text-sm text-muted">{formatUsd(tier.size)} evaluation</p>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          marginTop: 16,
-          fontSize: 13,
-        }}
-      >
-        <SummaryRow label="Base challenge fee" value={formatUsd(price.baseFee)} />
+      <div className="mt-4 space-y-2 text-sm">
+        <Line label="Base fee" value={formatUsd(price.baseFee)} />
         {price.addonLines.map((line) => (
-          <SummaryRow
+          <Line
             key={line.id}
             label={line.name}
             value={`+${formatUsd(line.price)}`}
+            muted
           />
         ))}
         {price.discount > 0 && (
-          <SummaryRow
-            label={`Bundle discount (${Math.round(price.discountPct * 100)}%)`}
-            value={`-${formatUsd(price.discount)}`}
+          <Line
+            label={`Bundle (${Math.round(price.discountPct * 100)}%)`}
+            value={`−${formatUsd(price.discount)}`}
             accent
           />
         )}
       </div>
 
-      <div
-        style={{
-          borderTop: T.hairline(),
-          marginTop: 16,
-          paddingTop: 16,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 500 }}>Total today</span>
-        <AnimatedTotal value={price.total} />
+      <div className="mt-4 flex items-end justify-between border-t border-border pt-4">
+        <span className="text-sm text-muted">Total today</span>
+        <span className="text-3xl font-semibold tracking-tight">
+          {formatUsd(price.total)}
+        </span>
       </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          background: "rgba(0,232,122,0.08)",
-          border: T.hairline(T.greenMutedBorder),
-          borderRadius: 8,
-          padding: 12,
-          fontSize: 13,
-          lineHeight: 1.45,
-        }}
+      <p className="mt-3 rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand-strong">
+        Hit {formatUsd(profitGoal)} profit to get funded with{" "}
+        {formatUsd(tier.size)} in capital.
+      </p>
+
+      <button
+        type="button"
+        onClick={onCheckout}
+        disabled={checkingOut}
+        className="mt-4 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong disabled:opacity-60"
       >
-        Hit your {formatUsd(profitGoal)} profit goal to get funded with{" "}
-        {formatUsd(tier.size)} in capital
-      </div>
+        {checkingOut ? "Starting…" : `Start ${formatUsd(price.total)} challenge`}
+      </button>
 
-      {!embedded && (
-        <>
-          <button
-            type="button"
-            onClick={onCheckout}
-            disabled={checkingOut}
-            style={{
-              width: "100%",
-              height: 48,
-              marginTop: 16,
-              background: T.green,
-              border: "none",
-              borderRadius: 8,
-              color: T.bgPrimary,
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: checkingOut ? "wait" : "pointer",
-              fontFamily: T.font,
-              transition: T.transition,
-              opacity: checkingOut ? 0.7 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!checkingOut) e.currentTarget.style.filter = "brightness(0.9)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.filter = "none";
-            }}
-          >
-            Start {formatUsd(price.total)} challenge
-          </button>
-
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              marginTop: 16,
-            }}
-          >
-            <TrustSignal icon={IconShield} text="CFTC-regulated through Kalshi" />
-            <TrustSignal
-              icon={IconMapPin}
-              text="Available in all 50 US states"
-            />
-            <TrustSignal
-              icon={IconCreditCard}
-              text="One-time fee — no subscriptions"
-            />
-          </div>
-
-          <p
-            style={{
-              marginTop: 12,
-              fontSize: 11,
-              color: T.textMuted,
-              textAlign: "center",
-            }}
-          >
-            Free to create an account — you only pay when you start.
-          </p>
-        </>
-      )}
-
-      {embedded && (
-        <div style={{ marginTop: 12, fontSize: 12, color: T.textMuted }}>
-          {windowDays}-day challenge window · {payoutDays}-day payout cycle
-        </div>
-      )}
-    </aside>
+      <p className="mt-3 text-center text-xs text-muted">
+        CFTC-regulated via Kalshi · All 50 states · One-time fee
+      </p>
+    </Card>
   );
 }
 
-function SummaryRow({
+function Line({
   label,
   value,
+  muted,
   accent,
 }: {
   label: string;
   value: string;
+  muted?: boolean;
   accent?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-      <span style={{ color: T.textSecondary }}>{label}</span>
-      <span style={{ color: accent ? T.green : T.textPrimary }}>{value}</span>
+    <div className="flex items-center justify-between gap-2">
+      <span className={muted ? "text-muted" : ""}>{label}</span>
+      <span className={`font-medium ${accent ? "text-brand-strong" : ""}`}>
+        {value}
+      </span>
     </div>
-  );
-}
-
-function TrustSignal({
-  icon: Icon,
-  text,
-}: {
-  icon: React.ComponentType<{ size?: number; stroke?: number; color?: string }>;
-  text: string;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        fontSize: 12,
-        color: T.textMuted,
-      }}
-    >
-      <Icon size={14} stroke={1.5} color={T.textMuted} aria-hidden />
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function MobileOrderBar({
-  total,
-  onCheckout,
-  checkingOut,
-  sheetOpen,
-  onToggleSheet,
-  onCloseSheet,
-  panel,
-}: {
-  total: number;
-  onCheckout: () => void;
-  checkingOut: boolean;
-  sheetOpen: boolean;
-  onToggleSheet: () => void;
-  onCloseSheet: () => void;
-  panel: React.ReactNode;
-}) {
-  return (
-    <>
-      <div
-        className="challenge-mobile-bar"
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 80,
-          background: T.bgSecondary,
-          borderTop: T.hairline(),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          zIndex: 50,
-          fontFamily: T.font,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onToggleSheet}
-          aria-expanded={sheetOpen}
-          aria-label="Expand order summary"
-          style={{
-            background: "none",
-            border: "none",
-            color: T.textPrimary,
-            textAlign: "left",
-            cursor: "pointer",
-            padding: "8px 0",
-          }}
-        >
-          <div style={{ fontSize: 12, color: T.textMuted }}>Total today</div>
-          <div style={{ fontSize: 22, fontWeight: 600 }}>
-            {formatUsd(total)}
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={onCheckout}
-          disabled={checkingOut}
-          style={{
-            height: 44,
-            padding: "0 20px",
-            background: T.green,
-            border: "none",
-            borderRadius: 8,
-            color: T.bgPrimary,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: checkingOut ? "wait" : "pointer",
-            fontFamily: T.font,
-          }}
-        >
-          Start {formatUsd(total)} challenge
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {sheetOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onCloseSheet}
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(10,10,10,0.6)",
-                zIndex: 60,
-              }}
-              aria-hidden
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 400, damping: 36 }}
-              role="dialog"
-              aria-label="Order summary"
-              style={{
-                position: "fixed",
-                bottom: 80,
-                left: 0,
-                right: 0,
-                maxHeight: "70vh",
-                overflowY: "auto",
-                background: T.bgSecondary,
-                borderTop: T.hairline(),
-                borderRadius: "12px 12px 0 0",
-                padding: 24,
-                zIndex: 70,
-                fontFamily: T.font,
-              }}
-            >
-              {panel}
-              <button
-                type="button"
-                onClick={onCheckout}
-                disabled={checkingOut}
-                style={{
-                  width: "100%",
-                  height: 48,
-                  marginTop: 16,
-                  background: T.green,
-                  border: "none",
-                  borderRadius: 8,
-                  color: T.bgPrimary,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: T.font,
-                }}
-              >
-                Start {formatUsd(total)} challenge
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      <style jsx global>{`
-        .challenge-mobile-bar {
-          display: flex;
-        }
-        @media (min-width: 768px) {
-          .challenge-mobile-bar {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </>
   );
 }
