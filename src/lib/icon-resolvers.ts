@@ -235,6 +235,31 @@ export function resolveFromClearbit(companyName: string): string | null {
   }
 }
 
+export async function resolveFromTMDB(name: string): Promise<string | null> {
+  try {
+    const apiKey = process.env.TMDB_API_KEY?.trim();
+    if (!apiKey) return null;
+    const params = new URLSearchParams({
+      api_key: apiKey,
+      query: name,
+    });
+    const res = await fetchWithTimeout(
+      `https://api.themoviedb.org/3/search/multi?${params}`,
+    );
+    if (!res?.ok) return null;
+    const data = (await res.json()) as {
+      results?: { profile_path?: string | null; poster_path?: string | null }[];
+    };
+    const first = data.results?.[0];
+    if (!first) return null;
+    const path = first.profile_path ?? first.poster_path;
+    if (!path) return null;
+    return `https://image.tmdb.org/t/p/w200${path}`;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveByCategory(
   name: string,
   category: string,
@@ -270,6 +295,8 @@ async function resolveByCategory(
   }
 
   if (cat === "Culture") {
+    const tmdb = await resolveFromTMDB(name);
+    if (tmdb) return { url: tmdb, source: "tmdb" };
     const wiki = await resolveFromWikipedia(name);
     if (wiki) return { url: wiki, source: "wikipedia" };
     return null;
@@ -389,55 +416,51 @@ export type IconPrefetchOutcome = {
   imageUrl?: string | null;
 };
 
-/** Fire-and-forget icon cache warm-up from dashboard events (Step 6). */
+/** Fire-and-forget icon cache warm-up from dashboard events. */
 export function backgroundIconPrefetchFromEvents(
   events: { category: string; outcomes: { name: string; imageUrl?: string }[] }[],
-  cookieHeader: string | null,
-  origin: string,
 ): void {
-  void (async () => {
-    const seen = new Set<string>();
-    const toPrefetch: PrefetchOutcome[] = [];
+  void queueIconPrefetchFromEvents(events);
+}
 
-    for (const ev of events) {
-      const category = ev.category.trim() || "Other";
-      for (const o of ev.outcomes) {
-        const name = o.name?.trim();
-        if (!name) continue;
-        const key = `${normalizeNameKey(name)}::${category}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+/** Collect outcomes needing resolution and warm the cache without blocking. */
+export async function queueIconPrefetchFromEvents(
+  events: { category: string; outcomes: { name: string; imageUrl?: string }[] }[],
+): Promise<number> {
+  const seen = new Set<string>();
+  const toPrefetch: PrefetchOutcome[] = [];
 
-        if (o.imageUrl?.trim()) {
-          void cacheKalshiIcon(name, category, o.imageUrl.trim());
-        } else {
-          const nameKey = normalizeNameKey(name);
-          if (!nameKey) continue;
-          try {
-            const existing = await prisma.iconMapping.findUnique({
-              where: { nameKey_category: { nameKey, category } },
-            });
-            if (!existing || existing.isInvalidated) {
-              toPrefetch.push({ name, category });
-            }
-          } catch {
+  for (const ev of events) {
+    const category = ev.category.trim() || "Other";
+    for (const o of ev.outcomes) {
+      const name = o.name?.trim();
+      if (!name) continue;
+      const key = `${normalizeNameKey(name)}::${category}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (o.imageUrl?.trim()) {
+        void cacheKalshiIcon(name, category, o.imageUrl.trim());
+      } else {
+        const nameKey = normalizeNameKey(name);
+        if (!nameKey) continue;
+        try {
+          const existing = await prisma.iconMapping.findUnique({
+            where: { nameKey_category: { nameKey, category } },
+          });
+          if (!existing || existing.isInvalidated) {
             toPrefetch.push({ name, category });
           }
+        } catch {
+          toPrefetch.push({ name, category });
         }
       }
     }
+  }
 
-    if (toPrefetch.length === 0) return;
-
-    void fetch(`${origin}/api/icons/prefetch`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
-      body: JSON.stringify({ outcomes: toPrefetch }),
-    }).catch(() => {});
-  })();
+  if (toPrefetch.length === 0) return 0;
+  void prefetchOutcomesBatch(toPrefetch, 5);
+  return toPrefetch.length;
 }
 
 export async function prefetchOutcomesBatch(

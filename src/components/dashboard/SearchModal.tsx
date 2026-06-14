@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
+import { outcomeNameFromQuestion } from "@/lib/outcomeName";
 import { T } from "@/lib/tokens";
 
 const MAX_RESULTS = 30;
@@ -102,6 +104,7 @@ export function SearchModal() {
                 key={m.ticker}
                 ticker={m.ticker}
                 question={m.question}
+                category={m.category}
                 onSelect={() => {
                   setSearchQuery("");
                   router.push(
@@ -120,10 +123,12 @@ export function SearchModal() {
 function SearchResultRow({
   ticker,
   question,
+  category,
   onSelect,
 }: {
   ticker: string;
   question: string;
+  category: string;
   onSelect: () => void;
 }) {
   // Each row subscribes only to its own market's price.
@@ -154,6 +159,11 @@ function SearchResultRow({
         e.currentTarget.style.background = "transparent";
       }}
     >
+      <MarketOutcomeAvatar
+        name={outcomeNameFromQuestion(question)}
+        category={category}
+        size={20}
+      />
       <span
         style={{
           flex: 1,

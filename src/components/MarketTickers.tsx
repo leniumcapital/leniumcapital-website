@@ -7,7 +7,7 @@ import {
   compactUsd,
   type TickerMarket,
 } from "@/lib/data";
-import { OptionImage } from "@/components/dashboard/KalshiImages";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 
 const ROW_CONFIG = [
   { dir: "left" as const, duration: 85 },
@@ -129,14 +129,11 @@ function TickerCard({
     <div className="pointer-events-auto w-[270px] shrink-0 rounded-2xl border border-white/[0.07] bg-[#0b0e13]/70 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-colors hover:border-white/15">
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <OptionImage
+          <MarketOutcomeAvatar
             name={market.title}
             category={market.category}
-            ticker={market.id}
-            imageUrl={market.image}
+            directUrl={market.image ?? null}
             size={24}
-            radius={6}
-            color={market.color || meta.color}
           />
           <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-white/70">
             {market.category}

@@ -7,7 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
-import { SeriesIcon } from "@/components/dashboard/KalshiImages";
+import { seriesIconDirectUrl } from "@/lib/seriesIcon";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
 import { compactUsd } from "@/lib/data";
@@ -99,10 +99,10 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           fontFamily: T.font,
         }}
       >
-        <SeriesIcon
-          seriesTicker={event.seriesTicker}
+        <MarketOutcomeAvatar
+          name={event.title}
           category={event.category}
-          title={event.title}
+          directUrl={seriesIconDirectUrl(event.seriesTicker)}
           size={24}
         />
         <span
@@ -177,10 +177,10 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           minWidth: 0,
         }}
       >
-        <SeriesIcon
-          seriesTicker={event.seriesTicker}
+        <MarketOutcomeAvatar
+          name={event.title}
           category={event.category}
-          title={event.title}
+          directUrl={seriesIconDirectUrl(event.seriesTicker)}
           size={24}
         />
         <span

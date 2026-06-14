@@ -4,6 +4,8 @@ import { IconHistory } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
 import { usePositionStore, type ClosedTrade } from "@/stores/positionStore";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
+import { outcomeNameFromQuestion } from "@/lib/outcomeName";
 import { T } from "@/lib/tokens";
 
 const COLUMNS = [
@@ -102,6 +104,11 @@ function HistoryRow({ trade }: { trade: ClosedTrade }) {
     <tr style={{ height: 56, borderBottom: T.hairline() }}>
       <td style={{ ...cell, textAlign: "left", maxWidth: 360 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <MarketOutcomeAvatar
+            name={outcomeNameFromQuestion(trade.question)}
+            category={trade.category}
+            size={24}
+          />
           <span
             style={{
               overflow: "hidden",

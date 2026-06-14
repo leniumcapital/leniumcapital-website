@@ -12,6 +12,8 @@ import {
 import { useMarketsQuery } from "@/hooks/useMarkets";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { SimulatedPositionsLabel } from "@/components/dashboard/ModeSwitcher";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
+import { outcomeNameFromQuestion } from "@/lib/outcomeName";
 import { T } from "@/lib/tokens";
 
 const COLUMNS = [
@@ -124,6 +126,11 @@ const PositionRow = React.memo(
       <tr style={{ height: 56, borderBottom: T.hairline() }}>
         <td style={{ ...cell, textAlign: "left", maxWidth: 360 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <MarketOutcomeAvatar
+              name={outcomeNameFromQuestion(position.question)}
+              category={position.category}
+              size={24}
+            />
             <span
               style={{
                 overflow: "hidden",

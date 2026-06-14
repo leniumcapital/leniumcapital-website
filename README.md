@@ -26,7 +26,68 @@ Other scripts:
 npm run build    # production build
 npm run start    # serve the production build
 npm run lint     # eslint
+npm run seed:icons   # populate icon_mappings cache (after db push)
 ```
+
+## Icon System
+
+The dashboard uses a universal icon resolution pipeline so every outcome avatar
+shows either a resolved image or a styled initials fallback.
+
+### Admin endpoint
+
+`GET/POST /api/icons/admin` — requires the signed-in user's email to appear in
+`ADMIN_EMAILS` (comma-separated). Set in Vercel/production env, e.g.
+`ADMIN_EMAILS=kyryl@lenium.capital`.
+
+| Action | Method | Parameters |
+| ------ | ------ | ---------- |
+| List cache | `GET` | `?action=list&page=1&limit=50` |
+| Invalidate category | `GET` | `?action=invalidate-all-category&category=Sports` |
+| Add mapping | `POST` | `?action=add` with JSON body `{ name, category, image_url, source }` |
+
+### Manually fix a missing icon
+
+```bash
+curl -X POST 'https://lenium.capital/api/icons/admin?action=add' \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: <session>' \
+  -d '{"name":"Entity Name","category":"Elections","image_url":"https://...","source":"manual"}'
+```
+
+### Re-run the seed
+
+After `npx prisma db push`, insert pre-verified mappings (skips existing rows):
+
+```bash
+npm run seed:icons
+```
+
+Seed data lives in [`src/lib/icon-seed-data.ts`](src/lib/icon-seed-data.ts).
+
+### Sports team logo URLs (ESPN CDN)
+
+| League | URL pattern |
+| ------ | ----------- |
+| NFL | `https://a.espncdn.com/i/teamlogos/nfl/500/{abbr}.png` |
+| NBA | `https://a.espncdn.com/i/teamlogos/nba/500/{abbr}.png` |
+| MLB | `https://a.espncdn.com/i/teamlogos/mlb/500/{abbr}.png` |
+| NHL | `https://a.espncdn.com/i/teamlogos/nhl/500/{abbr}.png` |
+| Premier League | `https://a.espncdn.com/i/teamlogos/soccer/500/{id}.png` |
+
+### TMDB (Culture category)
+
+Register a free API key at [themoviedb.org](https://www.themoviedb.org/) and set
+`TMDB_API_KEY` in the deployment environment. Culture outcomes try TMDB first,
+then Wikipedia.
+
+### Database setup (first deploy)
+
+```bash
+npx prisma db push
+npm run seed:icons
+```
+
 
 ## Pages
 

@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "seed:icons": "tsx scripts/seed-icons.ts",
+    "verify:icons": "tsx scripts/verify-icon-schema.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

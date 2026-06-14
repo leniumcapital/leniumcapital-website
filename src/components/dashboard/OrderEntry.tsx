@@ -13,6 +13,8 @@ import {
   usePositionForMarket,
 } from "@/hooks/usePositions";
 import { computedPnl, computedPnlPercent } from "@/stores/positionStore";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
+import { outcomeNameFromQuestion } from "@/lib/outcomeName";
 import { resolveTierBySize } from "@/lib/data";
 import { T } from "@/lib/tokens";
 
@@ -90,11 +92,25 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
       <div
         style={{
           display: "flex",
-          border: T.hairline(),
-          borderRadius: T.radius,
-          overflow: "hidden",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 12,
         }}
       >
+        <MarketOutcomeAvatar
+          name={outcomeNameFromQuestion(market.question)}
+          category={market.category}
+          size={32}
+        />
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            border: T.hairline(),
+            borderRadius: T.radius,
+            overflow: "hidden",
+          }}
+        >
         <ToggleButton
           label="YES"
           price={market.yesPrice}
@@ -112,6 +128,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
           activeBorder={T.red}
           onClick={() => setDirection("no")}
         />
+        </div>
       </div>
 
       {/* Amount */}
