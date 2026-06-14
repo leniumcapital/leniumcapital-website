@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { TIERS, computePrice, type AddonId } from "@/lib/data";
+import { TIERS, computePrice, type AddonId } from "@/lib/pricing";
 
 /** Mock checkout — creates a trading account after tier selection. */
 export async function POST(req: Request) {

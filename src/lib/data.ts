@@ -1,3 +1,16 @@
+import {
+  TIERS as PRICING_TIERS,
+  ADDONS as PRICING_ADDONS,
+  getTierBySize,
+  computePrice as computePricingPrice,
+  addonPrice as pricingAddonPrice,
+  SPLIT_ADDON_IDS,
+  PAYOUT_CYCLE_DAYS,
+  type AddonId,
+} from "./pricing";
+
+export type { AddonId };
+
 export type Tier = {
   size: number;
   baseFee: number;
@@ -17,23 +30,48 @@ export type Tier = {
 };
 
 /**
- * Nine evaluation tiers. Four sizes ($15k, $20k, $35k, $75k) are exclusive
- * to Lenium. Source: Lenium Pricing, Challenge Rules & Fee Schedule v1.0.
+ * Nine evaluation tiers. Values are derived from `pricing.ts` so the pricing
+ * page and dashboard always stay in sync.
  */
-export const TIERS: Tier[] = [
-  { size: 5000, baseFee: 55, profitTargetPct: 25, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 15, minTradingDays: 7, windowDays: 30, consistencyCapPct: 40, exclusive: false },
-  { size: 10000, baseFee: 109, profitTargetPct: 22, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 40, exclusive: false },
-  { size: 15000, baseFee: 149, profitTargetPct: 20, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 3.5, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 35, exclusive: true },
-  { size: 20000, baseFee: 189, profitTargetPct: 20, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3.5, maxPositionPct: 10, minTradingDays: 9, windowDays: 35, consistencyCapPct: 35, exclusive: true },
-  { size: 25000, baseFee: 239, profitTargetPct: 18, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 10, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: false },
-  { size: 35000, baseFee: 319, profitTargetPct: 16, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 8, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: true },
-  { size: 50000, baseFee: 499, profitTargetPct: 15, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 2.5, maxPositionPct: 8, minTradingDays: 12, windowDays: 40, consistencyCapPct: 25, exclusive: false },
-  { size: 75000, baseFee: 699, profitTargetPct: 13, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2.5, maxPositionPct: 6, minTradingDays: 14, windowDays: 40, consistencyCapPct: 25, exclusive: true },
-  { size: 100000, baseFee: 979, profitTargetPct: 11, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2, maxPositionPct: 5, minTradingDays: 15, windowDays: 45, consistencyCapPct: 20, exclusive: false },
-];
+type LegacyTierMeta = {
+  fundedTargetPct: number;
+  windowDays: number;
+  consistencyCapPct: number;
+  exclusive: boolean;
+};
 
-/** Reset fee is 25% off the original base fee, available after any breach. */
-export const resetFee = (tier: Tier) => Math.floor(tier.baseFee * 0.75);
+const LEGACY_TIER_META: Record<number, LegacyTierMeta> = {
+  5000: { fundedTargetPct: 5, windowDays: 30, consistencyCapPct: 40, exclusive: false },
+  10000: { fundedTargetPct: 5, windowDays: 30, consistencyCapPct: 40, exclusive: false },
+  15000: { fundedTargetPct: 5, windowDays: 30, consistencyCapPct: 35, exclusive: true },
+  20000: { fundedTargetPct: 4.5, windowDays: 35, consistencyCapPct: 35, exclusive: true },
+  25000: { fundedTargetPct: 4.5, windowDays: 35, consistencyCapPct: 30, exclusive: false },
+  35000: { fundedTargetPct: 4, windowDays: 35, consistencyCapPct: 30, exclusive: true },
+  50000: { fundedTargetPct: 4, windowDays: 40, consistencyCapPct: 25, exclusive: false },
+  75000: { fundedTargetPct: 3.5, windowDays: 40, consistencyCapPct: 25, exclusive: true },
+  100000: { fundedTargetPct: 3.5, windowDays: 45, consistencyCapPct: 20, exclusive: false },
+};
+
+export const TIERS: Tier[] = PRICING_TIERS.map((t) => {
+  const meta = LEGACY_TIER_META[t.size];
+  return {
+    size: t.size,
+    baseFee: t.fee,
+    profitTargetPct: t.profitTarget * 100,
+    fundedTargetPct: meta.fundedTargetPct,
+    maxDrawdownPct: t.maxDrawdown * 100,
+    dailyLimitPct: t.dailyLossLimit * 100,
+    maxPositionPct: t.maxPositionSize * 100,
+    minTradingDays: t.minTradingDays,
+    windowDays: meta.windowDays,
+    consistencyCapPct: meta.consistencyCapPct,
+    exclusive: meta.exclusive,
+  };
+});
+
+/** Reset fee from the canonical pricing schedule. */
+export const resetFee = (tier: Tier) =>
+  getTierBySize(tier.size)?.resetFee ?? Math.floor(tier.baseFee * 0.75);
 /** What a trader saves by resetting instead of buying a fresh challenge. */
 export const resetSavings = (tier: Tier) => tier.baseFee - resetFee(tier);
 /**
@@ -65,7 +103,7 @@ export const DEFAULT_TRADER_SPLIT_PCT = 70;
 /** Funded-account consistency cap: no single day may exceed this share of monthly profit. */
 export const FUNDED_CONSISTENCY_CAP_PCT = 50;
 /** Standard funded-account payout cycle, in days. */
-export const PAYOUT_CYCLE_DAYS = 14;
+export { PAYOUT_CYCLE_DAYS };
 
 /** One-time profit ($) required to pass the demo challenge. */
 export const demoTargetUsd = (tier: Tier) =>
@@ -73,8 +111,6 @@ export const demoTargetUsd = (tier: Tier) =>
 /** Minimum monthly profit ($) to unlock a funded payout. */
 export const fundedTargetUsd = (tier: Tier) =>
   Math.round((tier.size * tier.fundedTargetPct) / 100);
-
-export type AddonId = "split90" | "split95" | "drawdown" | "doubletime" | "fastpayout";
 
 export type Addon = {
   id: AddonId;
@@ -84,55 +120,24 @@ export type Addon = {
   pctOfBase?: number;
   /** Flat dollar fee. */
   flat?: number;
-  /** True when this upgrade is exclusive to Lenium. */
   exclusive: boolean;
 };
 
-export const ADDONS: Addon[] = [
-  {
-    id: "split90",
-    name: "90% profit split",
-    blurb: "Changes the default 70/30 split to 90/10 permanently. Keep 90 cents of every dollar you earn on the funded account.",
-    pctOfBase: 0.5,
-    exclusive: false,
-  },
-  {
-    id: "split95",
-    name: "95% profit split",
-    blurb: "The highest profit split available anywhere in the prediction market prop firm industry. Keep 95 cents of every dollar — Lenium retains 5%.",
-    pctOfBase: 0.8,
-    exclusive: true,
-  },
-  {
-    id: "drawdown",
-    name: "Drawdown boost",
-    blurb: "Raises your maximum drawdown ceiling to 15% and your daily loss limit to 8%, on both the demo challenge and the funded account.",
-    pctOfBase: 0.65,
-    exclusive: false,
-  },
-  {
-    id: "doubletime",
-    name: "Double time",
-    blurb: "Doubles your challenge window. More time to hit the profit target — no other rule changes.",
-    pctOfBase: 0.09,
-    exclusive: false,
-  },
-  {
-    id: "fastpayout",
-    name: "Fast payout (7-day)",
-    blurb: "Reduces funded-account payout cycles from 14 days to 7 days.",
-    flat: 39,
-    exclusive: true,
-  },
-];
+export const ADDONS: Addon[] = PRICING_ADDONS.map((a) => ({
+  id: a.id,
+  name: a.name,
+  blurb: a.description,
+  pctOfBase: a.priceType === "percent" ? a.priceValue : undefined,
+  flat: a.priceType === "flat" ? a.priceValue : undefined,
+  exclusive: a.exclusive,
+}));
 
 /** The two profit-split upgrades cannot both apply to one account. */
-export const SPLIT_ADDONS: AddonId[] = ["split90", "split95"];
+export const SPLIT_ADDONS: AddonId[] = SPLIT_ADDON_IDS;
 
 export function addonPrice(addon: Addon, baseFee: number): number {
-  if (addon.flat != null) return addon.flat;
-  if (addon.pctOfBase != null) return Math.round(addon.pctOfBase * baseFee);
-  return 0;
+  const source = PRICING_ADDONS.find((a) => a.id === addon.id);
+  return source ? pricingAddonPrice(source, baseFee) : 0;
 }
 
 export function bundleDiscountPct(count: number): number {
@@ -154,24 +159,18 @@ export type PriceBreakdown = {
 
 /** Compute a full price breakdown for a tier + selected add-ons. */
 export function computePrice(tier: Tier, selected: AddonId[]): PriceBreakdown {
-  const addonLines = ADDONS.filter((a) => selected.includes(a.id)).map((a) => ({
-    id: a.id,
-    name: a.name,
-    price: addonPrice(a, tier.baseFee),
-  }));
-  const addonSubtotal = addonLines.reduce((s, l) => s + l.price, 0);
-  const discountPct = bundleDiscountPct(selected.length);
-  const discount = Math.round(addonSubtotal * discountPct);
-  const total = tier.baseFee + addonSubtotal - discount;
-
-  return {
-    baseFee: tier.baseFee,
-    addonLines,
-    addonSubtotal,
-    discountPct,
-    discount,
-    total,
-  };
+  const pricingTier = getTierBySize(tier.size);
+  if (!pricingTier) {
+    return {
+      baseFee: tier.baseFee,
+      addonLines: [],
+      addonSubtotal: 0,
+      discountPct: 0,
+      discount: 0,
+      total: tier.baseFee,
+    };
+  }
+  return computePricingPrice(pricingTier, selected);
 }
 
 export type RuleRow = {
