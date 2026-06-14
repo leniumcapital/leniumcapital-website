@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CtaButton } from "@/components/ui";
 import { TIERS, compactTier } from "@/lib/data";
 
@@ -19,20 +19,31 @@ const item: Variants = {
   },
 };
 
-/** Step 01 — account-size chips that light up in sequence. */
+/** Fixed-height slot so every step card aligns visually. */
+function VisualSlot({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-4 flex h-16 w-full items-center overflow-hidden">
+      {children}
+    </div>
+  );
+}
+
+/** Step 01 — six tier chips in a 3×2 grid (fits inside the card). */
 function ChooseVisual() {
   const chips = TIERS.map((t) => compactTier(t.size));
   const [active, setActive] = useState(0);
+
   useEffect(() => {
     const t = setInterval(() => setActive((a) => (a + 1) % chips.length), 1100);
     return () => clearInterval(t);
   }, [chips.length]);
+
   return (
-    <div className="flex gap-2">
+    <div className="grid w-full grid-cols-3 gap-1.5">
       {chips.map((c, i) => (
         <span
           key={c}
-          className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors duration-500 ${
+          className={`rounded-md px-1 py-1.5 text-center text-[11px] font-semibold tabular-nums transition-colors duration-500 ${
             i === active
               ? "bg-brand text-[#04130b]"
               : "bg-white/[0.06] text-white/50"
@@ -45,10 +56,11 @@ function ChooseVisual() {
   );
 }
 
-/** Step 02 — a live drawing sparkline + a flickering Yes price. */
+/** Step 02 — sparkline + live Yes price, fully contained. */
 function ProveVisual() {
   const vals = [64, 67, 61, 70, 66];
   const [yes, setYes] = useState(vals[0]);
+
   useEffect(() => {
     let i = 0;
     const t = setInterval(() => {
@@ -57,38 +69,45 @@ function ProveVisual() {
     }, 1200);
     return () => clearInterval(t);
   }, [vals]);
+
   return (
-    <div className="flex items-center gap-3">
-      <svg viewBox="0 0 80 32" className="h-8 w-20 overflow-visible">
-        <motion.path
-          d="M0 26 L12 18 L24 22 L36 10 L48 14 L60 5 L80 8"
-          fill="none"
-          stroke="#1ee089"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0, opacity: 0.4 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{
-            duration: 2.2,
-            ease: "easeInOut",
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
-      </svg>
-      <span className="rounded-md border border-emerald-400/40 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-300">
+    <div className="flex w-full items-center gap-3 overflow-hidden">
+      <div className="h-8 w-[72px] shrink-0 overflow-hidden">
+        <svg
+          viewBox="0 0 80 32"
+          className="h-full w-full"
+          preserveAspectRatio="none"
+        >
+          <motion.path
+            d="M0 26 L12 18 L24 22 L36 10 L48 14 L60 5 L80 8"
+            fill="none"
+            stroke="#1ee089"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0, opacity: 0.4 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{
+              duration: 2.2,
+              ease: "easeInOut",
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
+          />
+        </svg>
+      </div>
+      <span className="shrink-0 rounded-md border border-emerald-400/40 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-300">
         Yes {yes}%
       </span>
     </div>
   );
 }
 
-/** Step 03 — a drawing checkmark + a pulsing payout share. */
+/** Step 03 — checkmark + payout share, aligned to the same slot. */
 function FundedVisual() {
   return (
-    <div className="flex items-center gap-3">
-      <span className="grid size-8 place-items-center rounded-full bg-brand-soft">
+    <div className="flex w-full items-center gap-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft">
         <svg
           viewBox="0 0 24 24"
           className="size-4"
@@ -164,14 +183,14 @@ export function FundedSteps() {
             variants={item}
             whileHover={{ y: -4 }}
             transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            className="rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-brand/50"
+            className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-brand/50"
           >
             <span className="font-mono text-sm text-brand">{n}</span>
-            <div className="mt-4 flex h-9 items-center">
+            <VisualSlot>
               <Visual />
-            </div>
+            </VisualSlot>
             <h3 className="mt-4 text-lg font-semibold">{t}</h3>
-            <p className="mt-2 text-sm text-muted">{d}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{d}</p>
           </motion.div>
         ))}
       </motion.div>
