@@ -31,7 +31,7 @@ export default function HowItWorksPage() {
             n="01"
             title="Choose your account size and add-ons"
             body="Pick from nine tiers between $5,000 and $100,000. Layer on a higher profit split, a drawdown boost, more time, or faster payouts. Your fee is computed live at checkout — one simple, upfront price."
-            cta={<CtaButton href="/pricing">Open the pricing calculator</CtaButton>}
+            cta={<CtaButton href="/pricing">Build your challenge</CtaButton>}
             mock={<MockSelect />}
           />
           <Step

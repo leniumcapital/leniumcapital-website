@@ -15,7 +15,7 @@ const VARIANT_CLASS: Record<string, string> = {
 
 /**
  * Marketing-site primary CTA — shows the branded loader overlay briefly,
- * then navigates to the signup page.
+ * then navigates to the challenge selector at /pricing.
  */
 export function StartChallengeCta({
   children = "Start your challenge",
@@ -34,7 +34,7 @@ export function StartChallengeCta({
     onNavigate?.();
     startNavigationLoading();
     window.setTimeout(() => {
-      router.push("/signup");
+      router.push("/pricing");
     }, 900);
   }
 
