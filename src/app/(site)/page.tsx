@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { IconBrandX, IconMail } from "@tabler/icons-react";
 import { Container, CtaButton, PillBadge } from "@/components/ui";
 import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
 import { TIERS, STATS, usd } from "@/lib/data";
-import { SITE_EMAIL, SITE_TWITTER_HANDLE, SITE_TWITTER_URL } from "@/lib/site";
+import { SITE_EMAIL, SITE_TWITTER_URL } from "@/lib/site";
 
 const FOUNDATION = [
   { title: "Fully regulated foundation", value: "Built on Kalshi, a CFTC-licensed exchange" },
@@ -260,29 +261,56 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA */}
-      <section className="border-t border-border bg-surface py-20">
-        <Container className="text-center">
-          <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            The name means nothing today. In five years it will mean everything
-            to every serious prediction market trader.
+      <section className="relative overflow-hidden border-t border-white/10 bg-[#05060a] py-24 text-white">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="aurora-blob anim-aurora-b"
+            style={{
+              width: "32rem",
+              height: "32rem",
+              left: "10%",
+              top: "-20%",
+              background:
+                "radial-gradient(circle, rgba(30,224,137,0.35), transparent 70%)",
+            }}
+          />
+          <div
+            className="aurora-blob anim-aurora-c"
+            style={{
+              width: "36rem",
+              height: "36rem",
+              right: "-8%",
+              bottom: "-30%",
+              background:
+                "radial-gradient(circle, rgba(124,92,246,0.3), transparent 70%)",
+            }}
+          />
+          <div className="absolute inset-0 grain opacity-[0.08]" />
+        </div>
+
+        <Container className="relative z-10 text-center">
+          <h2 className="mx-auto max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            Built for serious prediction market traders.
           </h2>
           <div className="mt-8 flex justify-center">
             <StartChallengeCta variant="cta" />
           </div>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
+          <div className="mt-8 flex items-center justify-center gap-3">
             <a
               href={SITE_TWITTER_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground"
+              aria-label="Follow Lenium on X"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-brand/50 hover:bg-brand/10 hover:text-brand"
             >
-              {SITE_TWITTER_HANDLE}
+              <IconBrandX size={20} stroke={1.75} aria-hidden />
             </a>
             <a
               href={`mailto:${SITE_EMAIL}`}
-              className="hover:text-foreground"
+              aria-label="Email Lenium"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-brand/50 hover:bg-brand/10 hover:text-brand"
             >
-              {SITE_EMAIL}
+              <IconMail size={20} stroke={1.75} aria-hidden />
             </a>
           </div>
         </Container>
