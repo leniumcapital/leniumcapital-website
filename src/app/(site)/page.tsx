@@ -5,7 +5,8 @@ import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
-import { TIERS, STATS, usd } from "@/lib/data";
+import { TierTeaserGrid } from "@/components/TierTeaserGrid";
+import { STATS } from "@/lib/data";
 import { SITE_EMAIL, SITE_TWITTER_URL } from "@/lib/site";
 
 const FOUNDATION = [
@@ -230,33 +231,7 @@ export default function HomePage() {
             <CtaButton href="/pricing">Compare all tiers</CtaButton>
           </div>
 
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
-            {TIERS.map((t) => (
-              <Link
-                key={t.size}
-                href="/pricing"
-                className="group rounded-xl border border-border bg-surface p-5 transition-colors hover:border-brand/50"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-semibold tracking-tight">
-                    {usd(t.size)}
-                  </span>
-                  {t.exclusive && (
-                    <PillBadge tone="brand">Exclusive</PillBadge>
-                  )}
-                </div>
-                <div className="mt-3 text-sm text-muted">
-                  from{" "}
-                  <span className="font-semibold text-foreground">
-                    ${t.baseFee}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-muted">
-                  {t.profitTargetPct}% profit target
-                </div>
-              </Link>
-            ))}
-          </div>
+          <TierTeaserGrid />
         </Container>
       </section>
 
