@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import { computeFeaturedEvents, featuredEventForSeries } from "@/lib/featuredEvents";
 import {
   PRIMARY_TABS,
   SUBCATEGORY_ORDER,
@@ -31,6 +32,42 @@ export function useMarketsQuery() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+}
+
+/**
+ * Recompute featured event series after each markets fetch and whenever the
+ * live feed refreshes event counts. Stored in marketStore — never runs on
+ * every render.
+ */
+export function useFeaturedEventsSync() {
+  const { data } = useMarketsQuery();
+
+  useEffect(() => {
+    if (!data?.markets?.length) return;
+    useMarketStore
+      .getState()
+      .setFeaturedEvents(computeFeaturedEvents(data.markets, data.events ?? []));
+  }, [data?.markets]);
+
+  const eventFingerprint = useMarketStore(
+    useShallow((s) =>
+      s.eventOrder
+        .map((t) => `${t}:${s.events[t]?.marketCount ?? 0}`)
+        .join("|"),
+    ),
+  );
+
+  useEffect(() => {
+    const { markets, order, events, eventOrder } = useMarketStore.getState();
+    const marketList = order.map((t) => markets[t]).filter(Boolean) as Market[];
+    const eventList = eventOrder
+      .map((t) => events[t])
+      .filter(Boolean) as DashboardEvent[];
+    if (marketList.length === 0) return;
+    useMarketStore
+      .getState()
+      .setFeaturedEvents(computeFeaturedEvents(marketList, eventList));
+  }, [eventFingerprint]);
 }
 
 /** Fixed display order of category sections on the Trending tab. */
@@ -212,8 +249,11 @@ export function useGroupedEvents(): GroupedEvents {
           (t) => events[t].seriesTicker === selectedEventSeries,
         );
         const label =
-          featuredEvents.find((e) => e.seriesTicker === selectedEventSeries)
-            ?.displayName ?? "Trending";
+          featuredEventForSeries(
+            selectedEventSeries,
+            featuredEvents,
+            all.map((t) => events[t]),
+          )?.displayName ?? "Trending";
 
         sections.push({
           category: label,
@@ -283,9 +323,16 @@ export function useMarketsHeading(): string {
   const featuredEvents = useMarketStore((s) => s.featuredEvents);
 
   if (activeCategory === "Trending" && selectedEventSeries) {
+    const { events, eventOrder } = useMarketStore.getState();
+    const eventList = eventOrder
+      .map((t) => events[t])
+      .filter((ev): ev is DashboardEvent => !!ev);
     return (
-      featuredEvents.find((e) => e.seriesTicker === selectedEventSeries)
-        ?.displayName ?? "Trending"
+      featuredEventForSeries(
+        selectedEventSeries,
+        featuredEvents,
+        eventList,
+      )?.displayName ?? "Trending"
     );
   }
 

@@ -17,6 +17,8 @@ export type Market = {
   ticker: string;
   question: string;
   category: string;
+  /** Kalshi series ticker — groups related contracts (e.g. KXWCGAME). */
+  seriesTicker?: string;
   /** YES price in percent / cents (0–100). */
   yesPrice: number;
   /** NO price in percent / cents (0–100). */
@@ -52,11 +54,12 @@ interface MarketState {
   events: Record<string, DashboardEvent>;
   eventOrder: string[];
   lastBatchAt: number;
-  /** Top event series by volume — refreshed when events update. */
+  /** Top event series by volume — refreshed when market data updates. */
   featuredEvents: FeaturedEvent[];
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
   setEvents: (events: DashboardEvent[]) => void;
+  setFeaturedEvents: (events: FeaturedEvent[]) => void;
   /** Populate the store from the initial REST fetch (alias of setMarkets). */
   initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
@@ -124,9 +127,11 @@ export const useMarketStore = create<MarketState>()(
           if (!s.events[ev.eventTicker]) s.eventOrder.push(ev.eventTicker);
           s.events[ev.eventTicker] = ev;
         }
-        s.featuredEvents = computeFeaturedEvents(
-          s.eventOrder.map((t) => s.events[t]).filter(Boolean) as DashboardEvent[],
-        );
+      }),
+
+    setFeaturedEvents: (featuredEvents) =>
+      set((s) => {
+        s.featuredEvents = featuredEvents;
       }),
 
     initializeMarkets: (markets) =>
@@ -187,9 +192,13 @@ export const useMarketStore = create<MarketState>()(
 
     refreshFeaturedEvents: () =>
       set((s) => {
-        s.featuredEvents = computeFeaturedEvents(
-          s.eventOrder.map((t) => s.events[t]).filter(Boolean) as DashboardEvent[],
-        );
+        const marketList = s.order
+          .map((t) => s.markets[t])
+          .filter(Boolean) as Market[];
+        const eventList = s.eventOrder
+          .map((t) => s.events[t])
+          .filter(Boolean) as DashboardEvent[];
+        s.featuredEvents = computeFeaturedEvents(marketList, eventList);
       }),
 
     reset: () =>

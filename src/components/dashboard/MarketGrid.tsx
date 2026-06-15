@@ -22,6 +22,7 @@ import {
 import {
   useGroupedEvents,
   useMarketsQuery,
+  useFeaturedEventsSync,
   type EventSection,
 } from "@/hooks/useMarkets";
 import { MarketCard, SkeletonMarketCard } from "@/components/dashboard/MarketCard";
@@ -45,6 +46,7 @@ const VIRTUALIZE_THRESHOLD = 100;
 export function MarketGrid() {
   const { data, isError, refetch } = useMarketsQuery();
   const { featured, sections } = useGroupedEvents();
+  useFeaturedEventsSync();
 
   // Seed the store from the query result directly so the grid renders as
   // soon as data exists, independent of the polling feed's timing.
@@ -122,6 +124,8 @@ export function MarketGrid() {
         transition={{ duration: 0.15, ease: "easeOut" }}
         style={{ paddingTop: 16, paddingBottom: 48 }}
       >
+        {showFeatured && featured && <FeaturedMarketStrip ticker={featured} />}
+
         {showFeaturedEvents && <FeaturedEventsRow />}
 
         <AnimatePresence>
@@ -129,8 +133,6 @@ export function MarketGrid() {
             <EventFilterHeader key="event-filter-header" />
           )}
         </AnimatePresence>
-
-        {showFeatured && featured && <FeaturedMarketStrip ticker={featured} />}
 
         {sections.slice(0, visibleSections).map((section) => (
           <CategorySection
@@ -447,11 +449,11 @@ function EmptyEventFilter() {
         padding: "48px 24px",
         textAlign: "center",
         color: "#555555",
-        fontSize: 14,
+        fontSize: 13,
         fontFamily: T.font,
       }}
     >
-      No markets currently available for this event
+      No active markets for this event right now.
     </div>
   );
 }

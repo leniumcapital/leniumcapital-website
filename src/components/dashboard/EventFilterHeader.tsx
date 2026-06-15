@@ -6,15 +6,21 @@ import { useUiStore } from "@/stores/uiStore";
 import { useMarketStore } from "@/stores/marketStore";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { resolveEventIcon } from "@/lib/eventIcon";
-import { formatFeaturedVolume } from "@/lib/featuredEvents";
+import { formatFeaturedVolume, featuredEventForSeries } from "@/lib/featuredEvents";
+import { useShallow } from "zustand/react/shallow";
+import type { DashboardEvent } from "@/lib/marketDetail";
 
 export function EventFilterHeader() {
   const selected = useUiStore((s) => s.selectedEventSeries);
   const clearFilter = useUiStore((s) => s.clearEventSeriesFilter);
-  const event = useMarketStore((s) =>
-    selected
-      ? s.featuredEvents.find((e) => e.seriesTicker === selected) ?? null
-      : null,
+  const event = useMarketStore(
+    useShallow((s) => {
+      if (!selected) return null;
+      const events = s.eventOrder
+        .map((t) => s.events[t])
+        .filter((ev): ev is DashboardEvent => !!ev);
+      return featuredEventForSeries(selected, s.featuredEvents, events);
+    }),
   );
 
   if (!selected || !event) return null;
@@ -140,5 +146,5 @@ function EventHeaderIcon({
 
   const Icon = icon.Icon;
   if (!Icon) return null;
-  return <Icon size={24} color="#9CA3AF" stroke={1.5} />;
+  return <Icon size={24} color={icon.iconColor ?? "#fff"} stroke={1.5} />;
 }

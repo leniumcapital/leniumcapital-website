@@ -26,7 +26,7 @@ export async function GET() {
 
   backgroundIconPrefetchFromEvents(events);
 
-  const featuredEvents = computeFeaturedEvents(events);
+  const featuredEvents = computeFeaturedEvents(markets, events);
 
   return NextResponse.json(
     { markets, events, featuredEvents },

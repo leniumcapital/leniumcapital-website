@@ -41,6 +41,7 @@ export type DashboardMarket = {
   ticker: string;
   question: string;
   category: string;
+  seriesTicker: string;
   yesPrice: number;
   noPrice: number;
   volume: number;
@@ -704,6 +705,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
             ? `${ev.title ?? c.raw.title} — ${outcomeName}`
             : c.raw.title || ev.title || c.ticker,
         category,
+        seriesTicker,
         yesPrice: c.yesPrice,
         noPrice: 100 - c.yesPrice,
         volume: c.volume,

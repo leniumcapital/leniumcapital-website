@@ -1,19 +1,35 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconLayoutGrid } from "@tabler/icons-react";
+import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { useUiStore } from "@/stores/uiStore";
 import { useMarketStore } from "@/stores/marketStore";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { resolveEventIcon } from "@/lib/eventIcon";
-import type { FeaturedEvent } from "@/lib/featuredEvents";
+import {
+  totalTrendingMarketCount,
+  type FeaturedEvent,
+} from "@/lib/featuredEvents";
+import type { DashboardEvent } from "@/lib/marketDetail";
 
-export function FeaturedEventsRow() {
+function FeaturedEventsRowInner() {
   const featuredEvents = useMarketStore((s) => s.featuredEvents);
+  const eventListCount = useMarketStore(
+    useShallow((s) =>
+      totalTrendingMarketCount(
+        s.eventOrder
+          .map((t) => s.events[t])
+          .filter((ev): ev is DashboardEvent => !!ev),
+      ),
+    ),
+  );
   const selected = useUiStore((s) => s.selectedEventSeries);
   const setSelected = useUiStore((s) => s.setSelectedEventSeries);
   const clearFilter = useUiStore((s) => s.clearEventSeriesFilter);
+  const clearedRef = useRef(false);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -25,20 +41,40 @@ export function FeaturedEventsRow() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected, clearFilter]);
 
+  useEffect(() => {
+    if (!selected) {
+      clearedRef.current = false;
+      return;
+    }
+    const match = featuredEvents.find((e) => e.seriesTicker === selected);
+    if (match && match.marketCount > 0) {
+      clearedRef.current = false;
+      return;
+    }
+    if (clearedRef.current) return;
+    clearedRef.current = true;
+    clearFilter();
+    toast("All markets in this event have resolved.");
+  }, [featuredEvents, selected, clearFilter]);
+
   if (featuredEvents.length === 0) return null;
 
   return (
     <div className="featured-events-scroll" style={rowStyle}>
-      <AllMarketsButton active={!selected} onClick={() => clearFilter()} />
+      <AllMarketsButton
+        active={!selected}
+        marketCount={eventListCount}
+        onClick={() => clearFilter()}
+      />
 
       <AnimatePresence initial={false}>
         {featuredEvents.map((event) => (
           <motion.div
             key={event.seriesTicker}
             layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             style={{ flexShrink: 0 }}
           >
@@ -60,24 +96,29 @@ export function FeaturedEventsRow() {
   );
 }
 
+export const FeaturedEventsRow = React.memo(FeaturedEventsRowInner);
+
 const rowStyle: React.CSSProperties = {
   display: "flex",
   gap: 10,
   overflowX: "auto",
-  padding: "0 24px 16px",
+  margin: "16px 24px 20px",
+  padding: 0,
 };
 
 function AllMarketsButton({
   active,
+  marketCount,
   onClick,
 }: {
   active: boolean;
+  marketCount: number;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      aria-label="All trending markets"
+      aria-label={`All trending markets, ${marketCount} markets`}
       aria-pressed={active}
       onClick={onClick}
       className="featured-event-btn"
@@ -91,7 +132,10 @@ function AllMarketsButton({
           All Trending
         </span>
         <span className="featured-event-count-label" style={countStyle}>
-          Full grid
+          {marketCount} markets
+        </span>
+        <span className="featured-event-count-mobile" style={mobileCountStyle}>
+          {marketCount}
         </span>
       </span>
     </button>
@@ -154,9 +198,9 @@ function EventButtonIcon({
       <img
         src={icon.url}
         alt=""
-        width={28}
-        height={28}
-        style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }}
+        width={32}
+        height={32}
+        style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }}
       />
     );
   }
@@ -166,14 +210,14 @@ function EventButtonIcon({
       <MarketOutcomeAvatar
         name={icon.avatarName}
         category={icon.avatarCategory ?? category}
-        size={28}
+        size={32}
       />
     );
   }
 
   const Icon = icon.Icon;
   if (!Icon) return null;
-  return <Icon size={18} color="#9CA3AF" stroke={1.5} />;
+  return <Icon size={18} color={icon.iconColor ?? "#fff"} stroke={1.5} />;
 }
 
 function buttonStyle(active: boolean): React.CSSProperties {
@@ -191,7 +235,7 @@ function buttonStyle(active: boolean): React.CSSProperties {
     border: active
       ? "0.5px solid rgba(0,232,122,0.4)"
       : "0.5px solid #1C1C1C",
-    borderBottom: active ? "2px solid #00E87A" : "0.5px solid #1C1C1C",
+    boxShadow: active ? "inset 0 -2px 0 #00E87A" : "none",
     transition: "all 150ms ease",
     fontFamily: "inherit",
   };
@@ -206,6 +250,7 @@ const iconBoxStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   flexShrink: 0,
+  overflow: "hidden",
 };
 
 const copyStyle: React.CSSProperties = {

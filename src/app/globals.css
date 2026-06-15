@@ -404,6 +404,12 @@ body {
   border-color: rgba(0, 232, 122, 0.4) !important;
 }
 @media (max-width: 767px) {
+  .featured-event-btn {
+    height: 44px !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    padding: 8px 12px !important;
+  }
   .featured-event-name,
   .featured-event-count-label {
     display: none !important;
