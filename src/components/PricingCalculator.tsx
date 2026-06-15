@@ -25,6 +25,13 @@ export function PricingCalculator() {
 
   const price = useMemo(() => computePrice(tier, selected), [tier, selected]);
 
+  const checkoutHref = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("tier", String(tier.size));
+    if (selected.length > 0) params.set("addons", selected.join(","));
+    return `/signup?${params.toString()}`;
+  }, [tier.size, selected]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       {/* Controls */}
@@ -147,7 +154,7 @@ export function PricingCalculator() {
           </div>
 
           <Link
-            href="/signup"
+            href={checkoutHref}
             className="mt-4 block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
           >
             Start {usd(tier.size)} challenge

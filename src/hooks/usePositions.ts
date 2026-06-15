@@ -8,9 +8,12 @@ import {
   usePositionStore,
   type Position,
   type Direction,
+  currentPriceFor,
 } from "@/stores/positionStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
+import { useMarketStore } from "@/stores/marketStore";
+import { findTier, resolveRules, validateOrder } from "@/lib/rules";
 
 type PlaceOrderInput = {
   marketTicker: string;
@@ -18,6 +21,7 @@ type PlaceOrderInput = {
   size: number;
   question: string;
   category: string;
+  marketExpiry?: string;
 };
 
 type OrderResponse = {
@@ -31,6 +35,7 @@ type OrderResponse = {
     size: number;
     entryPrice: number;
     openedAt: number;
+    commission?: number;
   };
 };
 
@@ -38,10 +43,73 @@ function todayUtcIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function buildOpenSnapshots() {
+  const positions = usePositionStore.getState().positions;
+  return Object.values(positions).map((p) => ({
+    marketTicker: p.marketTicker,
+    size: p.size,
+    entryPrice: p.entryPrice,
+    direction: p.direction,
+    currentPrice: currentPriceFor(p),
+  }));
+}
+
 /** Place a simulated order through the server, then record it client-side. */
 export function usePlaceOrder() {
   return useMutation({
     mutationFn: async (input: PlaceOrderInput) => {
+      const account = useAccountStore.getState();
+      const challenge = useChallengeStore.getState();
+      const tier = findTier(account.accountSize);
+
+      if (!tier) throw new Error("No active account tier.");
+
+      const phase =
+        account.accountType === "funded" ? "funded" : "evaluation";
+      const realized = usePositionStore
+        .getState()
+        .closedTrades.reduce((s, t) => s + t.pnl, 0);
+      const unrealized = Object.values(usePositionStore.getState().positions).reduce(
+        (s, p) => s + (p.entryPrice > 0 ? (p.size * (currentPriceFor(p) - p.entryPrice)) / p.entryPrice : 0),
+        0,
+      );
+      const currentProfit = realized + unrealized;
+      const equity = account.accountSize + currentProfit;
+
+      const rules = resolveRules({
+        tier,
+        addons: account.addons,
+        phase,
+        currentBalance: equity,
+      });
+
+      const market = useMarketStore.getState().markets[input.marketTicker];
+      const entryPrice =
+        input.direction === "yes"
+          ? (market?.yesPrice ?? 0)
+          : (market?.noPrice ?? 0);
+
+      const clientCheck = validateOrder({
+        rules,
+        startingBalance: account.accountSize,
+        currentProfit,
+        highWaterMarkUsd: challenge.highWaterMarkUsd,
+        staticFloorUsd: challenge.staticFloorUsd,
+        openPositions: buildOpenSnapshots(),
+        newOrder: {
+          size: input.size,
+          direction: input.direction,
+          marketTicker: input.marketTicker,
+          entryPrice,
+          marketExpiry: input.marketExpiry ?? market?.expiry,
+        },
+        challengeStatus: account.challengeStatus,
+        accountType: account.accountType,
+        windowEndDate: challenge.windowEndDate,
+      });
+
+      if (!clientCheck.ok) throw new Error(clientCheck.error);
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,15 +117,25 @@ export function usePlaceOrder() {
           marketTicker: input.marketTicker,
           direction: input.direction,
           size: input.size,
+          marketExpiry: input.marketExpiry ?? market?.expiry,
+          openPositions: buildOpenSnapshots(),
+          currentProfit,
+          highWaterMarkUsd: challenge.highWaterMarkUsd,
+          staticFloorUsd: challenge.staticFloorUsd,
+          windowEndDate: challenge.windowEndDate,
+          addons: account.addons,
+          accountType: account.accountType,
+          challengeStatus: account.challengeStatus,
         }),
       });
       const data = (await res.json()) as OrderResponse;
       if (!res.ok || !data.fill) {
         throw new Error(data.error ?? "Order failed");
       }
-      return { fill: data.fill, input };
+      return { fill: data.fill, input, commission: clientCheck.commission };
     },
-    onSuccess: ({ fill, input }) => {
+    onSuccess: ({ fill, input, commission }) => {
+      const market = useMarketStore.getState().markets[input.marketTicker];
       usePositionStore.getState().addPosition({
         id: fill.positionId,
         marketTicker: fill.marketTicker,
@@ -66,9 +144,14 @@ export function usePlaceOrder() {
         direction: fill.direction,
         size: fill.size,
         entryPrice: fill.entryPrice,
+        marketExpiry: input.marketExpiry ?? market?.expiry,
         openedAt: fill.openedAt,
       });
       useChallengeStore.getState().addTradedDate(todayUtcIso());
+      useAccountStore.getState().recordTrade();
+      if (commission > 0) {
+        useAccountStore.getState().addCommission(commission);
+      }
       toast.success(
         `Order placed — buying ${fill.direction.toUpperCase()} $${fill.size.toLocaleString()} on ${fill.question}`,
       );

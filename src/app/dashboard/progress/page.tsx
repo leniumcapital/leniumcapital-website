@@ -13,8 +13,8 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
 
 export default function ProgressPage() {
-  const p = useChallengeProgress();
   const accountType = useAccountStore((s) => s.accountType);
+  const p = useChallengeProgress();
 
   if (accountType === "none") {
     return (
@@ -60,7 +60,7 @@ export default function ProgressPage() {
             color={T.green}
             label="Profit target"
             centerTop={`$${Math.max(0, Math.round(p.currentProfit)).toLocaleString()}`}
-            centerBottom={`of $${p.profitTarget.toLocaleString()}`}
+            centerBottom={`of $${p.adjustedProfitTarget.toLocaleString()}`}
           />
           <Gauge
             pct={p.drawdownConsumedPct}
@@ -105,7 +105,7 @@ export default function ProgressPage() {
         <ClosedTradesTable />
       </div>
 
-      {p.profitPct >= 100 && <CelebrationOverlay />}
+      {p.profitPct >= 100 && accountType === "challenge" && <CelebrationOverlay />}
     </ErrorBoundary>
   );
 }

@@ -5,14 +5,15 @@ import { toast } from "sonner";
 import { IconArrowUpRight, IconArrowDownRight } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
-import { useAccountStore } from "@/stores/accountStore";
 import {
   usePlaceOrder,
   useClosePosition,
   usePositionForMarket,
 } from "@/hooks/usePositions";
 import { computedPnl, computedPnlPercent } from "@/stores/positionStore";
-import { TIERS } from "@/lib/data";
+import { useAccountRules } from "@/hooks/useAccountRules";
+import { isEligibleMarket } from "@/lib/rules";
+import { OPENING_PRICE_MIN_CENTS, OPENING_PRICE_MAX_CENTS } from "@/lib/data";
 import { T } from "@/lib/tokens";
 
 interface OrderEntryProps {
@@ -29,11 +30,13 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
             category: m.category,
             yesPrice: m.yesPrice,
             noPrice: m.noPrice,
+            expiry: m.expiry,
           }
         : null;
     }),
   );
-  const tierSize = useAccountStore((s) => s.tier);
+  const { rules, canTrade, tradingBlockedReason, remainingExposure, remainingPosition } =
+    useAccountRules();
 
   const [direction, setDirection] = useState<"yes" | "no">("yes");
   const [size, setSize] = useState(0);
@@ -42,14 +45,16 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
   const closePosition = useClosePosition();
   const position = usePositionForMarket(ticker);
 
-  const tier = TIERS.find((t) => t.size === tierSize);
-  const maxPosition = tier
-    ? Math.round((tier.size * tier.maxPositionPct) / 100)
-    : 0;
-
   if (!market) return null;
 
   const entryPrice = direction === "yes" ? market.yesPrice : market.noPrice;
+  const priceInRange =
+    entryPrice >= OPENING_PRICE_MIN_CENTS &&
+    entryPrice <= OPENING_PRICE_MAX_CENTS;
+  const marketEligible = market.expiry
+    ? isEligibleMarket(market.expiry)
+    : true;
+  const maxPosition = remainingPosition;
   const potentialProfit =
     entryPrice > 0 ? (size / entryPrice) * 100 - size : 0;
 
@@ -61,7 +66,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
     if (maxPosition > 0 && raw > maxPosition) {
       setSize(maxPosition);
       toast(
-        `Max position size for your $${tierSize.toLocaleString()} tier is $${maxPosition.toLocaleString()} — capped automatically.`,
+        `Max position size is $${maxPosition.toLocaleString()} (${rules?.maxPositionPct ?? 5}% of balance) — capped automatically.`,
       );
       return;
     }
@@ -69,17 +74,23 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
   }
 
   function handleSubmit() {
-    if (!market || size <= 0 || placeOrder.isPending) return;
+    if (!market || size <= 0 || placeOrder.isPending || !canTrade) return;
     placeOrder.mutate({
       marketTicker: ticker,
       direction,
       size,
       question: market.question,
       category: market.category,
+      marketExpiry: market.expiry,
     });
   }
 
-  const confirmDisabled = size <= 0 || placeOrder.isPending;
+  const confirmDisabled =
+    size <= 0 ||
+    placeOrder.isPending ||
+    !canTrade ||
+    !priceInRange ||
+    !marketEligible;
 
   return (
     <div style={{ padding: 20, fontFamily: T.font }}>
@@ -199,6 +210,31 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
 
       {/* Confirm */}
       <div>
+        {rules && (
+          <p style={{ marginTop: 12, color: T.textMuted, fontSize: 11, lineHeight: 1.5 }}>
+            Max position: ${rules.maxPositionUsd.toLocaleString()} ({rules.maxPositionPct}%)
+            · Max exposure remaining: ${Math.round(remainingExposure).toLocaleString()}
+            · Price range: {OPENING_PRICE_MIN_CENTS}¢–{OPENING_PRICE_MAX_CENTS}¢
+            {rules.commissionPct > 0
+              ? ` · ${rules.commissionPct}% opening commission`
+              : ""}
+          </p>
+        )}
+        {!priceInRange && (
+          <p style={{ marginTop: 8, color: T.amber, fontSize: 11 }}>
+            Contract outside {OPENING_PRICE_MIN_CENTS}¢–{OPENING_PRICE_MAX_CENTS}¢ YES range.
+          </p>
+        )}
+        {!marketEligible && (
+          <p style={{ marginTop: 8, color: T.amber, fontSize: 11 }}>
+            Market resolves outside the {rules?.marketResolutionWindowDays ?? 60}-day window.
+          </p>
+        )}
+        {tradingBlockedReason && (
+          <p style={{ marginTop: 8, color: T.red, fontSize: 11 }}>
+            {tradingBlockedReason}
+          </p>
+        )}
         <button
           type="button"
           disabled={confirmDisabled}

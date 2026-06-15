@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useAccountStore } from "@/stores/accountStore";
-import { DEFAULT_TRADER_SPLIT_PCT, PAYOUT_CYCLE_DAYS } from "@/lib/data";
+import { useAccountRules } from "@/hooks/useAccountRules";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
+import { usd } from "@/lib/data";
 
 export function AccountPanel() {
   const tierSize = useAccountStore((s) => s.tier);
   const accountType = useAccountStore((s) => s.accountType);
+  const addons = useAccountStore((s) => s.addons);
+  const commissionsPaid = useAccountStore((s) => s.commissionsPaid);
+  const { rules } = useAccountRules();
 
   const hasActiveChallenge = accountType !== "none" && tierSize > 0;
 
@@ -18,7 +22,7 @@ export function AccountPanel() {
       ? "—"
       : accountType === "funded"
         ? "Funded account"
-        : "Demo challenge";
+        : "Evaluation challenge";
 
   return (
     <DashboardPage title="Account" maxWidth={800}>
@@ -32,16 +36,47 @@ export function AccountPanel() {
         />
         <DetailRow
           label="Account size"
-          value={tierSize ? `$${tierSize.toLocaleString()}` : "—"}
+          value={tierSize ? usd(tierSize) : "—"}
         />
         <DetailRow
           label="Profit split"
-          value={hasActiveChallenge ? `${DEFAULT_TRADER_SPLIT_PCT}% to you` : "—"}
+          value={
+            rules
+              ? `${rules.traderSplitPct}% to you`
+              : hasActiveChallenge
+                ? "70% to you"
+                : "—"
+          }
         />
         <DetailRow
           label="Payout cycle"
-          value={hasActiveChallenge ? `${PAYOUT_CYCLE_DAYS} days` : "—"}
+          value={
+            rules
+              ? `${rules.payoutCycleDays} business days`
+              : hasActiveChallenge
+                ? "7 business days"
+                : "—"
+          }
         />
+        {rules && accountType === "funded" && (
+          <>
+            <DetailRow
+              label="Minimum payout"
+              value={usd(rules.minPayoutUsd)}
+            />
+            <DetailRow
+              label="Opening commission"
+              value={`${rules.commissionPct}%`}
+            />
+            <DetailRow
+              label="Commissions paid"
+              value={usd(Math.round(commissionsPaid))}
+            />
+          </>
+        )}
+        {addons.length > 0 && (
+          <DetailRow label="Add-ons" value={addons.join(", ")} />
+        )}
       </DashboardCard>
     </DashboardPage>
   );

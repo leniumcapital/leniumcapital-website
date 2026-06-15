@@ -1,7 +1,21 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { AddonId } from "@/lib/data";
 
 export type AccountType = "challenge" | "funded" | "none";
-export type AccountChallengeStatus = "active" | "passed" | "breached" | "none";
+export type AccountChallengeStatus =
+  | "active"
+  | "passed"
+  | "breached"
+  | "expired"
+  | "none";
+
+export type BreachReason =
+  | "max_drawdown"
+  | "expired"
+  | "inactivity"
+  | "rules_violation"
+  | null;
 
 interface AccountState {
   userId: string;
@@ -12,8 +26,13 @@ interface AccountState {
   tier: number;
   balance: number;
   accountSize: number;
-  /** True when the daily loss limit has been hit — trading locked until midnight UTC. */
-  dailyLockout: boolean;
+  /** Purchased add-ons for the active account. */
+  addons: AddonId[];
+  /** Unix ms of last opened position (funded inactivity tracking). */
+  lastTradeAt: number | null;
+  /** Cumulative opening commissions paid on funded account. */
+  commissionsPaid: number;
+  breachReason: BreachReason;
   setAccount: (
     account: Partial<
       Pick<
@@ -26,12 +45,19 @@ interface AccountState {
         | "tier"
         | "balance"
         | "accountSize"
+        | "addons"
+        | "lastTradeAt"
+        | "commissionsPaid"
+        | "breachReason"
       >
     >,
   ) => void;
+  setAddons: (addons: AddonId[]) => void;
   updateBalance: (balance: number) => void;
   setChallengeStatus: (status: AccountChallengeStatus) => void;
-  setDailyLockout: (locked: boolean) => void;
+  setBreachReason: (reason: BreachReason) => void;
+  recordTrade: () => void;
+  addCommission: (amount: number) => void;
   reset: () => void;
 }
 
@@ -44,14 +70,26 @@ const initial = {
   tier: 0,
   balance: 0,
   accountSize: 0,
-  dailyLockout: false,
+  addons: [] as AddonId[],
+  lastTradeAt: null as number | null,
+  commissionsPaid: 0,
+  breachReason: null as BreachReason,
 };
 
-export const useAccountStore = create<AccountState>()((set) => ({
-  ...initial,
-  setAccount: (account) => set(account),
-  updateBalance: (balance) => set({ balance }),
-  setChallengeStatus: (challengeStatus) => set({ challengeStatus }),
-  setDailyLockout: (dailyLockout) => set({ dailyLockout }),
-  reset: () => set(initial),
-}));
+export const useAccountStore = create<AccountState>()(
+  persist(
+    (set) => ({
+      ...initial,
+      setAccount: (account) => set(account),
+      setAddons: (addons) => set({ addons }),
+      updateBalance: (balance) => set({ balance }),
+      setChallengeStatus: (challengeStatus) => set({ challengeStatus }),
+      setBreachReason: (breachReason) => set({ breachReason }),
+      recordTrade: () => set({ lastTradeAt: Date.now() }),
+      addCommission: (amount) =>
+        set((s) => ({ commissionsPaid: s.commissionsPaid + amount })),
+      reset: () => set(initial),
+    }),
+    { name: "lenium-account" },
+  ),
+);

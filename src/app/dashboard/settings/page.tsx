@@ -1,54 +1,116 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import {
-  TIERS,
-  OPENING_PRICE_MIN_CENTS,
-  OPENING_PRICE_MAX_CENTS,
-  MARKET_RESOLUTION_WINDOW_DAYS,
-} from "@/lib/data";
+import { useAccountRules } from "@/hooks/useAccountRules";
+import { useChallengeProgress } from "@/hooks/useChallengeProgress";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
+import { usd, ADDONS } from "@/lib/data";
 
 export default function SettingsPage() {
-  const tierSize = useAccountStore((s) => s.tier);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const accountType = useAccountStore((s) => s.accountType);
+  const addons = useAccountStore((s) => s.addons);
+  const { rules } = useAccountRules();
+  const progress = useChallengeProgress();
 
   return (
     <ErrorBoundary name="Settings">
       <DashboardPage title="Settings">
-        {tier ? (
-          <DashboardCard title="Challenge rules">
-            <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <RuleRow
-              label="Max drawdown"
-              value={`${tier.maxDrawdownPct}% static floor`}
-            />
-            <RuleRow label="Daily loss limit" value="None" />
-            <RuleRow
-              label="Max position size"
-              value={`${tier.maxPositionPct}% ($${Math.round((tier.size * tier.maxPositionPct) / 100).toLocaleString()})`}
-            />
-            <RuleRow
-              label="Max total exposure"
-              value={`${tier.maxExposurePct}% ($${Math.round((tier.size * tier.maxExposurePct) / 100).toLocaleString()})`}
-            />
-            <RuleRow
-              label="Opening price range"
-              value={`${OPENING_PRICE_MIN_CENTS}¢–${OPENING_PRICE_MAX_CENTS}¢ YES`}
-            />
-            <RuleRow
-              label="Market resolution window"
-              value={`${MARKET_RESOLUTION_WINDOW_DAYS} days`}
-            />
-            <RuleRow
-              label="Consistency rule"
-              value={`${tier.consistencyCapPct}% per market`}
-            />
-            <RuleRow label="Minimum trading days" value="None" />
-            <RuleRow label="Challenge window" value={`${tier.windowDays} days`} />
-          </DashboardCard>
+        {rules ? (
+          <>
+            <DashboardCard
+              title={
+                accountType === "funded"
+                  ? "Funded account rules"
+                  : "Evaluation rules"
+              }
+            >
+              {accountType === "challenge" && (
+                <>
+                  <RuleRow
+                    label="Profit target"
+                    value={`${rules.profitTargetPct}% (${usd(rules.profitTargetUsd)})`}
+                  />
+                  {progress.adjustedProfitTarget > progress.profitTarget && (
+                    <RuleRow
+                      label="Adjusted target (consistency)"
+                      value={usd(progress.adjustedProfitTarget)}
+                    />
+                  )}
+                  <RuleRow
+                    label="Challenge window"
+                    value={`${rules.windowDays} calendar days`}
+                  />
+                </>
+              )}
+              <RuleRow
+                label="Max drawdown"
+                value={`${rules.maxDrawdownPct}% ${rules.drawdownMode} floor (${usd(progress.drawdownFloorUsd)})`}
+              />
+              <RuleRow label="Daily loss limit" value="None" />
+              <RuleRow
+                label="Max position size"
+                value={`${rules.maxPositionPct}% (${usd(rules.maxPositionUsd)})`}
+              />
+              <RuleRow
+                label="Max total exposure"
+                value={`${rules.maxExposurePct}% (${usd(rules.maxExposureUsd)})`}
+              />
+              <RuleRow
+                label="Opening price range"
+                value={`${rules.openingPriceMinCents}¢–${rules.openingPriceMaxCents}¢ YES`}
+              />
+              <RuleRow
+                label="Market resolution window"
+                value={`${rules.marketResolutionWindowDays} days`}
+              />
+              <RuleRow
+                label="Consistency rule"
+                value={`${rules.consistencyCapPct}% per market (adjusts target, never terminates)`}
+              />
+              <RuleRow label="Minimum trading days" value="None" />
+              {accountType === "funded" && (
+                <>
+                  <RuleRow
+                    label="Profit split"
+                    value={`${rules.traderSplitPct}/${100 - rules.traderSplitPct}`}
+                  />
+                  <RuleRow
+                    label="Payout cycle"
+                    value={`${rules.payoutCycleDays} business days`}
+                  />
+                  <RuleRow
+                    label="Minimum payout"
+                    value={usd(rules.minPayoutUsd)}
+                  />
+                  <RuleRow
+                    label="Opening commission"
+                    value={`${rules.commissionPct}%`}
+                  />
+                  <RuleRow
+                    label="Inactivity policy"
+                    value="30 days (warning at 20)"
+                  />
+                </>
+              )}
+            </DashboardCard>
+
+            {addons.length > 0 && (
+              <DashboardCard title="Active add-ons">
+                {addons.map((id) => {
+                  const addon = ADDONS.find((a) => a.id === id);
+                  return (
+                    <RuleRow
+                      key={id}
+                      label={addon?.name ?? id}
+                      value="Active"
+                    />
+                  );
+                })}
+              </DashboardCard>
+            )}
+          </>
         ) : (
           <div
             style={{
@@ -85,7 +147,9 @@ function RuleRow({ label, value }: { label: string; value: string }) {
       }}
     >
       <span style={{ color: T.textMuted, fontSize: 13 }}>{label}</span>
-      <span style={{ color: T.textPrimary, fontSize: 13 }}>{value}</span>
+      <span style={{ color: T.textPrimary, fontSize: 13, textAlign: "right" }}>
+        {value}
+      </span>
     </div>
   );
 }

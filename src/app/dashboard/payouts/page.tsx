@@ -7,7 +7,8 @@ import { IconX } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePositionStore } from "@/stores/positionStore";
-import { PAYOUT_CYCLE_DAYS } from "@/lib/data";
+import { useAccountRules } from "@/hooks/useAccountRules";
+import { netWithdrawableProfit } from "@/lib/rules";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
 
@@ -31,17 +32,29 @@ function money(n: number): string {
 
 export default function PayoutsPage() {
   const accountType = useAccountStore((s) => s.accountType);
+  const commissionsPaid = useAccountStore((s) => s.commissionsPaid);
   const closedTrades = usePositionStore(useShallow((s) => s.closedTrades));
+  const { rules } = useAccountRules();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [history, setHistory] = useState<PayoutRecord[]>([]);
 
-  const realized = useMemo(
+  const grossProfit = useMemo(
     () => closedTrades.reduce((sum, t) => sum + t.pnl, 0),
     [closedTrades],
   );
-  const available = accountType === "funded" ? Math.max(0, realized * 0.7) : 0;
-  const pending = Math.max(0, realized) - available;
+
+  const available = useMemo(() => {
+    if (accountType !== "funded" || !rules) return 0;
+    return netWithdrawableProfit({
+      grossProfit: Math.max(0, grossProfit),
+      traderSplitPct: rules.traderSplitPct,
+      commissionsPaid,
+    });
+  }, [accountType, rules, grossProfit, commissionsPaid]);
+
+  const minPayout = rules?.minPayoutUsd ?? 0;
+  const canRequest = available >= minPayout && minPayout > 0;
 
   function recordPayout(record: PayoutRecord) {
     setHistory((h) => [record, ...h]);
@@ -52,7 +65,10 @@ export default function PayoutsPage() {
       <div style={{ padding: 32, maxWidth: 920, fontFamily: T.font }}>
         <div style={{ display: "flex", gap: 16 }}>
           <BalanceCard label="Available balance" value={money(available)} />
-          <BalanceCard label="Pending balance" value={money(pending)} />
+          <BalanceCard
+            label="Gross realized profit"
+            value={money(Math.max(0, grossProfit))}
+          />
         </div>
 
         <div
@@ -64,16 +80,24 @@ export default function PayoutsPage() {
         >
           Payouts process within{" "}
           <span style={{ color: T.textPrimary }}>
-            {PAYOUT_CYCLE_DAYS} business days
+            {rules?.payoutCycleDays ?? 7} business days
           </span>{" "}
-          of each request via ACH. Add the 3-day fast payout add-on to reduce
-          processing to 3 business days.
+          of each request via ACH.
+          {rules && (
+            <>
+              {" "}
+              Minimum payout: {money(minPayout)} (2% of starting balance).
+              {rules.traderSplitPct > 70 && (
+                <> Split: {rules.traderSplitPct}/{100 - rules.traderSplitPct}.</>
+              )}
+            </>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
           <button
             type="button"
-            disabled={available <= 0}
+            disabled={!canRequest}
             onClick={() => setConfirmOpen(true)}
             style={{
               background: T.green,
@@ -83,14 +107,22 @@ export default function PayoutsPage() {
               fontSize: 14,
               fontWeight: 500,
               padding: "12px 24px",
-              cursor: available > 0 ? "pointer" : "not-allowed",
-              opacity: available > 0 ? 1 : 0.5,
+              cursor: canRequest ? "pointer" : "not-allowed",
+              opacity: canRequest ? 1 : 0.5,
               fontFamily: T.font,
             }}
           >
             Request payout
           </button>
         </div>
+
+        {!canRequest && accountType === "funded" && minPayout > 0 && (
+          <p style={{ marginTop: 12, color: T.textMuted, fontSize: 12 }}>
+            {available > 0
+              ? `Available balance (${money(available)}) is below the ${money(minPayout)} minimum.`
+              : "No withdrawable profit yet."}
+          </p>
+        )}
 
         <PayoutHistoryTable history={history} />
       </div>
@@ -99,7 +131,8 @@ export default function PayoutsPage() {
         <p style={{ color: T.textMuted, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
           You are requesting a payout of{" "}
           <span style={{ color: T.textPrimary }}>{money(available)}</span> via
-          ACH bank transfer. Processing takes {PAYOUT_CYCLE_DAYS} business days.
+          ACH bank transfer. Processing takes {rules?.payoutCycleDays ?? 7}{" "}
+          business days.
         </p>
         <button
           type="button"
@@ -107,7 +140,11 @@ export default function PayoutsPage() {
             const res = await fetch("/api/payouts/request", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ amount: available }),
+              body: JSON.stringify({
+                amount: available,
+                minPayoutUsd: minPayout,
+                accountType,
+              }),
             });
             setConfirmOpen(false);
             if (res.ok) {
@@ -122,10 +159,11 @@ export default function PayoutsPage() {
                 method: "ACH",
               });
               toast.success(
-                `Payout requested — arriving in ${PAYOUT_CYCLE_DAYS} business days.`,
+                `Payout requested — arriving in ${rules?.payoutCycleDays ?? 7} business days.`,
               );
             } else {
-              toast.error("Payout request failed. Please try again.");
+              const data = (await res.json()) as { error?: string };
+              toast.error(data.error ?? "Payout request failed.");
             }
           }}
           style={{

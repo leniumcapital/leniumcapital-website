@@ -96,6 +96,7 @@ export function DetailOrderPanel({
             ? `${detail.eventTitle} — ${outcome.name}`
             : detail.question,
         category: detail.category,
+        marketExpiry: detail.expiry,
       },
       {
         onSuccess: () => {

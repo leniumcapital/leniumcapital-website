@@ -36,6 +36,8 @@ export const MARKET_RESOLUTION_WINDOW_DAYS = 60;
 export const CHALLENGE_WINDOW_DAYS = 30;
 export const FUNDED_COMMISSION_PCT = 1;
 export const MIN_PAYOUT_PCT = 2;
+export const INACTIVITY_WARNING_DAYS = 20;
+export const INACTIVITY_TERMINATE_DAYS = 30;
 
 export const resetSavings = (tier: Tier) => tier.baseFee - tier.resetFee;
 
@@ -278,6 +280,10 @@ export const FAQS: FAQ[] = [
   {
     q: "Can I trade any Kalshi market?",
     a: "You can trade any eligible Kalshi market that resolves within 60 days and has a YES price between 15¢ and 85¢. Position size (5%), total exposure (10%), drawdown, and consistency rules also apply.",
+  },
+  {
+    q: "What happens if I am inactive on a funded account?",
+    a: "A funded account with no trades opened for 30 consecutive calendar days is terminated. Lenium sends a warning at 20 consecutive days of inactivity, giving you 10 days to place at least one trade before termination.",
   },
   {
     q: "How are payouts processed?",

@@ -76,12 +76,12 @@ function ProgressState() {
     <div>
       <ProgressRow
         label="Profit target"
-        value={`$${Math.max(0, Math.round(p.currentProfit)).toLocaleString()} of $${p.profitTarget.toLocaleString()}`}
+        value={`$${Math.max(0, Math.round(p.currentProfit)).toLocaleString()} of $${p.adjustedProfitTarget.toLocaleString()}`}
         pct={p.profitPct}
         barColor={T.green}
       />
       <ProgressRow
-        label="Max drawdown"
+        label={p.drawdownMode === "trailing" ? "Trailing drawdown" : "Max drawdown"}
         value={`${p.currentDrawdown.toFixed(1)}% of ${p.maxDrawdown}%`}
         pct={p.drawdownConsumedPct}
         barColor={drawdownColor}
