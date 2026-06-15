@@ -20,6 +20,10 @@ interface UIState {
   challengeModalOpen: boolean;
   /** Shown when a non-funded user tries to switch to live mode. */
   accountGateOpen: boolean;
+  /** Active featured-event series filter on the Trending tab. */
+  selectedEventSeries: string | null;
+  setSelectedEventSeries: (seriesTicker: string | null) => void;
+  clearEventSeriesFilter: () => void;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
@@ -48,12 +52,20 @@ const initial = {
   subCategoryFilter: "All Markets",
   challengeModalOpen: false,
   accountGateOpen: false,
+  selectedEventSeries: null as string | null,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
   ...initial,
   setCategory: (activeCategory) =>
-    set({ activeCategory, eventSearch: "", subCategoryFilter: "All Markets" }),
+    set({
+      activeCategory,
+      eventSearch: "",
+      subCategoryFilter: "All Markets",
+      selectedEventSeries: null,
+    }),
+  setSelectedEventSeries: (selectedEventSeries) => set({ selectedEventSeries }),
+  clearEventSeriesFilter: () => set({ selectedEventSeries: null }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setEventSearch: (eventSearch) => set({ eventSearch }),
   setSubCategoryFilter: (subCategoryFilter) => set({ subCategoryFilter }),

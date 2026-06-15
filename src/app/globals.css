@@ -386,3 +386,35 @@ body {
     animation: none !important;
   }
 }
+
+/* Featured events row — Trending tab filters */
+.featured-events-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.featured-events-scroll::-webkit-scrollbar {
+  display: none;
+}
+.featured-event-btn:hover {
+  border-color: #2c2c2c !important;
+  background: #161616 !important;
+}
+.featured-event-btn[aria-pressed="true"]:hover {
+  background: rgba(0, 232, 122, 0.07) !important;
+  border-color: rgba(0, 232, 122, 0.4) !important;
+}
+@media (max-width: 767px) {
+  .featured-event-name,
+  .featured-event-count-label {
+    display: none !important;
+  }
+  .featured-event-count-mobile {
+    display: block !important;
+  }
+  .featured-event-copy {
+    align-items: center;
+  }
+  .event-header-volume {
+    display: none;
+  }
+}

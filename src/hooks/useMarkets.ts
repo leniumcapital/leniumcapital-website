@@ -94,6 +94,8 @@ export type EventSection = {
   eventTickers: string[];
   /** Hide section header when browsing a single primary category. */
   flat?: boolean;
+  /** Featured-event filter — show header without category navigation. */
+  eventFilter?: boolean;
 };
 
 export type GroupedEvents = {
@@ -161,6 +163,8 @@ export function useGroupedEvents(): GroupedEvents {
   const sortOrder = useUiStore((s) => s.sortOrder);
   const eventSearch = useUiStore((s) => s.eventSearch);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
+  const selectedEventSeries = useUiStore((s) => s.selectedEventSeries);
+  const featuredEvents = useMarketStore((s) => s.featuredEvents);
 
   const eventCategoryKey = useMarketStore(
     useShallow((s) =>
@@ -203,6 +207,22 @@ export function useGroupedEvents(): GroupedEvents {
     const sections: EventSection[] = [];
 
     if (activeCategory === "Trending") {
+      if (selectedEventSeries) {
+        const filtered = all.filter(
+          (t) => events[t].seriesTicker === selectedEventSeries,
+        );
+        const label =
+          featuredEvents.find((e) => e.seriesTicker === selectedEventSeries)
+            ?.displayName ?? "Trending";
+
+        sections.push({
+          category: label,
+          eventTickers: sortEventTickers(filtered, events, sortOrder),
+          eventFilter: true,
+        });
+        return { featured: null, sections };
+      }
+
       sections.push({
         category: "Trending",
         eventTickers: topEventsBy24h(all, events, TRENDING_TAB_SIZE),
@@ -249,14 +269,25 @@ export function useGroupedEvents(): GroupedEvents {
     sortOrder,
     eventSearch,
     subCategoryFilter,
+    selectedEventSeries,
+    featuredEvents,
     eventCategoryKey,
   ]);
 }
 
-/** Page heading derived from active primary + subcategory selection. */
+/** Page heading derived from active primary + subcategory + event filter. */
 export function useMarketsHeading(): string {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
+  const selectedEventSeries = useUiStore((s) => s.selectedEventSeries);
+  const featuredEvents = useMarketStore((s) => s.featuredEvents);
+
+  if (activeCategory === "Trending" && selectedEventSeries) {
+    return (
+      featuredEvents.find((e) => e.seriesTicker === selectedEventSeries)
+        ?.displayName ?? "Trending"
+    );
+  }
 
   if (activeCategory === "Trending") return "Trending";
   if (subCategoryFilter !== "All Markets") return subCategoryFilter;

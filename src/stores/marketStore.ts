@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import {
+  computeFeaturedEvents,
+  type FeaturedEvent,
+} from "@/lib/featuredEvents";
 
 export type PricePoint = {
   /** Unix ms timestamp. */
@@ -48,6 +52,8 @@ interface MarketState {
   events: Record<string, DashboardEvent>;
   eventOrder: string[];
   lastBatchAt: number;
+  /** Top event series by volume — refreshed when events update. */
+  featuredEvents: FeaturedEvent[];
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
   setEvents: (events: DashboardEvent[]) => void;
@@ -59,6 +65,8 @@ interface MarketState {
   setPriceHistory: (ticker: string, history: PricePoint[]) => void;
   /** Seed the sparkline + 24h open from real candlestick history (once). */
   seedSparklineFromHistory: (ticker: string, points: PricePoint[]) => void;
+  /** Recompute featured series from current events (called after setEvents). */
+  refreshFeaturedEvents: () => void;
   reset: () => void;
 }
 
@@ -97,6 +105,7 @@ export const useMarketStore = create<MarketState>()(
     events: {},
     eventOrder: [],
     lastBatchAt: 0,
+    featuredEvents: [],
 
     setMarket: (market) =>
       set((s) => {
@@ -115,6 +124,9 @@ export const useMarketStore = create<MarketState>()(
           if (!s.events[ev.eventTicker]) s.eventOrder.push(ev.eventTicker);
           s.events[ev.eventTicker] = ev;
         }
+        s.featuredEvents = computeFeaturedEvents(
+          s.eventOrder.map((t) => s.events[t]).filter(Boolean) as DashboardEvent[],
+        );
       }),
 
     initializeMarkets: (markets) =>
@@ -173,6 +185,13 @@ export const useMarketStore = create<MarketState>()(
         m.open24h = closes[0];
       }),
 
+    refreshFeaturedEvents: () =>
+      set((s) => {
+        s.featuredEvents = computeFeaturedEvents(
+          s.eventOrder.map((t) => s.events[t]).filter(Boolean) as DashboardEvent[],
+        );
+      }),
+
     reset: () =>
       set(() => ({
         markets: {},
@@ -180,6 +199,7 @@ export const useMarketStore = create<MarketState>()(
         events: {},
         eventOrder: [],
         lastBatchAt: 0,
+        featuredEvents: [],
       })),
   })),
 );
