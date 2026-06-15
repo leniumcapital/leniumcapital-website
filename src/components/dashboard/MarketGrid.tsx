@@ -26,8 +26,7 @@ import {
   type EventSection,
 } from "@/hooks/useMarkets";
 import { MarketCard, SkeletonMarketCard } from "@/components/dashboard/MarketCard";
-import { FeaturedEventsRow } from "@/components/dashboard/FeaturedEventsRow";
-import { EventFilterHeader } from "@/components/dashboard/EventFilterHeader";
+import { FeaturedEventsPanel } from "@/components/dashboard/FeaturedEventsPanel";
 import {
   MARKET_GRID_GAP,
   MARKET_GRID_ROW_HEIGHT,
@@ -108,11 +107,35 @@ export function MarketGrid() {
   }, [sections.length, visibleSections]);
 
   const showFeatured = activeCategory === "Trending" && !selectedEventSeries;
-  const showFeaturedEvents = activeCategory === "Trending";
+  const isTrendingLayout = activeCategory === "Trending";
 
   if (sections.length === 0) {
     return isError ? <ErrorState onRetry={() => void refetch()} /> : <SkeletonGrid />;
   }
+
+  const gridSections = (
+    <>
+      {sections.slice(0, visibleSections).map((section) => (
+        <CategorySection
+          key={`${section.category}-${section.flat ? "flat" : "section"}`}
+          section={section}
+          viewMode={viewMode}
+          edgePadding={!isTrendingLayout}
+        />
+      ))}
+
+      <div ref={sentinelRef} style={{ height: 1 }} />
+
+      {visibleSections < sections.length && (
+        <div style={{ padding: isTrendingLayout ? 0 : "0 24px" }}>
+          <div
+            className="lenium-skeleton"
+            style={{ height: 48, borderRadius: 10 }}
+          />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <AnimatePresence mode="wait">
@@ -126,31 +149,15 @@ export function MarketGrid() {
       >
         {showFeatured && featured && <FeaturedMarketStrip ticker={featured} />}
 
-        {showFeaturedEvents && <FeaturedEventsRow />}
-
-        <AnimatePresence>
-          {selectedEventSeries && activeCategory === "Trending" && (
-            <EventFilterHeader key="event-filter-header" />
-          )}
-        </AnimatePresence>
-
-        {sections.slice(0, visibleSections).map((section) => (
-          <CategorySection
-            key={`${section.category}-${section.flat ? "flat" : "section"}`}
-            section={section}
-            viewMode={viewMode}
-          />
-        ))}
-
-        <div ref={sentinelRef} style={{ height: 1 }} />
-
-        {visibleSections < sections.length && (
-          <div style={{ padding: "0 24px" }}>
-            <div
-              className="lenium-skeleton"
-              style={{ height: 48, borderRadius: 10 }}
-            />
+        {isTrendingLayout ? (
+          <div className="trending-layout">
+            <div className="trending-grid-column">{gridSections}</div>
+            <AnimatePresence>
+              <FeaturedEventsPanel key="featured-events-panel" />
+            </AnimatePresence>
           </div>
+        ) : (
+          gridSections
         )}
       </motion.div>
     </AnimatePresence>
@@ -162,15 +169,18 @@ export function MarketGrid() {
 function CategorySection({
   section,
   viewMode,
+  edgePadding = true,
 }: {
   section: EventSection;
   viewMode: "grid" | "list";
+  edgePadding?: boolean;
 }) {
   const setCategory = useUiStore((s) => s.setCategory);
   const [headerHovered, setHeaderHovered] = useState(false);
   const flat = section.flat === true;
   const eventFilter = section.eventFilter === true;
   const showHeader = !flat || eventFilter;
+  const sidePad = edgePadding ? "0 24px" : "0";
 
   return (
     <section>
@@ -181,7 +191,7 @@ function CategorySection({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 24px",
+            padding: sidePad,
             fontFamily: T.font,
           }}
         >
@@ -255,7 +265,7 @@ function CategorySection({
             display: "flex",
             flexDirection: "column",
             gap: 8,
-            padding: "0 24px",
+            padding: sidePad,
           }}
         >
           {section.eventTickers.length === 0 ? (
@@ -267,9 +277,9 @@ function CategorySection({
           )}
         </div>
       ) : section.eventTickers.length > VIRTUALIZE_THRESHOLD ? (
-        <VirtualCategoryGrid tickers={section.eventTickers} />
+        <VirtualCategoryGrid tickers={section.eventTickers} sidePad={sidePad} />
       ) : (
-        <div className="markets-grid" style={{ padding: "0 24px" }}>
+        <div className="markets-grid" style={{ padding: sidePad }}>
           {section.eventTickers.length === 0 ? (
             <EmptyEventFilter />
           ) : (
@@ -285,7 +295,7 @@ function CategorySection({
           style={{
             height: 0.5,
             background: T.bgTertiary,
-            margin: "8px 24px 32px",
+            margin: `8px ${edgePadding ? "24px" : "0"} 32px`,
           }}
         />
       )}
@@ -295,7 +305,13 @@ function CategorySection({
 
 // ─── Virtualized fallback for oversized categories ───────────────────────────
 
-function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
+function VirtualCategoryGrid({
+  tickers,
+  sidePad = "0 24px",
+}: {
+  tickers: string[];
+  sidePad?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -343,7 +359,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
   );
 
   return (
-    <div ref={containerRef} style={{ padding: "0 24px" }}>
+    <div ref={containerRef} style={{ padding: sidePad }}>
       {width > 0 && (
         <FixedSizeGrid
           columnCount={columnCount}

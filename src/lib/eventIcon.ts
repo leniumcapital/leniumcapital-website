@@ -156,3 +156,27 @@ export function resolveEventIcon(
   const fallback = categoryIcon(category);
   return { kind: "tabler", Icon: fallback.Icon, iconColor: fallback.color };
 }
+
+/** Panel shortcut icons with hardcoded FIFA / US election treatments. */
+export function resolvePanelShortcutIcon(
+  seriesTicker: string,
+  displayName: string,
+  category: string,
+  kalshiIconUrl?: string | null,
+): EventIconResolution {
+  const hay = displayName.toLowerCase();
+
+  if (/fifa|world cup|soccer cup/.test(hay)) {
+    return { kind: "tabler", Icon: IconBallFootball, iconColor: "#fff" };
+  }
+
+  if (/2026.*election|us election|presidential election/.test(hay)) {
+    return { kind: "url", url: "https://flagcdn.com/w40/us.png" };
+  }
+
+  if (/election|presidential|senate|congress|ballot/.test(hay)) {
+    return { kind: "url", url: "https://flagcdn.com/w40/us.png" };
+  }
+
+  return resolveEventIcon(seriesTicker, displayName, category, kalshiIconUrl);
+}

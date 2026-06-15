@@ -387,40 +387,44 @@ body {
   }
 }
 
-/* Featured events row — Trending tab filters */
-.featured-events-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Trending tab — right panel event shortcuts */
+.trending-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 0 24px;
 }
-.featured-events-scroll::-webkit-scrollbar {
-  display: none;
+.trending-grid-column {
+  flex: 1;
+  min-width: 0;
 }
-.featured-event-btn:hover {
-  border-color: #2c2c2c !important;
-  background: #161616 !important;
+.featured-events-panel {
+  width: 280px;
+  flex-shrink: 0;
 }
-.featured-event-btn[aria-pressed="true"]:hover {
-  background: rgba(0, 232, 122, 0.07) !important;
-  border-color: rgba(0, 232, 122, 0.4) !important;
+.featured-events-panel-header {
+  color: #888888;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
 }
-@media (max-width: 767px) {
-  .featured-event-btn {
-    height: 44px !important;
-    flex-direction: column !important;
-    gap: 4px !important;
-    padding: 8px 12px !important;
-  }
-  .featured-event-name,
-  .featured-event-count-label {
+.featured-events-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (max-width: 1279px) {
+  .featured-events-panel {
     display: none !important;
   }
-  .featured-event-count-mobile {
-    display: block !important;
+  .trending-layout {
+    display: block;
+    padding: 0;
   }
-  .featured-event-copy {
-    align-items: center;
-  }
-  .event-header-volume {
-    display: none;
+  .trending-grid-column {
+    padding-left: 24px;
+    padding-right: 24px;
   }
 }
