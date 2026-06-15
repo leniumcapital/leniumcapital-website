@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const HIGHLIGHTS = [
   "Free to create — no card required to sign up",
   "Pay only when you choose a challenge",
-  "Payouts in real US dollars, up to 95% profit split",
+  "Payouts in real US dollars, up to 90% profit split",
 ];
 
 function Check() {

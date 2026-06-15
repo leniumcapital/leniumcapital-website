@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container, CtaButton, Card, PillBadge } from "@/components/ui";
 import { FaqList } from "@/components/Faq";
-import { FAQS, EARLY_WITHDRAWAL, TIERS, compactTier } from "@/lib/data";
+import { FAQS, PAYOUT_CYCLE_DAYS, FAST_PAYOUT_CYCLE_DAYS, TIERS, compactTier } from "@/lib/data";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
@@ -30,14 +30,14 @@ export default function HowItWorksPage() {
           <Step
             n="01"
             title="Choose your account size and add-ons"
-            body="Pick from six tiers between $5,000 and $100,000. Layer on a higher profit split, a drawdown boost, more time, or faster payouts. Your fee is computed live at checkout — one simple, upfront price."
+            body="Pick from six tiers between $5,000 and $100,000. Layer on a 90% profit split, drawdown boost, consistency boost, more time, or faster payouts. Your fee is computed live at checkout — one simple, upfront price."
             cta={<CtaButton href="/pricing">Build your challenge</CtaButton>}
             mock={<MockSelect />}
           />
           <Step
             n="02"
             title="Trade prediction markets on your Lenium account"
-            body="Your evaluation account mirrors live Kalshi prices in real time on a simulated balance. Hit your profit target without breaching the drawdown, daily loss, or position-size limits. Trade on at least 4 distinct days — there is no deadline, so you can pass at your own pace."
+            body="Your evaluation account mirrors live Kalshi prices in real time on a simulated balance. Hit your 20% profit target within 30 days without breaching the 10% static drawdown floor, while respecting position size, exposure, price range, and consistency rules."
             cta={<CtaButton href="/rules" variant="ghost">Read the rules</CtaButton>}
             mock={<MockDashboard />}
             reverse
@@ -45,37 +45,44 @@ export default function HowItWorksPage() {
           <Step
             n="03"
             title="Pass your challenge and get funded"
-            body="Sign your trader agreement and receive a funded Kalshi sub-account with real capital. Trade live markets and earn a share of profits on a 14-day payout cycle — paid in USD by ACH to your bank account."
+            body={`Sign your trader agreement and receive a funded Kalshi sub-account with real capital. Trade live markets and earn a share of profits on a ${PAYOUT_CYCLE_DAYS}-business-day payout cycle — paid in USD by ACH to your bank account.`}
             cta={<CtaButton href="/leaderboard" variant="ghost">See funded traders</CtaButton>}
             mock={<MockPayout />}
           />
         </Container>
       </section>
 
-      {/* Early withdrawal */}
+      {/* Payout options */}
       <section className="border-y border-border bg-surface py-16">
         <Container>
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
-              <PillBadge tone="brand">Industry first</PillBadge>
+              <PillBadge tone="brand">Funded payouts</PillBadge>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-                Need your profits early?
+                Fast, transparent payouts
               </h2>
               <p className="mt-4 text-muted">
-                Request profits before your payout date for a transparent
-                liquidity service fee — not a loan, not interest. The earlier you
-                ask, the higher the fee.
+                Every funded account pays out on a {PAYOUT_CYCLE_DAYS}-business-day
+                cycle. Add the 3-day fast payout add-on at purchase to cut
+                processing to {FAST_PAYOUT_CYCLE_DAYS} business days on every
+                request — the fastest available from any prediction market prop
+                firm.
               </p>
             </div>
             <Card className="self-center">
               <div className="divide-y divide-border">
-                {EARLY_WITHDRAWAL.map((e) => (
+                {[
+                  ["Standard payout cycle", `${PAYOUT_CYCLE_DAYS} business days`],
+                  ["Fast payout add-on", `${FAST_PAYOUT_CYCLE_DAYS} business days`],
+                  ["Minimum payout", "2% of starting balance"],
+                  ["Funded commission", "1% on opening transactions"],
+                ].map(([label, value]) => (
                   <div
-                    key={e.range}
+                    key={label}
                     className="flex items-center justify-between py-3 text-sm"
                   >
-                    <span className="text-muted">{e.range}</span>
-                    <span className="font-semibold">{e.feePct}% fee</span>
+                    <span className="text-muted">{label}</span>
+                    <span className="font-semibold">{value}</span>
                   </div>
                 ))}
               </div>
@@ -169,7 +176,7 @@ function MockSelect() {
       </div>
       <div className="space-y-2 pt-2">
         {[
-          ["90% profit split", "$67"],
+          ["90% profit split", "$125"],
           ["Fast payout", "$39"],
         ].map(([l, p]) => (
           <div
@@ -183,7 +190,7 @@ function MockSelect() {
       </div>
       <div className="flex items-center justify-between rounded-lg bg-foreground px-3 py-3 text-background">
         <span className="text-sm">Total today</span>
-        <span className="font-semibold">$345</span>
+        <span className="font-semibold">$374</span>
       </div>
     </div>
   );
@@ -250,7 +257,7 @@ function MockPayout() {
         {[
           ["Gross profit", "$4,646.67"],
           ["Your split (90%)", "$4,182.00"],
-          ["Next cycle", "in 7 days"],
+          ["Processing", "7 business days"],
         ].map(([l, v]) => (
           <div key={l} className="flex justify-between">
             <span className="text-muted">{l}</span>

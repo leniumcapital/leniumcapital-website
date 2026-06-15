@@ -14,9 +14,9 @@ const FOUNDATION = [
   { title: "Available nationwide", value: "All 50 US states" },
   { title: "No crypto, ever", value: "No wallet, no blockchain, no USDC" },
   { title: "Capital that scales with you", value: "Six tiers from $5K to $100K" },
-  { title: "Keep more of your profits", value: "Profit splits up to 95% in your favor" },
+  { title: "Keep more of your profits", value: "Profit splits up to 90% in your favor" },
   { title: "Rules made for prediction markets", value: "Calibrated for binary contract mechanics" },
-  { title: "Fast, flexible payouts", value: "14-day cycles, plus 7-day and early access" },
+  { title: "Fast, flexible payouts", value: "7-business-day cycles, 3-day with Fast Payout" },
 ];
 
 export default function HomePage() {
@@ -103,7 +103,7 @@ export default function HomePage() {
 
           <p className="mx-auto mt-7 max-w-xl text-lg text-white/70">
             Get funded to trade prediction markets on Kalshi. Prove your edge in
-            our evaluation challenge, then trade real capital and keep up to 95%
+            our evaluation challenge, then trade real capital and keep up to 90%
             of the profits.
           </p>
 
@@ -223,8 +223,8 @@ export default function HomePage() {
                 Six tiers. One of them exclusive.
               </h2>
               <p className="mt-4 text-muted">
-                Any trader who wants $75k in prediction market funding has
-                exactly one option in the world.
+                The $75,000 tier is exclusive to Lenium — a natural step between
+                $50K and $100K that no other prediction market prop firm offers.
               </p>
             </div>
             <CtaButton href="/pricing">Compare all tiers</CtaButton>

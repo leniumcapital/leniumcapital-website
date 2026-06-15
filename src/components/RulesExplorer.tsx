@@ -1,22 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   TIERS,
-  RULE_ROWS,
   resetLineLong,
-  fundedTargetUsd,
-  DEFAULT_TRADER_SPLIT_PCT,
-  PAYOUT_CYCLE_DAYS,
-  compactTier,
+  ADDONS,
   usd,
+  INACTIVITY_WARNING_DAYS,
+  INACTIVITY_TERMINATE_DAYS,
+  type AddonId,
 } from "@/lib/data";
-
-const DEFAULT_TIER_IDX = TIERS.findIndex((t) => t.size === 25_000);
+import { resolveRules } from "@/lib/rules";
 
 export function RulesExplorer() {
-  const [idx, setIdx] = useState(DEFAULT_TIER_IDX >= 0 ? DEFAULT_TIER_IDX : 0);
+  const [idx, setIdx] = useState(2);
+  const [addons, setAddons] = useState<AddonId[]>([]);
   const tier = TIERS[idx];
+
+  const evalRules = useMemo(
+    () => resolveRules({ tier, addons, phase: "evaluation" }),
+    [tier, addons],
+  );
+  const fundedRules = useMemo(
+    () => resolveRules({ tier, addons, phase: "funded", currentBalance: tier.size }),
+    [tier, addons],
+  );
+
+  const toggleAddon = (id: AddonId) => {
+    setAddons((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
   return (
     <div>
@@ -33,60 +47,81 @@ export function RulesExplorer() {
             }`}
           >
             {usd(t.size)}
+            {t.featured ? (
+              <span className="ml-1.5 text-[10px] uppercase text-brand-strong">
+                Popular
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-muted">
-              <th className="px-4 py-3 text-left font-medium text-muted">Rule</th>
-              {TIERS.map((t) => (
-                <th
-                  key={t.size}
-                  className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted"
-                >
-                  {compactTier(t.size)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {RULE_ROWS.map((r) => (
-              <tr key={r.key as string}>
-                <td className="px-4 py-3 text-muted">{r.label}</td>
-                {TIERS.map((t) => (
-                  <td
-                    key={t.size}
-                    className="px-3 py-3 text-center font-semibold tabular-nums"
-                  >
-                    {r.format(t)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Preview add-ons (optional)
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ADDONS.map((a) => {
+            const on = addons.includes(a.id);
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => toggleAddon(a.id)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  on
+                    ? "border-brand bg-brand-soft text-brand-strong"
+                    : "border-border text-muted hover:text-foreground"
+                }`}
+              >
+                {a.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="border-b border-border bg-surface-muted px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          Evaluation phase
+        </div>
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
-            {RULE_ROWS.map((r) => (
-              <tr key={r.key as string}>
-                <td className="w-1/2 px-5 py-3 text-muted">{r.label}</td>
-                <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                  {r.format(tier)}
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td className="px-5 py-3 text-muted">Reset</td>
-              <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {resetLineLong(tier)}
-              </td>
-            </tr>
+            <RuleRow
+              label="Profit target"
+              value={`${evalRules.profitTargetPct}% (${usd(evalRules.profitTargetUsd)})`}
+            />
+            <RuleRow
+              label="Max drawdown"
+              value={`${evalRules.maxDrawdownPct}% static floor (${usd(Math.round(tier.size * (1 - evalRules.maxDrawdownPct / 100)))})`}
+            />
+            <RuleRow
+              label="Max position size"
+              value={`${evalRules.maxPositionPct}% (${usd(evalRules.maxPositionUsd)})`}
+            />
+            <RuleRow
+              label="Max total exposure"
+              value={`${evalRules.maxExposurePct}% (${usd(evalRules.maxExposureUsd)})`}
+            />
+            <RuleRow
+              label="Opening price range"
+              value={`${evalRules.openingPriceMinCents}¢–${evalRules.openingPriceMaxCents}¢ YES`}
+            />
+            <RuleRow
+              label="Market resolution window"
+              value={`Within ${evalRules.marketResolutionWindowDays} days`}
+            />
+            <RuleRow
+              label="Consistency rule"
+              value={`${evalRules.consistencyCapPct}% per market (target adjusts up, never terminates)`}
+            />
+            <RuleRow
+              label="Challenge window"
+              value={`${evalRules.windowDays} calendar days`}
+            />
+            <RuleRow label="Daily loss limit" value="None" />
+            <RuleRow label="Minimum trading days" value="None" />
+            <RuleRow label="Reset fee" value={resetLineLong(tier)} />
           </tbody>
         </table>
       </div>
@@ -97,38 +132,60 @@ export function RulesExplorer() {
         </div>
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
-            <tr>
-              <td className="w-1/2 px-5 py-3 text-muted">Monthly profit target</td>
-              <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {tier.fundedTargetPct}%/mo (${fundedTargetUsd(tier).toLocaleString()})
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-3 text-muted">Default profit split</td>
-              <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {DEFAULT_TRADER_SPLIT_PCT}/{100 - DEFAULT_TRADER_SPLIT_PCT} (you keep {DEFAULT_TRADER_SPLIT_PCT}%)
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-3 text-muted">Payout cycle</td>
-              <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {PAYOUT_CYCLE_DAYS}-day (7-day with Fast Payout)
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-3 text-muted">Risk rules</td>
-              <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                Same as demo phase
-              </td>
-            </tr>
+            <RuleRow label="Profit target" value="None — no monthly or annual minimum" />
+            <RuleRow label="Time limit" value="None — trade indefinitely within risk rules" />
+            <RuleRow
+              label="Max drawdown"
+              value={`${fundedRules.maxDrawdownPct}% trailing high-water mark`}
+            />
+            <RuleRow
+              label="Max position / exposure"
+              value={`${fundedRules.maxPositionPct}% / ${fundedRules.maxExposurePct}% of current balance`}
+            />
+            <RuleRow
+              label="Opening price range"
+              value={`${fundedRules.openingPriceMinCents}¢–${fundedRules.openingPriceMaxCents}¢ YES`}
+            />
+            <RuleRow
+              label="Market resolution window"
+              value={`Within ${fundedRules.marketResolutionWindowDays} days`}
+            />
+            <RuleRow
+              label="Default profit split"
+              value={`${fundedRules.traderSplitPct}/${100 - fundedRules.traderSplitPct}`}
+            />
+            <RuleRow
+              label="Payout cycle"
+              value={`${fundedRules.payoutCycleDays} business days`}
+            />
+            <RuleRow
+              label="Minimum payout"
+              value={`2% (${usd(fundedRules.minPayoutUsd)})`}
+            />
+            <RuleRow
+              label="Commission"
+              value={`${fundedRules.commissionPct}% on opening transactions only`}
+            />
+            <RuleRow
+              label="Consistency rule"
+              value={`${fundedRules.consistencyCapPct}% per market (target adjusts, never terminates)`}
+            />
+            <RuleRow
+              label="Inactivity policy"
+              value={`Warning at ${INACTIVITY_WARNING_DAYS} days, termination at ${INACTIVITY_TERMINATE_DAYS} consecutive days`}
+            />
           </tbody>
         </table>
-        <p className="border-t border-border px-5 py-3 text-xs text-muted">
-          Funded consistency rule: no single day may exceed 50% of the monthly
-          profit total. Missing a monthly target simply means no payout that
-          cycle — the account stays open and profits carry forward.
-        </p>
       </div>
     </div>
+  );
+}
+
+function RuleRow({ label, value }: { label: string; value: string }) {
+  return (
+    <tr>
+      <td className="w-1/2 px-5 py-3 text-muted">{label}</td>
+      <td className="px-5 py-3 text-right font-semibold sm:text-left">{value}</td>
+    </tr>
   );
 }

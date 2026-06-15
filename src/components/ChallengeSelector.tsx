@@ -28,8 +28,8 @@ import {
   safetyLimitUsd,
   resetSavingsUsd,
   PAYOUT_CYCLE_DAYS,
-  formatMinTradingDays,
   formatChallengeTimeLimit,
+  payoutCycleDays,
   type AddonId,
   type PricingTier,
 } from "@/lib/pricing";
@@ -177,7 +177,7 @@ export function ChallengeSelector({
             </div>
           </section>
 
-          <TierRulesCard tier={tier} />
+          <TierRulesCard tier={tier} selectedAddons={selectedAddons} />
 
           <section aria-label="Add-ons">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -218,19 +218,26 @@ export function ChallengeSelector({
   );
 }
 
-function TierRulesCard({ tier }: { tier: PricingTier }) {
+function TierRulesCard({
+  tier,
+  selectedAddons,
+}: {
+  tier: PricingTier;
+  selectedAddons: AddonId[];
+}) {
   const profitGoal = profitNeededUsd(tier);
   const safety = safetyLimitUsd(tier);
   const savings = resetSavingsUsd(tier);
 
   const rules: { label: string; value: string }[] = [
     { label: "Profit target", value: formatPct(tier.profitTarget) },
-    { label: "Max drawdown", value: formatPct(tier.maxDrawdown) },
-    { label: "Daily loss limit", value: formatPct(tier.dailyLossLimit) },
-    { label: "Min trading days", value: formatMinTradingDays() },
+    { label: "Max drawdown", value: `${formatPct(tier.maxDrawdown)} static floor` },
     { label: "Max position size", value: formatPct(tier.maxPositionSize) },
-    { label: "Time to pass", value: formatChallengeTimeLimit() },
-    { label: "Payout cycle", value: `${PAYOUT_CYCLE_DAYS} days` },
+    { label: "Max total exposure", value: formatPct(tier.maxExposure) },
+    { label: "Daily loss limit", value: "None" },
+    { label: "Min trading days", value: "None" },
+    { label: "Challenge window", value: formatChallengeTimeLimit(selectedAddons) },
+    { label: "Payout cycle", value: `${payoutCycleDays(selectedAddons)} business days` },
   ];
 
   return (

@@ -136,7 +136,7 @@ function FundedVisual() {
         animate={{ opacity: [0.55, 1, 0.55] }}
         transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       >
-        95% yours
+        90% yours
       </motion.span>
     </div>
   );
@@ -158,7 +158,7 @@ const STEPS = [
   {
     n: "03",
     t: "Get funded",
-    d: "Pass and receive a funded Kalshi sub-account with real capital. Keep up to 95% of profits.",
+    d: "Pass and receive a funded Kalshi sub-account with real capital. Keep up to 90% of profits with the split add-on.",
     Visual: FundedVisual,
   },
 ];

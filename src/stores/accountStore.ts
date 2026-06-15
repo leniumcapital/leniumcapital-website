@@ -1,8 +1,21 @@
 import { create } from "zustand";
 import type { TradingMode } from "@/lib/account-status";
+import type { AddonId } from "@/lib/data";
 
 export type AccountType = "challenge" | "funded" | "none";
-export type AccountChallengeStatus = "active" | "passed" | "breached" | "none";
+export type AccountChallengeStatus =
+  | "active"
+  | "passed"
+  | "breached"
+  | "expired"
+  | "none";
+
+export type BreachReason =
+  | "max_drawdown"
+  | "expired"
+  | "inactivity"
+  | "rules_violation"
+  | null;
 
 interface AccountState {
   userId: string;
@@ -25,6 +38,13 @@ interface AccountState {
   fundedTier: number;
   /** Bumps when trading mode changes so balance can animate over 800ms. */
   balanceEpoch: number;
+  /** Purchased add-ons for the active account. */
+  addons: AddonId[];
+  /** Unix ms of last opened position (funded inactivity tracking). */
+  lastTradeAt: number | null;
+  /** Cumulative opening commissions paid on funded account. */
+  commissionsPaid: number;
+  breachReason: BreachReason;
   setAccount: (
     account: Partial<
       Pick<
@@ -37,6 +57,10 @@ interface AccountState {
         | "tier"
         | "balance"
         | "accountSize"
+        | "addons"
+        | "lastTradeAt"
+        | "commissionsPaid"
+        | "breachReason"
       >
     >,
   ) => void;
@@ -57,9 +81,13 @@ interface AccountState {
     >,
   ) => void;
   setTradingMode: (mode: TradingMode) => boolean;
+  setAddons: (addons: AddonId[]) => void;
   updateBalance: (balance: number) => void;
   setChallengeStatus: (status: AccountChallengeStatus) => void;
+  setBreachReason: (reason: BreachReason) => void;
   setDailyLockout: (locked: boolean) => void;
+  recordTrade: () => void;
+  addCommission: (amount: number) => void;
   reset: () => void;
 }
 
@@ -83,6 +111,10 @@ const initial = {
   challengeTier: 0,
   fundedTier: 0,
   balanceEpoch: 0,
+  addons: [] as AddonId[],
+  lastTradeAt: null as number | null,
+  commissionsPaid: 0,
+  breachReason: null as BreachReason,
 };
 
 function mapDbChallengeStatus(status: string): AccountChallengeStatus {
@@ -94,6 +126,8 @@ function mapDbChallengeStatus(status: string): AccountChallengeStatus {
       return "passed";
     case "failed":
       return "breached";
+    case "expired":
+      return "expired";
     default:
       return "none";
   }
@@ -143,6 +177,7 @@ export const useAccountStore = create<AccountState>()((set, get) => ({
     });
     return true;
   },
+  setAddons: (addons) => set({ addons }),
   updateBalance: (balance) => {
     const state = get();
     if (state.tradingMode === "live") {
@@ -152,7 +187,11 @@ export const useAccountStore = create<AccountState>()((set, get) => ({
     }
   },
   setChallengeStatus: (challengeStatus) => set({ challengeStatus }),
+  setBreachReason: (breachReason) => set({ breachReason }),
   setDailyLockout: (dailyLockout) => set({ dailyLockout }),
+  recordTrade: () => set({ lastTradeAt: Date.now() }),
+  addCommission: (amount) =>
+    set((s) => ({ commissionsPaid: s.commissionsPaid + amount })),
   reset: () => set(initial),
 }));
 

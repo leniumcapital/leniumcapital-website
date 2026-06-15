@@ -3,26 +3,36 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Toaster, toast } from "sonner";
+import { Toaster } from "sonner";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
-import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
-import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
-import { useChallengeSync, useChallengeProgress } from "@/hooks/useChallengeProgress";
-import { useAccountStatusSync } from "@/hooks/useAccountStatus";
+import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
 import {
   useAccountStore,
   type AccountType,
   type AccountChallengeStatus,
 } from "@/stores/accountStore";
+import type { AddonId } from "@/lib/data";
 import { useChallengeStore } from "@/stores/challengeStore";
-import { usePositionStore, realizedPnlTodayUtc } from "@/stores/positionStore";
+import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
-import { TIERS, resetFee, resolveTierBySize, usd } from "@/lib/data";
+import { TIERS, usd } from "@/lib/data";
+import {
+  findTier,
+  resolveRules,
+  isDrawdownBreached,
+  isChallengeExpired,
+  equityUsd,
+  daysSinceLastTrade,
+} from "@/lib/rules";
+import {
+  INACTIVITY_WARNING_DAYS,
+  INACTIVITY_TERMINATE_DAYS,
+} from "@/lib/data";
 import {
   T,
   TOP_BAR_HEIGHT,
@@ -54,7 +64,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [tooNarrow, setTooNarrow] = useState(false);
 
-  // ── Seed account state from the (server-validated) session ────────────────
+  // Seed account state from the (server-validated) session.
   useEffect(() => {
     useAccountStore.getState().setAccount({
       userId: user.id,
@@ -68,9 +78,27 @@ function ShellInner({ user, children }: DashboardShellProps) {
     });
   }, [user]);
 
+  // Apply tier + add-ons from checkout URL (?tier=25000&addons=split90,doubletime).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tierParam = Number(params.get("tier"));
+    const addonsParam = params.get("addons");
+    if (tierParam > 0) {
+      useAccountStore.getState().setAccount({
+        tier: tierParam,
+        accountSize: tierParam,
+        accountType: "challenge",
+        challengeStatus: "active",
+      });
+    }
+    if (addonsParam) {
+      const ids = addonsParam.split(",").filter(Boolean) as AddonId[];
+      useAccountStore.getState().setAddons(ids);
+    }
+  }, []);
+
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
-  useAccountStatusSync();
   useChallengeSync();
   useRuleEnforcement();
 
@@ -81,29 +109,11 @@ function ShellInner({ user, children }: DashboardShellProps) {
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
-      if (e.key === "Escape" && useUiStore.getState().challengeModalOpen) {
-        useUiStore.getState().closeChallengeModal();
-      } else if (e.key === "Escape" && useUiStore.getState().accountGateOpen) {
-        useUiStore.getState().closeAccountGate();
-      } else if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
+      if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
         useUiStore.getState().closeDrawer();
       } else if (e.key === "/") {
         e.preventDefault();
         searchInputRef.current?.focus();
-      } else if (e.key === "d" || e.key === "D") {
-        const store = useAccountStore.getState();
-        if (store.tradingMode !== "demo") {
-          store.setTradingMode("demo");
-          toast("Switched to demo challenge account", { duration: 2000 });
-        }
-      } else if (e.key === "l" || e.key === "L") {
-        const store = useAccountStore.getState();
-        if (!store.hasFundedAccount) {
-          useUiStore.getState().openAccountGate();
-        } else if (store.tradingMode !== "live") {
-          store.setTradingMode("live");
-          toast("Switched to funded account", { duration: 2000 });
-        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -193,15 +203,11 @@ function ShellInner({ user, children }: DashboardShellProps) {
         <TradingDrawer />
       </ErrorBoundary>
 
-      <ChallengeStartModal />
-
-      <AccountGateModal />
-
       <BreachOverlay />
 
       <Toaster
         theme="dark"
-        position="bottom-center"
+        position="bottom-right"
         toastOptions={{
           style: {
             background: T.bgTertiary,
@@ -219,22 +225,44 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
 function useRuleEnforcement(): void {
   const breachPostedRef = useRef(false);
+  const passPostedRef = useRef(false);
+  const now = useMinuteNow();
 
   useEffect(() => {
-    const unsubscribe = useChallengeStore.subscribe((challenge) => {
+    const check = () => {
       const account = useAccountStore.getState();
-      if (account.tradingMode !== "demo") return;
+      const challenge = useChallengeStore.getState();
       if (account.accountType === "none" || account.accountSize <= 0) return;
+      if (account.challengeStatus !== "active") return;
 
-      // Drawdown breach — trips once.
+      const tier = findTier(account.accountSize);
+      if (!tier) return;
+
+      const phase =
+        account.accountType === "funded" ? "funded" : "evaluation";
+      const rules = resolveRules({
+        tier,
+        addons: account.addons,
+        phase,
+        currentBalance: equityUsd(account.accountSize, challenge.currentProfit),
+      });
+
+      const equity = equityUsd(account.accountSize, challenge.currentProfit);
+
+      // Drawdown breach
       if (
-        challenge.maxDrawdown > 0 &&
-        challenge.currentDrawdown >= challenge.maxDrawdown &&
-        account.challengeStatus === "active" &&
-        !breachPostedRef.current
+        !breachPostedRef.current &&
+        isDrawdownBreached({
+          rules,
+          startingBalance: account.accountSize,
+          equity,
+          highWaterMarkUsd: challenge.highWaterMarkUsd,
+          staticFloorUsd: challenge.staticFloorUsd,
+        })
       ) {
         breachPostedRef.current = true;
         account.setChallengeStatus("breached");
+        account.setBreachReason("max_drawdown");
         void fetch("/api/accounts/breach", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -243,72 +271,124 @@ function useRuleEnforcement(): void {
             drawdownPct: challenge.currentDrawdown,
           }),
         });
+        return;
       }
-    });
-    return unsubscribe;
-  }, []);
 
-  // Daily loss lockout, recomputed when closed trades change.
-  useEffect(() => {
-    const unsubscribe = usePositionStore.subscribe((positions) => {
-      const account = useAccountStore.getState();
-      if (account.tradingMode !== "demo") return;
-      const tier = resolveTierBySize(account.tier);
-      if (!tier) return;
-      const limit = (tier.size * tier.dailyLimitPct) / 100;
-      const dailyPnl = realizedPnlTodayUtc(positions.closedTrades);
-      const lockout = dailyPnl <= -limit;
-      if (lockout !== account.dailyLockout) {
-        account.setDailyLockout(lockout);
+      // Challenge window expiry (evaluation only)
+      if (
+        account.accountType === "challenge" &&
+        challenge.windowEndDate &&
+        isChallengeExpired(challenge.windowEndDate) &&
+        !breachPostedRef.current
+      ) {
+        breachPostedRef.current = true;
+        account.setChallengeStatus("expired");
+        account.setBreachReason("expired");
+        void fetch("/api/accounts/breach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: "expired" }),
+        });
+        return;
       }
-    });
-    return unsubscribe;
-  }, []);
+
+      // Evaluation pass
+      if (
+        account.accountType === "challenge" &&
+        !passPostedRef.current &&
+        challenge.currentProfit >= challenge.adjustedProfitTarget &&
+        challenge.adjustedProfitTarget > 0
+      ) {
+        passPostedRef.current = true;
+        account.setChallengeStatus("passed");
+      }
+
+      // Funded inactivity termination
+      if (account.accountType === "funded") {
+        const idle = daysSinceLastTrade(account.lastTradeAt);
+        if (idle >= INACTIVITY_TERMINATE_DAYS && !breachPostedRef.current) {
+          breachPostedRef.current = true;
+          account.setChallengeStatus("breached");
+          account.setBreachReason("inactivity");
+          void fetch("/api/accounts/breach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: "inactivity" }),
+          });
+        }
+      }
+    };
+
+    const unsubChallenge = useChallengeStore.subscribe(check);
+    const unsubAccount = useAccountStore.subscribe(check);
+    check();
+    return () => {
+      unsubChallenge();
+      unsubAccount();
+    };
+  }, [now]);
 }
 
 function RuleBanners() {
   const progress = useChallengeProgress();
-  const dailyLockout = useAccountStore((s) => s.dailyLockout);
-  const tradingMode = useAccountStore((s) => s.tradingMode);
-  const closedTrades = usePositionStore((s) => s.closedTrades);
+  const accountType = useAccountStore((s) => s.accountType);
+  const lastTradeAt = useAccountStore((s) => s.lastTradeAt);
+  const addons = useAccountStore((s) => s.addons);
 
-  if (tradingMode !== "demo") return null;
+  if (accountType === "none") return null;
 
   const banners: { key: string; color: string; bg: string; text: string }[] = [];
+
+  const ddLabel =
+    progress.drawdownMode === "trailing" ? "trailing" : "static";
 
   if (progress.drawdownConsumedPct >= 90) {
     banners.push({
       key: "drawdown-critical",
       color: T.red,
       bg: T.redMuted,
-      text: "Critical: you are near your max drawdown limit.",
+      text: `Critical: portfolio is near your ${ddLabel} floor (${usd(progress.drawdownFloorUsd)}).`,
     });
   } else if (progress.drawdownConsumedPct >= 75) {
     banners.push({
       key: "drawdown-warning",
       color: T.amber,
       bg: T.amberMuted,
-      text: `Drawdown warning: you have used ${progress.drawdownConsumedPct.toFixed(0)}% of your ${progress.maxDrawdown}% maximum.`,
+      text: `Drawdown warning: ${progress.currentDrawdown.toFixed(1)}% of your ${progress.maxDrawdown}% ${ddLabel} limit used.`,
     });
   }
 
-  if (dailyLockout) {
+  if (
+    progress.adjustedProfitTarget > progress.profitTarget &&
+    accountType === "challenge"
+  ) {
     banners.push({
-      key: "daily-lockout",
-      color: T.red,
-      bg: T.redMuted,
-      text: "Daily limit reached. Trading unlocks at midnight UTC.",
+      key: "consistency-adjust",
+      color: T.amber,
+      bg: T.amberMuted,
+      text: `Consistency rule: profit target adjusted to ${usd(progress.adjustedProfitTarget)} (one market exceeded ${progress.consistencyCapPct}%).`,
     });
-  } else if (progress.dailyLossLimit > 0) {
-    const dailyPnl = realizedPnlTodayUtc(closedTrades);
-    if (dailyPnl <= -progress.dailyLossLimit * 0.75) {
+  }
+
+  if (accountType === "funded") {
+    const idle = daysSinceLastTrade(lastTradeAt);
+    if (idle >= INACTIVITY_WARNING_DAYS && idle < INACTIVITY_TERMINATE_DAYS) {
       banners.push({
-        key: "daily-warning",
+        key: "inactivity-warning",
         color: T.amber,
         bg: T.amberMuted,
-        text: `Daily loss warning: you have used ${Math.min(100, (-dailyPnl / progress.dailyLossLimit) * 100).toFixed(0)}% of your daily loss limit.`,
+        text: `Inactivity warning: ${INACTIVITY_TERMINATE_DAYS - idle} days left to place a trade before account termination.`,
       });
     }
+  }
+
+  if (addons.includes("split90")) {
+    banners.push({
+      key: "split90",
+      color: T.green,
+      bg: T.greenMutedBg,
+      text: "90/10 profit split active on this account.",
+    });
   }
 
   return (
@@ -341,14 +421,31 @@ function RuleBanners() {
 
 function BreachOverlay() {
   const challengeStatus = useAccountStore((s) => s.challengeStatus);
-  const tradingMode = useAccountStore((s) => s.tradingMode);
+  const breachReason = useAccountStore((s) => s.breachReason);
   const tierSize = useAccountStore((s) => s.tier);
-  const tier = resolveTierBySize(tierSize);
-  const fee = tier ? resetFee(tier) : 0;
+  const tier = TIERS.find((t) => t.size === tierSize);
+  const fee = tier?.resetFee ?? 0;
+
+  const showOverlay =
+    challengeStatus === "breached" || challengeStatus === "expired";
+
+  const title =
+    challengeStatus === "expired"
+      ? "Challenge expired"
+      : breachReason === "inactivity"
+        ? "Account terminated"
+        : "Account breached";
+
+  const body =
+    challengeStatus === "expired"
+      ? "Your 30-day evaluation window ended without reaching the profit target. Purchase a reset at the discounted fee to try again."
+      : breachReason === "inactivity"
+        ? "Your funded account was inactive for 30 consecutive days and has been terminated per the inactivity policy."
+        : "Your account hit its maximum drawdown limit and the challenge has ended. You can reset at a discount and start a fresh attempt at the same account size immediately.";
 
   return (
     <AnimatePresence>
-      {tradingMode === "demo" && challengeStatus === "breached" && (
+      {showOverlay && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -384,13 +481,13 @@ function BreachOverlay() {
           >
             <LeniumMark size={40} variant="green" />
             <span style={{ color: T.textPrimary, fontSize: 24, fontWeight: 500 }}>
-              Account breached
+              {title}
             </span>
             <span style={{ color: T.textMuted, fontSize: 14, lineHeight: 1.6 }}>
-              Your account hit its maximum drawdown limit and the challenge has
-              ended. You can reset at a discount and start a fresh attempt at
-              the same account size immediately.
+              {body}
             </span>
+            {(challengeStatus === "breached" && breachReason !== "inactivity") ||
+            challengeStatus === "expired" ? (
             <Link
               href="/checkout/reset"
               style={{
@@ -406,6 +503,7 @@ function BreachOverlay() {
             >
               Reset for {usd(fee)} →
             </Link>
+            ) : null}
           </motion.div>
         </motion.div>
       )}

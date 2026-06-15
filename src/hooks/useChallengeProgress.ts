@@ -7,20 +7,21 @@ import {
   useChallengeStore,
   subscribeChallengeToPositions,
 } from "@/stores/challengeStore";
-import {
-  resolveTierBySize,
-  MIN_TRADING_DAYS,
-  CHALLENGE_TIME_UNLIMITED,
-} from "@/lib/data";
+import { useMarketStore } from "@/stores/marketStore";
+import { findTier, resolveRules } from "@/lib/rules";
 
 export type ChallengeProgress = {
   profitTarget: number;
+  adjustedProfitTarget: number;
   currentProfit: number;
   profitPct: number;
   maxDrawdown: number;
   currentDrawdown: number;
   drawdownConsumedPct: number;
-  minTradingDays: number;
+  staticFloorUsd: number;
+  drawdownFloorUsd: number;
+  highWaterMarkUsd: number;
+  drawdownMode: "static" | "trailing";
   daysTraded: number;
   tradedDates: string[];
   windowStartDate: string;
@@ -28,45 +29,58 @@ export type ChallengeProgress = {
   daysRemaining: number;
   hoursRemaining: number;
   windowDays: number;
-  dailyLossLimit: number;
-  timeUnlimited: boolean;
+  consistencyCapPct: number;
 };
 
-/**
- * Initialize challenge parameters from the user's tier and keep progress in
- * sync with positions. Mounted once in the dashboard layout.
- */
 export function useChallengeSync(): void {
   const tierSize = useAccountStore((s) => s.tier);
+  const accountSize = useAccountStore((s) => s.accountSize);
   const accountType = useAccountStore((s) => s.accountType);
+  const addons = useAccountStore((s) => s.addons);
 
   useEffect(() => {
     if (!tierSize || accountType === "none") return;
-    const tier = resolveTierBySize(tierSize);
+    const tier = findTier(tierSize);
     if (!tier) return;
+
+    const phase =
+      accountType === "funded" ? "funded" : "evaluation";
+    const rules = resolveRules({ tier, addons, phase });
 
     const challenge = useChallengeStore.getState();
     const windowStart = challenge.windowStartDate || new Date().toISOString();
+    const end = new Date(windowStart);
+    end.setDate(end.getDate() + rules.windowDays);
+
+    const staticFloor = Math.round(
+      (accountSize || tier.size) * (1 - rules.maxDrawdownPct / 100),
+    );
 
     challenge.updateProgress({
-      profitTarget: Math.round((tier.size * tier.profitTargetPct) / 100),
-      maxDrawdown: tier.maxDrawdownPct,
-      minTradingDays: MIN_TRADING_DAYS,
+      profitTarget: rules.profitTargetUsd,
+      adjustedProfitTarget: rules.profitTargetUsd,
+      maxDrawdown: rules.maxDrawdownPct,
+      staticFloorUsd: challenge.staticFloorUsd || staticFloor,
+      highWaterMarkUsd: Math.max(
+        challenge.highWaterMarkUsd,
+        accountSize || tier.size,
+      ),
       windowStartDate: windowStart,
-      windowEndDate: CHALLENGE_TIME_UNLIMITED ? "" : challenge.windowEndDate,
-      dailyLossLimit: Math.round((tier.size * tier.dailyLimitPct) / 100),
-      peakBalance: Math.max(challenge.peakBalance, tierSize),
+      windowEndDate: challenge.windowEndDate || end.toISOString(),
+      peakBalance: Math.max(challenge.peakBalance, accountSize || tier.size),
     });
-  }, [tierSize, accountType]);
+  }, [tierSize, accountSize, accountType, addons]);
 
   useEffect(() => {
-    const unsubscribe = subscribeChallengeToPositions();
+    const unsubscribe = subscribeChallengeToPositions((ticker, direction, entry) => {
+      const market = useMarketStore.getState().markets[ticker];
+      if (!market) return entry;
+      return direction === "yes" ? market.yesPrice : market.noPrice;
+    });
     return unsubscribe;
   }, []);
 }
 
-// Clock treated as an external store, sampled at minute resolution so the
-// snapshot stays stable between renders (satisfies render purity).
 function subscribeMinute(callback: () => void): () => void {
   const id = setInterval(callback, 60_000);
   return () => clearInterval(id);
@@ -74,20 +88,21 @@ function subscribeMinute(callback: () => void): () => void {
 const getMinuteNow = () => Math.floor(Date.now() / 60_000) * 60_000;
 const getServerNow = () => 0;
 
-/** Minute-resolution clock that is render-pure (external store snapshot). */
 export function useMinuteNow(): number {
   return useSyncExternalStore(subscribeMinute, getMinuteNow, getServerNow);
 }
 
-/** Derived, render-ready challenge progress. */
 export function useChallengeProgress(): ChallengeProgress {
   const challenge = useChallengeStore(
     useShallow((s) => ({
       profitTarget: s.profitTarget,
+      adjustedProfitTarget: s.adjustedProfitTarget,
       currentProfit: s.currentProfit,
       maxDrawdown: s.maxDrawdown,
       currentDrawdown: s.currentDrawdown,
-      minTradingDays: s.minTradingDays,
+      staticFloorUsd: s.staticFloorUsd,
+      drawdownFloorUsd: s.drawdownFloorUsd,
+      highWaterMarkUsd: s.highWaterMarkUsd,
       daysTraded: s.daysTraded,
       tradedDates: s.tradedDates,
       windowStartDate: s.windowStartDate,
@@ -95,50 +110,47 @@ export function useChallengeProgress(): ChallengeProgress {
     })),
   );
   const tierSize = useAccountStore((s) => s.tier);
-  const tier = resolveTierBySize(tierSize);
+  const addons = useAccountStore((s) => s.addons);
+  const accountType = useAccountStore((s) => s.accountType);
+  const tier = findTier(tierSize);
+
+  const phase = accountType === "funded" ? "funded" : "evaluation";
+  const rules = tier
+    ? resolveRules({ tier, addons, phase })
+    : null;
 
   const now = useMinuteNow();
   const remainingMs = useMemo(
     () =>
-      !CHALLENGE_TIME_UNLIMITED &&
-      challenge.windowEndDate &&
-      now > 0
+      challenge.windowEndDate && now > 0
         ? Math.max(0, new Date(challenge.windowEndDate).getTime() - now)
         : 0,
     [challenge.windowEndDate, now],
   );
 
-  const calendarDays = useMemo(() => {
-    if (!challenge.windowStartDate) return MIN_TRADING_DAYS;
-    const start = new Date(challenge.windowStartDate);
-    const today = new Date();
-    const elapsed = Math.ceil(
-      (today.getTime() - start.getTime()) / 86_400_000,
-    );
-    return Math.max(MIN_TRADING_DAYS, elapsed + 7);
-  }, [challenge.windowStartDate]);
+  const target =
+    challenge.adjustedProfitTarget > 0
+      ? challenge.adjustedProfitTarget
+      : challenge.profitTarget;
 
   return {
     ...challenge,
-    minTradingDays: challenge.minTradingDays || MIN_TRADING_DAYS,
+    adjustedProfitTarget: target,
     profitPct:
-      challenge.profitTarget > 0
-        ? Math.min(100, Math.max(0, (challenge.currentProfit / challenge.profitTarget) * 100))
+      target > 0
+        ? Math.min(100, Math.max(0, (challenge.currentProfit / target) * 100))
         : 0,
     drawdownConsumedPct:
       challenge.maxDrawdown > 0
-        ? Math.min(100, Math.max(0, (challenge.currentDrawdown / challenge.maxDrawdown) * 100))
+        ? Math.min(
+            100,
+            Math.max(0, (challenge.currentDrawdown / challenge.maxDrawdown) * 100),
+          )
         : 0,
-    daysRemaining: CHALLENGE_TIME_UNLIMITED
-      ? 0
-      : Math.floor(remainingMs / 86_400_000),
-    hoursRemaining: CHALLENGE_TIME_UNLIMITED
-      ? 0
-      : Math.floor((remainingMs % 86_400_000) / 3_600_000),
-    windowDays: calendarDays,
-    dailyLossLimit: tier
-      ? Math.round((tier.size * tier.dailyLimitPct) / 100)
-      : 0,
-    timeUnlimited: CHALLENGE_TIME_UNLIMITED,
+    drawdownMode: rules?.drawdownMode ?? "static",
+    daysRemaining: Math.floor(remainingMs / 86_400_000),
+    hoursRemaining: Math.floor((remainingMs % 86_400_000) / 3_600_000),
+    windowDays: rules?.windowDays ?? 30,
+    consistencyCapPct: rules?.consistencyCapPct ?? 15,
   };
 }

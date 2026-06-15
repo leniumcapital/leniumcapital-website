@@ -11,10 +11,12 @@ export type Position = {
   question: string;
   category: string;
   direction: Direction;
-  /** Dollar size of the position. */
+  /** Dollar size of the position (capital deployed). */
   size: number;
   /** Entry price in percent / cents (0–100) for the chosen direction. */
   entryPrice: number;
+  /** ISO date when the market resolves. */
+  marketExpiry?: string;
   /** Unix ms when opened. */
   openedAt: number;
 };
@@ -105,6 +107,19 @@ export function computedPnlPercent(position: Position): number {
 export function totalOpenPnl(positions: Record<string, Position>): number {
   let sum = 0;
   for (const id of Object.keys(positions)) sum += computedPnl(positions[id]);
+  return sum;
+}
+
+/** Current market value of all open positions. */
+export function totalOpenExposure(
+  positions: Record<string, Position>,
+): number {
+  let sum = 0;
+  for (const id of Object.keys(positions)) {
+    const p = positions[id];
+    const price = currentPriceFor(p);
+    if (p.entryPrice > 0) sum += (p.size * price) / p.entryPrice;
+  }
   return sum;
 }
 

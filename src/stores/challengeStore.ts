@@ -5,42 +5,48 @@ import {
   usePositionStore,
   totalOpenPnl,
   type ClosedTrade,
+  type Position,
 } from "@/stores/positionStore";
 import { useAccountStore } from "@/stores/accountStore";
+import { findTier, resolveRules } from "@/lib/rules";
+import {
+  adjustedProfitTargetUsd,
+  drawdownFloorUsd,
+  drawdownPctFromEquity,
+  equityUsd,
+  profitByTicker,
+} from "@/lib/rules";
 
 interface ChallengeState {
-  /** Dollar profit required to pass. */
   profitTarget: number;
-  /** Current realized + unrealized profit in dollars. */
+  adjustedProfitTarget: number;
   currentProfit: number;
-  /** Max drawdown allowed, percent of account size. */
   maxDrawdown: number;
-  /** Current drawdown from peak, percent. */
   currentDrawdown: number;
-  /** Highest balance reached, dollars. */
   peakBalance: number;
-  minTradingDays: number;
+  highWaterMarkUsd: number;
+  staticFloorUsd: number;
+  drawdownFloorUsd: number;
   daysTraded: number;
-  /** ISO dates (YYYY-MM-DD, UTC) on which the user traded. */
   tradedDates: string[];
   windowStartDate: string;
   windowEndDate: string;
-  /** Daily loss limit, percent of account size. */
-  dailyLossLimit: number;
   updateProgress: (
     progress: Partial<
       Pick<
         ChallengeState,
         | "profitTarget"
+        | "adjustedProfitTarget"
         | "currentProfit"
         | "maxDrawdown"
         | "currentDrawdown"
         | "peakBalance"
-        | "minTradingDays"
+        | "highWaterMarkUsd"
+        | "staticFloorUsd"
+        | "drawdownFloorUsd"
         | "daysTraded"
         | "windowStartDate"
         | "windowEndDate"
-        | "dailyLossLimit"
       >
     >,
   ) => void;
@@ -51,16 +57,18 @@ interface ChallengeState {
 
 const initial = {
   profitTarget: 0,
+  adjustedProfitTarget: 0,
   currentProfit: 0,
   maxDrawdown: 0,
   currentDrawdown: 0,
   peakBalance: 0,
-  minTradingDays: 0,
+  highWaterMarkUsd: 0,
+  staticFloorUsd: 0,
+  drawdownFloorUsd: 0,
   daysTraded: 0,
   tradedDates: [] as string[],
   windowStartDate: "",
   windowEndDate: "",
-  dailyLossLimit: 0,
 };
 
 export const useChallengeStore = create<ChallengeState>()(
@@ -87,14 +95,46 @@ export const useChallengeStore = create<ChallengeState>()(
   ),
 );
 
+/** Build open-position snapshots with live prices for rule calculations. */
+function openSnapshots(
+  positions: Record<string, Position>,
+  priceFor: (ticker: string, direction: "yes" | "no", entry: number) => number,
+) {
+  return Object.values(positions).map((p) => ({
+    marketTicker: p.marketTicker,
+    size: p.size,
+    entryPrice: p.entryPrice,
+    direction: p.direction,
+    currentPrice: priceFor(p.marketTicker, p.direction, p.entryPrice),
+  }));
+}
+
 /**
- * Recalculate profit and drawdown whenever positions change. Subscribed once
- * from the dashboard layout — kept out of module scope so SSR never runs it.
+ * Recalculate profit, consistency-adjusted target, and drawdown whenever
+ * positions change.
  */
-export function subscribeChallengeToPositions(): () => void {
+export function subscribeChallengeToPositions(
+  priceFor?: (ticker: string, direction: "yes" | "no", entry: number) => number,
+): () => void {
+  const getPrice =
+    priceFor ??
+    ((_ticker, _dir, entry) => entry);
+
   return usePositionStore.subscribe((positionState) => {
     const account = useAccountStore.getState();
     if (account.accountSize <= 0) return;
+
+    const tier = findTier(account.accountSize);
+    if (!tier) return;
+
+    const phase =
+      account.accountType === "funded" ? "funded" : "evaluation";
+    const rules = resolveRules({
+      tier,
+      addons: account.addons,
+      phase,
+      currentBalance: account.accountSize,
+    });
 
     const realized = positionState.closedTrades.reduce(
       (sum: number, t: ClosedTrade) => sum + t.pnl,
@@ -102,14 +142,57 @@ export function subscribeChallengeToPositions(): () => void {
     );
     const unrealized = totalOpenPnl(positionState.positions);
     const currentProfit = realized + unrealized;
+    const equity = equityUsd(account.accountSize, currentProfit);
+
+    const snapshots = openSnapshots(positionState.positions, getPrice);
+    const byTicker = profitByTicker(positionState.closedTrades, snapshots);
+
+    const baseTarget = rules.profitTargetUsd;
+    const adjustedTarget = adjustedProfitTargetUsd(
+      baseTarget,
+      byTicker,
+      rules.consistencyCapPct,
+    );
 
     const challenge = useChallengeStore.getState();
-    const equity = account.accountSize + currentProfit;
-    const peakBalance = Math.max(challenge.peakBalance, equity, account.accountSize);
-    const currentDrawdown =
-      peakBalance > 0 ? ((peakBalance - equity) / peakBalance) * 100 : 0;
+    const starting = account.accountSize;
 
-    challenge.updateProgress({ currentProfit, peakBalance });
-    challenge.updateDrawdown(Math.max(0, currentDrawdown), peakBalance);
+    const staticFloor =
+      challenge.staticFloorUsd > 0
+        ? challenge.staticFloorUsd
+        : Math.round(starting * (1 - rules.maxDrawdownPct / 100));
+
+    const hwm = Math.max(
+      challenge.highWaterMarkUsd,
+      starting,
+      equity,
+      challenge.peakBalance,
+    );
+
+    const floor = drawdownFloorUsd({
+      rules,
+      startingBalance: starting,
+      highWaterMarkUsd: hwm,
+      staticFloorUsd: staticFloor,
+    });
+
+    const currentDrawdown = drawdownPctFromEquity({
+      rules,
+      startingBalance: starting,
+      equity,
+      highWaterMarkUsd: hwm,
+    });
+
+    challenge.updateProgress({
+      currentProfit,
+      profitTarget: baseTarget,
+      adjustedProfitTarget: adjustedTarget,
+      maxDrawdown: rules.maxDrawdownPct,
+      peakBalance: Math.max(challenge.peakBalance, equity, starting),
+      highWaterMarkUsd: hwm,
+      staticFloorUsd: staticFloor,
+      drawdownFloorUsd: floor,
+    });
+    challenge.updateDrawdown(Math.max(0, currentDrawdown), equity);
   });
 }

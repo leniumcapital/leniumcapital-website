@@ -14,8 +14,8 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
 
 export default function ProgressPage() {
-  const p = useChallengeProgress();
   const accountType = useAccountStore((s) => s.accountType);
+  const p = useChallengeProgress();
 
   if (accountType === "none") {
     return (
@@ -48,7 +48,7 @@ export default function ProgressPage() {
             color={T.green}
             label="Profit target"
             centerTop={`$${Math.max(0, Math.round(p.currentProfit)).toLocaleString()}`}
-            centerBottom={`of $${p.profitTarget.toLocaleString()}`}
+            centerBottom={`of $${p.adjustedProfitTarget.toLocaleString()}`}
           />
           <Gauge
             pct={p.drawdownConsumedPct}
@@ -72,7 +72,7 @@ export default function ProgressPage() {
           tradedDates={p.tradedDates}
         />
         <div style={{ color: T.textMuted, fontSize: 13, marginTop: 12 }}>
-          {p.daysTraded} of {p.minTradingDays} minimum trading days completed
+          {p.daysTraded} trading {p.daysTraded === 1 ? "day" : "days"} in this window
         </div>
 
         {/* Time to pass */}
@@ -87,15 +87,13 @@ export default function ProgressPage() {
           }}
         >
           <IconClock size={16} stroke={1.5} color={T.textMuted} />
-          {p.timeUnlimited
-            ? "No time limit — pass at your own pace"
-            : `${p.daysRemaining} days, ${p.hoursRemaining} hours remaining`}
+          {`${p.daysRemaining} days, ${p.hoursRemaining} hours remaining`}
         </div>
 
         <ClosedTradesTable />
       </div>
 
-      {p.profitPct >= 100 && <CelebrationOverlay />}
+      {p.profitPct >= 100 && accountType === "challenge" && <CelebrationOverlay />}
     </ErrorBoundary>
   );
 }

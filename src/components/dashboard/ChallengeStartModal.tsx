@@ -12,11 +12,9 @@ import { LeniumMark } from "@/components/ui/LeniumLogo";
 import {
   TIERS,
   ADDONS,
-  SPLIT_ADDONS,
   computePrice,
   usd,
-  formatMinTradingDays,
-  formatChallengeTimeLimit,
+  CHALLENGE_WINDOW_DAYS,
   type AddonId,
 } from "@/lib/data";
 import { T } from "@/lib/tokens";
@@ -49,14 +47,9 @@ function Panel({ onClose }: { onClose: () => void }) {
   const price = useMemo(() => computePrice(tier, selected), [tier, selected]);
 
   function toggleAddon(id: AddonId) {
-    setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      let next = [...prev, id];
-      if (SPLIT_ADDONS.includes(id)) {
-        next = next.filter((x) => x === id || !SPLIT_ADDONS.includes(x));
-      }
-      return next;
-    });
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   }
 
   async function handleProceed() {
@@ -247,10 +240,6 @@ function Panel({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
             {ADDONS.map((addon) => {
               const isOn = selected.includes(addon.id);
-              const disabledBySplit =
-                SPLIT_ADDONS.includes(addon.id) &&
-                !isOn &&
-                selected.some((x) => SPLIT_ADDONS.includes(x) && x !== addon.id);
               const addonCost =
                 addon.flat ?? Math.round((addon.pctOfBase ?? 0) * tier.baseFee);
 
@@ -258,7 +247,6 @@ function Panel({ onClose }: { onClose: () => void }) {
                 <button
                   key={addon.id}
                   type="button"
-                  disabled={disabledBySplit}
                   onClick={() => toggleAddon(addon.id)}
                   style={{
                     display: "flex",
@@ -268,8 +256,7 @@ function Panel({ onClose }: { onClose: () => void }) {
                     borderRadius: T.radius,
                     border: isOn ? `0.5px solid ${T.green}` : T.hairline(),
                     background: isOn ? T.greenMutedBg : T.bgTertiary,
-                    cursor: disabledBySplit ? "not-allowed" : "pointer",
-                    opacity: disabledBySplit ? 0.45 : 1,
+                    cursor: "pointer",
                     textAlign: "left",
                     fontFamily: T.font,
                   }}
@@ -331,13 +318,14 @@ function Panel({ onClose }: { onClose: () => void }) {
             }}
           >
             <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
-            <RuleRow label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
-            <RuleRow label="Min trading days" value={formatMinTradingDays()} />
-            <RuleRow label="Time to pass" value={formatChallengeTimeLimit()} />
+            <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}% static floor`} />
+            <RuleRow label="Max position" value={`${tier.maxPositionPct}% of balance`} />
+            <RuleRow label="Max exposure" value={`${tier.maxExposurePct}% of balance`} />
+            <RuleRow label="Daily loss limit" value="None" />
+            <RuleRow label="Min trading days" value="None" />
             <RuleRow
-              label="Max position"
-              value={`${tier.maxPositionPct}% of account`}
+              label="Challenge window"
+              value={`${selected.includes("doubletime") ? CHALLENGE_WINDOW_DAYS * 2 : CHALLENGE_WINDOW_DAYS} calendar days`}
             />
           </div>
         </div>

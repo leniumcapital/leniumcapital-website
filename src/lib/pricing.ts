@@ -7,19 +7,19 @@ export type PricingTier = {
   size: number;
   fee: number;
   resetFee: number;
-  /** Profit target as a decimal (e.g. 0.18 = 18%). */
+  /** Profit target as a decimal (0.20 = 20%). */
   profitTarget: number;
   maxDrawdown: number;
-  dailyLossLimit: number;
-  minTradingDays: number;
   maxPositionSize: number;
+  maxExposure: number;
   popular: boolean;
+  exclusive?: boolean;
 };
 
 export type AddonId =
   | "90split"
-  | "95split"
   | "drawdown"
+  | "consistency"
   | "doubletime"
   | "fastpayout";
 
@@ -29,20 +29,13 @@ export type Addon = {
   description: string;
   priceType: "percent" | "flat";
   priceValue: number;
-  /** When true, cannot be selected alongside other exclusive add-ons in the same group. */
   exclusive: boolean;
   badge: string | null;
 };
 
 export const CHALLENGE_WINDOW_DAYS = 30;
-export const PAYOUT_CYCLE_DAYS = 14;
-export const FAST_PAYOUT_CYCLE_DAYS = 7;
-
-/** Minimum distinct trading days required to pass any challenge tier. */
-export const MIN_TRADING_DAYS = 4;
-
-/** Evaluation challenges have no calendar deadline — traders pass at their own pace. */
-export const CHALLENGE_TIME_UNLIMITED = true;
+export const PAYOUT_CYCLE_DAYS = 7;
+export const FAST_PAYOUT_CYCLE_DAYS = 3;
 
 export const DEFAULT_TIER_SIZE = 25_000;
 
@@ -57,68 +50,63 @@ export const DEPRECATED_TIER_SIZES = [15_000, 20_000, 35_000] as const;
 export const TIERS: PricingTier[] = [
   {
     size: 5_000,
-    fee: 55,
-    resetFee: 41,
-    profitTarget: 0.25,
-    maxDrawdown: 0.08,
-    dailyLossLimit: 0.04,
-    minTradingDays: MIN_TRADING_DAYS,
-    maxPositionSize: 0.15,
+    fee: 65,
+    resetFee: 49,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
+    maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: false,
   },
   {
     size: 10_000,
-    fee: 109,
-    resetFee: 81,
-    profitTarget: 0.22,
-    maxDrawdown: 0.08,
-    dailyLossLimit: 0.04,
-    minTradingDays: MIN_TRADING_DAYS,
-    maxPositionSize: 0.12,
+    fee: 119,
+    resetFee: 89,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
+    maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: false,
   },
   {
     size: 25_000,
-    fee: 239,
-    resetFee: 179,
-    profitTarget: 0.18,
-    maxDrawdown: 0.07,
-    dailyLossLimit: 0.04,
-    minTradingDays: MIN_TRADING_DAYS,
-    maxPositionSize: 0.1,
+    fee: 249,
+    resetFee: 187,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
+    maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: true,
   },
   {
     size: 50_000,
-    fee: 499,
-    resetFee: 374,
-    profitTarget: 0.15,
-    maxDrawdown: 0.07,
-    dailyLossLimit: 0.03,
-    minTradingDays: MIN_TRADING_DAYS,
-    maxPositionSize: 0.08,
+    fee: 529,
+    resetFee: 397,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
+    maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: false,
   },
   {
     size: 75_000,
-    fee: 699,
-    resetFee: 524,
-    profitTarget: 0.13,
-    maxDrawdown: 0.06,
-    dailyLossLimit: 0.03,
-    minTradingDays: MIN_TRADING_DAYS,
-    maxPositionSize: 0.06,
+    fee: 729,
+    resetFee: 547,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
+    maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: false,
+    exclusive: true,
   },
   {
     size: 100_000,
-    fee: 979,
-    resetFee: 734,
-    profitTarget: 0.11,
-    maxDrawdown: 0.06,
-    dailyLossLimit: 0.02,
-    minTradingDays: MIN_TRADING_DAYS,
+    fee: 999,
+    resetFee: 749,
+    profitTarget: 0.2,
+    maxDrawdown: 0.1,
     maxPositionSize: 0.05,
+    maxExposure: 0.1,
     popular: false,
   },
 ];
@@ -128,29 +116,29 @@ export const ADDONS: Addon[] = [
     id: "90split",
     name: "90% profit split",
     description:
-      "Changes the default 70/30 split to 90/10 permanently. Keep 90 cents of every dollar you earn.",
+      "Raises the funded profit split from 70/30 to 90/10 permanently — the maximum split available from any CFTC-regulated prediction market prop firm.",
     priceType: "percent",
     priceValue: 0.5,
     exclusive: true,
     badge: null,
   },
   {
-    id: "95split",
-    name: "95% profit split",
-    description:
-      "The highest profit split available anywhere in the prediction market prop firm industry. Keep 95 cents of every dollar.",
-    priceType: "percent",
-    priceValue: 0.8,
-    exclusive: true,
-    badge: "★",
-  },
-  {
     id: "drawdown",
     name: "Drawdown boost",
     description:
-      "Raises your maximum drawdown ceiling to 15% and your daily loss limit to 8% on both the demo and funded account.",
+      "Raises max drawdown to 15%, max total exposure to 15%, and max single position to 7.5% on both evaluation and funded accounts.",
     priceType: "percent",
     priceValue: 0.65,
+    exclusive: false,
+    badge: null,
+  },
+  {
+    id: "consistency",
+    name: "Consistency boost",
+    description:
+      "Raises the consistency threshold from 15% to 25% during evaluation and from 20% to 30% on the funded account.",
+    priceType: "percent",
+    priceValue: 0.2,
     exclusive: false,
     badge: null,
   },
@@ -158,7 +146,7 @@ export const ADDONS: Addon[] = [
     id: "doubletime",
     name: "Double time",
     description:
-      "Optional add-on for your challenge. Combine with other upgrades to unlock a bigger bundle discount on your fee.",
+      "Extends the evaluation window from 30 to 60 calendar days. No other rules change.",
     priceType: "percent",
     priceValue: 0.09,
     exclusive: false,
@@ -166,9 +154,9 @@ export const ADDONS: Addon[] = [
   },
   {
     id: "fastpayout",
-    name: "Fast payout 7-day",
+    name: "3-day fast payout",
     description:
-      "Reduces funded-account payout cycles from 14 days to 7 days. Get paid faster, every cycle, forever.",
+      "Reduces payout processing from 7 business days to 3 business days on every funded payout permanently.",
     priceType: "flat",
     priceValue: 39,
     exclusive: false,
@@ -176,8 +164,8 @@ export const ADDONS: Addon[] = [
   },
 ];
 
-/** Profit-split add-ons are mutually exclusive. */
-export const SPLIT_ADDON_IDS: AddonId[] = ["90split", "95split"];
+/** Profit-split add-ons are mutually exclusive (only one split tier). */
+export const SPLIT_ADDON_IDS: AddonId[] = ["90split"];
 
 export function getTierBySize(size: number): PricingTier | undefined {
   return TIERS.find((t) => t.size === size);
@@ -280,7 +268,7 @@ export function parseAddonsParam(value: string | null): AddonId[] {
   if (!value) return [];
   const legacy: Record<string, AddonId> = {
     split90: "90split",
-    split95: "95split",
+    split95: "90split",
   };
   const valid = new Set(ADDONS.map((a) => a.id));
   return value
@@ -297,22 +285,19 @@ export function buildPricingQuery(tierSize: number, addons: AddonId[]): string {
   return params.toString();
 }
 
-/** Human-readable minimum trading days rule. */
-export function formatMinTradingDays(days = MIN_TRADING_DAYS): string {
-  return `${days} days minimum`;
+export function formatChallengeTimeLimit(selected: AddonId[] = []): string {
+  const days = selected.includes("doubletime")
+    ? CHALLENGE_WINDOW_DAYS * 2
+    : CHALLENGE_WINDOW_DAYS;
+  return `${days} calendar days`;
 }
 
-/** Human-readable challenge time limit (unlimited for all tiers). */
-export function formatChallengeTimeLimit(): string {
-  return CHALLENGE_TIME_UNLIMITED ? "Unlimited" : `${CHALLENGE_WINDOW_DAYS} days`;
+export function challengeWindowDays(selected: AddonId[]): number {
+  return selected.includes("doubletime")
+    ? CHALLENGE_WINDOW_DAYS * 2
+    : CHALLENGE_WINDOW_DAYS;
 }
 
-/** Challenge window days for display (legacy add-on path; base time is unlimited). */
-export function challengeWindowDays(_selected: AddonId[]): number | null {
-  return CHALLENGE_TIME_UNLIMITED ? null : CHALLENGE_WINDOW_DAYS;
-}
-
-/** Payout cycle days for display (7 with fastpayout add-on). */
 export function payoutCycleDays(selected: AddonId[]): number {
   return selected.includes("fastpayout")
     ? FAST_PAYOUT_CYCLE_DAYS

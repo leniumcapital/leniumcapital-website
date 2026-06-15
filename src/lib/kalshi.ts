@@ -862,7 +862,12 @@ export async function fetchMarketDetail(
 /** Current YES price for a single market — used for server-side order fills. */
 export async function fetchMarketPrice(
   ticker: string,
-): Promise<{ yesPrice: number; noPrice: number; question: string } | null> {
+): Promise<{
+  yesPrice: number;
+  noPrice: number;
+  question: string;
+  expiry: string;
+} | null> {
   const data = await fetchJson<{ market?: KalshiMarketRaw }>(
     `${KALSHI_BASE}/markets/${encodeURIComponent(ticker)}`,
     5000,
@@ -876,5 +881,6 @@ export async function fetchMarketPrice(
     yesPrice: yes,
     noPrice: 100 - yes,
     question: data.market.title ?? ticker,
+    expiry: gameTime(data.market) || data.market.close_time || "",
   };
 }

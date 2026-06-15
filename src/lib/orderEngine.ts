@@ -7,12 +7,23 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { fetchMarketPrice } from "@/lib/kalshi";
-import { resolveTierBySize } from "@/lib/data";
+import { findTier, resolveRules, validateOrder } from "@/lib/rules";
+import type { AddonId } from "@/lib/data";
+import type { OpenPositionSnapshot } from "@/lib/rules";
 
 export type OrderRequest = {
   marketTicker: string;
   direction: "yes" | "no";
   size: number;
+  marketExpiry?: string;
+  openPositions?: OpenPositionSnapshot[];
+  currentProfit?: number;
+  highWaterMarkUsd?: number;
+  staticFloorUsd?: number;
+  windowEndDate?: string;
+  addons?: AddonId[];
+  accountType?: string;
+  challengeStatus?: string;
 };
 
 export type OrderFill = {
@@ -23,25 +34,12 @@ export type OrderFill = {
   size: number;
   entryPrice: number;
   openedAt: number;
+  commission: number;
 };
 
 export type OrderResult =
   | { ok: true; fill: OrderFill }
   | { ok: false; error: string };
-
-/** Max position size in dollars for a tier (account size). */
-export function maxPositionForTier(tierSize: number): number {
-  const tier = resolveTierBySize(tierSize);
-  if (!tier) return 0;
-  return Math.round((tier.size * tier.maxPositionPct) / 100);
-}
-
-/** Daily loss limit in dollars for a tier. */
-export function dailyLossLimitForTier(tierSize: number): number {
-  const tier = resolveTierBySize(tierSize);
-  if (!tier) return 0;
-  return Math.round((tier.size * tier.dailyLimitPct) / 100);
-}
 
 /**
  * Validate and execute a simulated order at the live market price.
@@ -63,13 +61,22 @@ export async function executeOrder(
     return { ok: false, error: "Order size must be a positive number." };
   }
 
-  const maxPosition = maxPositionForTier(tierSize);
-  if (maxPosition > 0 && size > maxPosition) {
-    return {
-      ok: false,
-      error: `Max position size for your tier is $${maxPosition.toLocaleString()}.`,
-    };
+  const tier = findTier(tierSize);
+  if (!tier) {
+    return { ok: false, error: "Invalid account tier." };
   }
+
+  const accountType = request.accountType ?? "challenge";
+  const phase = accountType === "funded" ? "funded" : "evaluation";
+  const currentProfit = request.currentProfit ?? 0;
+  const equity = tier.size + currentProfit;
+
+  const rules = resolveRules({
+    tier,
+    addons: request.addons ?? [],
+    phase,
+    currentBalance: equity,
+  });
 
   const price = await fetchMarketPrice(marketTicker);
   if (!price) {
@@ -79,6 +86,29 @@ export async function executeOrder(
   const entryPrice = direction === "yes" ? price.yesPrice : price.noPrice;
   if (entryPrice <= 0 || entryPrice >= 100) {
     return { ok: false, error: "Market is not currently tradable." };
+  }
+
+  const validation = validateOrder({
+    rules,
+    startingBalance: tier.size,
+    currentProfit,
+    highWaterMarkUsd: request.highWaterMarkUsd ?? tier.size,
+    staticFloorUsd: request.staticFloorUsd ?? 0,
+    openPositions: request.openPositions ?? [],
+    newOrder: {
+      size,
+      direction,
+      marketTicker,
+      entryPrice,
+      marketExpiry: request.marketExpiry ?? price.expiry,
+    },
+    challengeStatus: request.challengeStatus ?? "active",
+    accountType,
+    windowEndDate: request.windowEndDate,
+  });
+
+  if (!validation.ok) {
+    return { ok: false, error: validation.error };
   }
 
   return {
@@ -91,6 +121,7 @@ export async function executeOrder(
       size: Math.round(size * 100) / 100,
       entryPrice,
       openedAt: Date.now(),
+      commission: validation.commission,
     },
   };
 }

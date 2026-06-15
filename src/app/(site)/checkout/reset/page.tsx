@@ -6,7 +6,6 @@ import { Container } from "@/components/ui";
 import {
   TIERS,
   usd,
-  resetFee,
   resetSavings,
   resetCheckoutTitle,
 } from "@/lib/data";
@@ -21,8 +20,8 @@ export default function ResetCheckoutPage() {
       <Container className="max-w-xl">
         <h1 className="text-3xl font-semibold tracking-tight">Reset checkout</h1>
         <p className="mt-2 text-muted">
-          Restart a failed challenge at the same tier for 25% off the original
-          fee.
+          Restart a failed or expired challenge at the same tier for the
+          discounted reset fee.
         </p>
 
         <div className="mt-6">
@@ -66,7 +65,7 @@ export default function ResetCheckoutPage() {
             <div className="flex items-end justify-between border-t border-border pt-3">
               <span className="text-muted">Total charged today</span>
               <span className="text-2xl font-semibold tracking-tight">
-                {usd(resetFee(tier))}
+                {usd(tier.resetFee)}
               </span>
             </div>
           </div>
@@ -76,7 +75,7 @@ export default function ResetCheckoutPage() {
           href="/signup"
           className="mt-5 block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
         >
-          Pay {usd(resetFee(tier))} & restart
+          Pay {usd(tier.resetFee)} & restart
         </Link>
       </Container>
     </section>
