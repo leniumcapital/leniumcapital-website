@@ -246,6 +246,96 @@ export const PLATFORM_RULES: RuleRow[] = [
   },
 ];
 
+/** Funded-phase rules displayed on the rules page. */
+export const FUNDED_RULE_ROWS: RuleRow[] = [
+  {
+    label: "Profit target",
+    format: () => "None",
+    plain: "No monthly, annual, or performance-review minimum on funded accounts.",
+  },
+  {
+    label: "Time limit",
+    format: () => "None",
+    plain: "Trade indefinitely as long as you stay within risk rules and the inactivity policy.",
+  },
+  {
+    label: "Max drawdown",
+    format: () => "10% trailing high-water mark",
+    plain:
+      "The drawdown floor rises permanently whenever your account reaches a new all-time high. It only moves up — never down.",
+  },
+  {
+    label: "Position & exposure",
+    format: (t) =>
+      `5% / 10% of current balance (${usd(maxPositionUsd(t))} / ${usd(maxExposureUsd(t))} at start)`,
+    plain:
+      "Same 5% max single position and 10% max total exposure as evaluation — scaled to your current balance as the account grows.",
+  },
+  {
+    label: "Opening price range",
+    format: () => `${OPENING_PRICE_MIN_CENTS}¢–${OPENING_PRICE_MAX_CENTS}¢ YES`,
+    plain: "Identical to evaluation — contracts must trade between 15¢ and 85¢ YES at entry.",
+  },
+  {
+    label: "Market resolution window",
+    format: () => `Within ${MARKET_RESOLUTION_WINDOW_DAYS} days`,
+    plain: "Identical to evaluation — positions must be in markets resolving within 60 calendar days.",
+  },
+  {
+    label: "Consistency rule",
+    format: () => `${FUNDED_CONSISTENCY_CAP_PCT}% per market (target adjusts, never terminates)`,
+    plain:
+      "No single market may contribute more than 20% of monthly realized profit. Exceeding it adjusts the target upward — it never terminates your account.",
+  },
+  {
+    label: "Profit split",
+    format: () => `${DEFAULT_TRADER_SPLIT_PCT}/${100 - DEFAULT_TRADER_SPLIT_PCT} default (90/10 with add-on)`,
+    plain:
+      "Default 70/30 on all realized net profits at payout. Add the 90% profit split add-on for 90/10 permanently.",
+  },
+  {
+    label: "Payout cycle",
+    format: () =>
+      `${PAYOUT_CYCLE_DAYS} business days (${FAST_PAYOUT_CYCLE_DAYS} with Fast Payout add-on)`,
+    plain:
+      "Every payout request is processed within 7 business days. The 3-day fast payout add-on reduces this to 3 business days on every request.",
+  },
+  {
+    label: "Minimum payout",
+    format: (t) => `2% of starting balance (${usd(minPayoutUsd(t))})`,
+    plain: "Payout requests below 2% of your starting account balance are declined.",
+  },
+  {
+    label: "Commission",
+    format: () => `${FUNDED_COMMISSION_PCT}% on opening transactions`,
+    plain:
+      "A 1% commission on the notional value of every opening transaction on funded accounts. No commission during evaluation.",
+  },
+  {
+    label: "Inactivity policy",
+    format: () =>
+      `Warning at ${INACTIVITY_WARNING_DAYS} days, termination at ${INACTIVITY_TERMINATE_DAYS} days`,
+    plain:
+      "No trades for 30 consecutive calendar days terminates the account. A warning is sent at 20 days. Any single trade resets the counter.",
+  },
+];
+
+export const TERMINATION_CONDITIONS: string[] = [
+  "Portfolio value reaches or falls below the trailing drawdown floor (funded) or static floor (evaluation).",
+  "Attempting to circumvent position size or exposure limits by any means.",
+  "30 consecutive calendar days of inactivity after the 20-day warning (funded accounts).",
+  "Opening positions in markets scheduled to resolve more than 60 days from the opening date.",
+  "Opening positions in contracts trading below 15¢ or above 85¢ YES.",
+  "Material violation of the funded account agreement, including coordinated trading across Lenium accounts.",
+];
+
+export const BUNDLE_DISCOUNTS = [
+  { count: 2, pct: 10 },
+  { count: 3, pct: 12 },
+  { count: 4, pct: 15 },
+  { count: 5, pct: 18 },
+];
+
 export type FAQ = { q: string; a: string };
 
 export const FAQS: FAQ[] = [

@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   TIERS,
-  PLATFORM_RULES,
   resetLineLong,
   ADDONS,
   usd,
@@ -120,20 +119,9 @@ export function RulesExplorer() {
               label="Challenge window"
               value={`${evalRules.windowDays} calendar days`}
             />
+            <RuleRow label="Daily loss limit" value="None" />
+            <RuleRow label="Minimum trading days" value="None" />
             <RuleRow label="Reset fee" value={resetLineLong(tier)} />
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className="border-b border-border bg-surface-muted px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-          Rules removed
-        </div>
-        <table className="w-full text-sm">
-          <tbody className="divide-y divide-border">
-            {PLATFORM_RULES.map((r) => (
-              <RuleRow key={r.label} label={r.label} value={r.format(tier)} />
-            ))}
           </tbody>
         </table>
       </div>
@@ -153,6 +141,14 @@ export function RulesExplorer() {
             <RuleRow
               label="Max position / exposure"
               value={`${fundedRules.maxPositionPct}% / ${fundedRules.maxExposurePct}% of current balance`}
+            />
+            <RuleRow
+              label="Opening price range"
+              value={`${fundedRules.openingPriceMinCents}¢–${fundedRules.openingPriceMaxCents}¢ YES`}
+            />
+            <RuleRow
+              label="Market resolution window"
+              value={`Within ${fundedRules.marketResolutionWindowDays} days`}
             />
             <RuleRow
               label="Default profit split"
