@@ -84,7 +84,7 @@ export default function ProgressPage() {
           tradedDates={p.tradedDates}
         />
         <div style={{ color: T.textMuted, fontSize: 13, marginTop: 12 }}>
-          {p.daysTraded} of {p.minTradingDays} minimum trading days completed
+          {p.daysTraded} trading {p.daysTraded === 1 ? "day" : "days"} in this window
         </div>
 
         {/* Time remaining */}

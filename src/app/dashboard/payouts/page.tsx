@@ -7,7 +7,6 @@ import { IconX } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePositionStore } from "@/stores/positionStore";
-import { feePctForDaysEarly } from "@/lib/payouts";
 import { PAYOUT_CYCLE_DAYS } from "@/lib/data";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { T } from "@/lib/tokens";
@@ -15,7 +14,7 @@ import { T } from "@/lib/tokens";
 type PayoutRecord = {
   id: string;
   date: number;
-  type: "Scheduled" | "Early withdrawal";
+  type: "Payout";
   gross: number;
   fee: number;
   net: number;
@@ -35,28 +34,14 @@ export default function PayoutsPage() {
   const closedTrades = usePositionStore(useShallow((s) => s.closedTrades));
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [earlyOpen, setEarlyOpen] = useState(false);
   const [history, setHistory] = useState<PayoutRecord[]>([]);
 
-  // Available = realized profit from completed cycles; pending = current cycle.
   const realized = useMemo(
     () => closedTrades.reduce((sum, t) => sum + t.pnl, 0),
     [closedTrades],
   );
   const available = accountType === "funded" ? Math.max(0, realized * 0.7) : 0;
   const pending = Math.max(0, realized) - available;
-
-  const { nextPayoutDate, daysUntilPayout } = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + PAYOUT_CYCLE_DAYS);
-    return {
-      nextPayoutDate: d,
-      daysUntilPayout: Math.max(
-        0,
-        Math.ceil((d.getTime() - Date.now()) / 86_400_000),
-      ),
-    };
-  }, []);
 
   function recordPayout(record: PayoutRecord) {
     setHistory((h) => [record, ...h]);
@@ -65,7 +50,6 @@ export default function PayoutsPage() {
   return (
     <ErrorBoundary name="Payouts">
       <div style={{ padding: 32, maxWidth: 920, fontFamily: T.font }}>
-        {/* Balance cards */}
         <div style={{ display: "flex", gap: 16 }}>
           <BalanceCard label="Available balance" value={money(available)} />
           <BalanceCard label="Pending balance" value={money(pending)} />
@@ -78,18 +62,14 @@ export default function PayoutsPage() {
             fontSize: 13,
           }}
         >
-          Next payout:{" "}
+          Payouts process within{" "}
           <span style={{ color: T.textPrimary }}>
-            {nextPayoutDate.toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-            })}
+            {PAYOUT_CYCLE_DAYS} business days
           </span>{" "}
-          — expected{" "}
-          <span style={{ color: T.textPrimary }}>{money(available)}</span>
+          of each request via ACH. Add the 3-day fast payout add-on to reduce
+          processing to 3 business days.
         </div>
 
-        {/* Actions */}
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
           <button
             type="button"
@@ -110,35 +90,16 @@ export default function PayoutsPage() {
           >
             Request payout
           </button>
-          <button
-            type="button"
-            disabled={pending <= 0 && available <= 0}
-            onClick={() => setEarlyOpen(true)}
-            style={{
-              background: "transparent",
-              border: `0.5px solid ${T.textPrimary}`,
-              borderRadius: T.radius,
-              color: T.textPrimary,
-              fontSize: 14,
-              fontWeight: 500,
-              padding: "12px 24px",
-              cursor: "pointer",
-              fontFamily: T.font,
-            }}
-          >
-            Early withdrawal
-          </button>
         </div>
 
         <PayoutHistoryTable history={history} />
       </div>
 
-      {/* Request payout modal */}
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Request payout">
         <p style={{ color: T.textMuted, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
           You are requesting a payout of{" "}
           <span style={{ color: T.textPrimary }}>{money(available)}</span> via
-          ACH bank transfer. Processing takes 3–5 business days.
+          ACH bank transfer. Processing takes {PAYOUT_CYCLE_DAYS} business days.
         </p>
         <button
           type="button"
@@ -153,14 +114,16 @@ export default function PayoutsPage() {
               recordPayout({
                 id: crypto.randomUUID(),
                 date: Date.now(),
-                type: "Scheduled",
+                type: "Payout",
                 gross: available,
                 fee: 0,
                 net: available,
                 status: "Pending",
                 method: "ACH",
               });
-              toast.success("Payout requested — arriving in 3–5 business days.");
+              toast.success(
+                `Payout requested — arriving in ${PAYOUT_CYCLE_DAYS} business days.`,
+              );
             } else {
               toast.error("Payout request failed. Please try again.");
             }
@@ -182,15 +145,6 @@ export default function PayoutsPage() {
           Confirm payout of {money(available)}
         </button>
       </Modal>
-
-      {/* Early withdrawal modal */}
-      <EarlyWithdrawalModal
-        open={earlyOpen}
-        onClose={() => setEarlyOpen(false)}
-        daysUntilPayout={daysUntilPayout}
-        maxAmount={available + pending}
-        onComplete={recordPayout}
-      />
     </ErrorBoundary>
   );
 }
@@ -218,137 +172,6 @@ function BalanceCard({ label, value }: { label: string; value: string }) {
       >
         {value}
       </div>
-    </div>
-  );
-}
-
-function EarlyWithdrawalModal({
-  open,
-  onClose,
-  daysUntilPayout,
-  maxAmount,
-  onComplete,
-}: {
-  open: boolean;
-  onClose: () => void;
-  daysUntilPayout: number;
-  maxAmount: number;
-  onComplete: (record: PayoutRecord) => void;
-}) {
-  const [amount, setAmount] = useState(0);
-
-  const feePct = feePctForDaysEarly(daysUntilPayout);
-  const fee = (amount * feePct) / 100;
-  const net = amount - fee;
-
-  return (
-    <Modal open={open} onClose={onClose} title="Early withdrawal">
-      <p style={{ color: T.textMuted, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-        Your next scheduled payout is in{" "}
-        <span style={{ color: T.textPrimary }}>{daysUntilPayout} days</span>.
-        Withdrawing now applies a {feePct}% liquidity fee.
-      </p>
-
-      <div
-        style={{
-          marginTop: 16,
-          background: T.bgTertiary,
-          border: T.hairline(),
-          borderRadius: T.radius,
-          height: 48,
-          padding: "0 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ color: T.textMuted, fontSize: 14 }}>$</span>
-        <input
-          type="number"
-          min={0}
-          max={maxAmount}
-          value={amount === 0 ? "" : amount}
-          placeholder="0"
-          onChange={(e) =>
-            setAmount(Math.min(maxAmount, Math.max(0, Number(e.target.value))))
-          }
-          style={{
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: T.textPrimary,
-            fontSize: 18,
-            fontWeight: 500,
-            flex: 1,
-            fontFamily: T.font,
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          marginTop: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <Row label={`Fee (${feePct}%)`} value={`−${money(fee)}`} color={T.red} />
-        <Row label="You receive" value={money(Math.max(0, net))} color={T.green} />
-      </div>
-
-      <button
-        type="button"
-        disabled={amount <= 0}
-        onClick={async () => {
-          const res = await fetch("/api/payouts/early-withdrawal", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amount, daysEarly: daysUntilPayout }),
-          });
-          onClose();
-          if (res.ok) {
-            onComplete({
-              id: crypto.randomUUID(),
-              date: Date.now(),
-              type: "Early withdrawal",
-              gross: amount,
-              fee,
-              net: Math.max(0, net),
-              status: "Processing",
-              method: "ACH",
-            });
-            toast.success(`Early withdrawal requested — ${money(net)} net.`);
-          } else {
-            toast.error("Early withdrawal failed. Please try again.");
-          }
-        }}
-        style={{
-          marginTop: 20,
-          width: "100%",
-          height: 44,
-          background: T.green,
-          border: "none",
-          borderRadius: T.radius,
-          color: T.bgPrimary,
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: amount > 0 ? "pointer" : "not-allowed",
-          opacity: amount > 0 ? 1 : 0.5,
-          fontFamily: T.font,
-        }}
-      >
-        Confirm early withdrawal
-      </button>
-    </Modal>
-  );
-}
-
-function Row({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span style={{ color: T.textMuted, fontSize: 13 }}>{label}</span>
-      <span style={{ color, fontSize: 13, fontWeight: 500 }}>{value}</span>
     </div>
   );
 }

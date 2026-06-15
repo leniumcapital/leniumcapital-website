@@ -4,15 +4,20 @@ import { useState } from "react";
 import {
   TIERS,
   RULE_ROWS,
+  PLATFORM_RULES,
   resetLineLong,
-  fundedTargetUsd,
   DEFAULT_TRADER_SPLIT_PCT,
   PAYOUT_CYCLE_DAYS,
+  FAST_PAYOUT_CYCLE_DAYS,
+  FUNDED_CONSISTENCY_CAP_PCT,
+  FUNDED_COMMISSION_PCT,
+  MIN_PAYOUT_PCT,
   usd,
+  minPayoutUsd,
 } from "@/lib/data";
 
 export function RulesExplorer() {
-  const [idx, setIdx] = useState(4); // default $25k
+  const [idx, setIdx] = useState(2); // default $25k
   const tier = TIERS[idx];
 
   return (
@@ -30,6 +35,11 @@ export function RulesExplorer() {
             }`}
           >
             {usd(t.size)}
+            {t.featured ? (
+              <span className="ml-1.5 text-[10px] uppercase text-brand-strong">
+                Popular
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -38,7 +48,7 @@ export function RulesExplorer() {
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
             {RULE_ROWS.map((r) => (
-              <tr key={r.key as string}>
+              <tr key={r.label}>
                 <td className="w-1/2 px-5 py-3 text-muted">{r.label}</td>
                 <td className="px-5 py-3 text-right font-semibold sm:text-left">
                   {r.format(tier)}
@@ -46,11 +56,29 @@ export function RulesExplorer() {
               </tr>
             ))}
             <tr>
-              <td className="px-5 py-3 text-muted">Reset</td>
+              <td className="px-5 py-3 text-muted">Reset fee</td>
               <td className="px-5 py-3 text-right font-semibold sm:text-left">
                 {resetLineLong(tier)}
               </td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="border-b border-border bg-surface-muted px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          Rules removed
+        </div>
+        <table className="w-full text-sm">
+          <tbody className="divide-y divide-border">
+            {PLATFORM_RULES.map((r) => (
+              <tr key={r.label}>
+                <td className="w-1/2 px-5 py-3 text-muted">{r.label}</td>
+                <td className="px-5 py-3 text-right font-semibold sm:text-left">
+                  {r.format(tier)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -62,36 +90,58 @@ export function RulesExplorer() {
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
             <tr>
-              <td className="w-1/2 px-5 py-3 text-muted">Monthly profit target</td>
+              <td className="w-1/2 px-5 py-3 text-muted">Profit target</td>
               <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {tier.fundedTargetPct}%/mo (${fundedTargetUsd(tier).toLocaleString()})
+                None — no monthly or annual minimum
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-3 text-muted">Time limit</td>
+              <td className="px-5 py-3 text-right font-semibold sm:text-left">
+                None — trade indefinitely within risk rules
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-3 text-muted">Max drawdown</td>
+              <td className="px-5 py-3 text-right font-semibold sm:text-left">
+                10% trailing high-water mark
               </td>
             </tr>
             <tr>
               <td className="px-5 py-3 text-muted">Default profit split</td>
               <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {DEFAULT_TRADER_SPLIT_PCT}/{100 - DEFAULT_TRADER_SPLIT_PCT} (you keep {DEFAULT_TRADER_SPLIT_PCT}%)
+                {DEFAULT_TRADER_SPLIT_PCT}/{100 - DEFAULT_TRADER_SPLIT_PCT} (90/10
+                with add-on)
               </td>
             </tr>
             <tr>
               <td className="px-5 py-3 text-muted">Payout cycle</td>
               <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                {PAYOUT_CYCLE_DAYS}-day (7-day with Fast Payout)
+                {PAYOUT_CYCLE_DAYS} business days ({FAST_PAYOUT_CYCLE_DAYS}-day
+                with Fast Payout add-on)
               </td>
             </tr>
             <tr>
-              <td className="px-5 py-3 text-muted">Risk rules</td>
+              <td className="px-5 py-3 text-muted">Minimum payout</td>
               <td className="px-5 py-3 text-right font-semibold sm:text-left">
-                Same as demo phase
+                {MIN_PAYOUT_PCT}% ({usd(minPayoutUsd(tier))})
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-3 text-muted">Commission</td>
+              <td className="px-5 py-3 text-right font-semibold sm:text-left">
+                {FUNDED_COMMISSION_PCT}% on opening transactions only
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-3 text-muted">Consistency rule</td>
+              <td className="px-5 py-3 text-right font-semibold sm:text-left">
+                {FUNDED_CONSISTENCY_CAP_PCT}% per market (target adjusts, never
+                terminates)
               </td>
             </tr>
           </tbody>
         </table>
-        <p className="border-t border-border px-5 py-3 text-xs text-muted">
-          Funded consistency rule: no single day may exceed 50% of the monthly
-          profit total. Missing a monthly target simply means no payout that
-          cycle — the account stays open and profits carry forward.
-        </p>
       </div>
     </div>
   );

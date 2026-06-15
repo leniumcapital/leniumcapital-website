@@ -91,11 +91,11 @@ function ProgressState() {
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span style={{ color: T.textMuted, fontSize: 12 }}>Days traded</span>
           <span style={{ color: T.textPrimary, fontSize: 12 }}>
-            {p.daysTraded} of {p.minTradingDays} days
+            {p.daysTraded} {p.daysTraded === 1 ? "day" : "days"}
           </span>
         </div>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {Array.from({ length: p.minTradingDays }, (_, i) => (
+          {Array.from({ length: Math.min(p.windowDays, 10) }, (_, i) => (
             <div
               key={i}
               style={{

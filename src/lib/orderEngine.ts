@@ -7,7 +7,12 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { fetchMarketPrice } from "@/lib/kalshi";
-import { TIERS } from "@/lib/data";
+import {
+  TIERS,
+  OPENING_PRICE_MIN_CENTS,
+  OPENING_PRICE_MAX_CENTS,
+  maxPositionUsd,
+} from "@/lib/data";
 
 export type OrderRequest = {
   marketTicker: string;
@@ -29,18 +34,11 @@ export type OrderResult =
   | { ok: true; fill: OrderFill }
   | { ok: false; error: string };
 
-/** Max position size in dollars for a tier (account size). */
-export function maxPositionForTier(tierSize: number): number {
+/** Max position size in dollars for a tier at the given balance. */
+export function maxPositionForTier(tierSize: number, balance?: number): number {
   const tier = TIERS.find((t) => t.size === tierSize);
   if (!tier) return 0;
-  return Math.round((tier.size * tier.maxPositionPct) / 100);
-}
-
-/** Daily loss limit in dollars for a tier. */
-export function dailyLossLimitForTier(tierSize: number): number {
-  const tier = TIERS.find((t) => t.size === tierSize);
-  if (!tier) return 0;
-  return Math.round((tier.size * tier.dailyLimitPct) / 100);
+  return maxPositionUsd(tier, balance ?? tier.size);
 }
 
 /**
@@ -77,6 +75,12 @@ export async function executeOrder(
   }
 
   const entryPrice = direction === "yes" ? price.yesPrice : price.noPrice;
+  if (entryPrice < OPENING_PRICE_MIN_CENTS || entryPrice > OPENING_PRICE_MAX_CENTS) {
+    return {
+      ok: false,
+      error: `Contracts must trade between ${OPENING_PRICE_MIN_CENTS}¢ and ${OPENING_PRICE_MAX_CENTS}¢ YES to open a position.`,
+    };
+  }
   if (entryPrice <= 0 || entryPrice >= 100) {
     return { ok: false, error: "Market is not currently tradable." };
   }

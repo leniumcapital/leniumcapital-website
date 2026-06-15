@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   TIERS,
   ADDONS,
-  SPLIT_ADDONS,
   computePrice,
   addonPrice,
   usd,
@@ -13,21 +12,15 @@ import {
 } from "@/lib/data";
 
 export function PricingCalculator() {
-  const [sizeIdx, setSizeIdx] = useState(1); // default $10k
+  const [sizeIdx, setSizeIdx] = useState(2); // default $25k
   const [selected, setSelected] = useState<AddonId[]>([]);
 
   const tier = TIERS[sizeIdx];
 
   const toggle = (id: AddonId) => {
-    setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      let next = [...prev, id];
-      // The two profit-split upgrades are mutually exclusive.
-      if (SPLIT_ADDONS.includes(id)) {
-        next = next.filter((x) => x === id || !SPLIT_ADDONS.includes(x));
-      }
-      return next;
-    });
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   const price = useMemo(() => computePrice(tier, selected), [tier, selected]);
@@ -40,7 +33,7 @@ export function PricingCalculator() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
             Account size
           </h3>
-          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {TIERS.map((t, i) => (
               <button
                 key={t.size}
@@ -56,6 +49,11 @@ export function PricingCalculator() {
                   {usd(t.size)}
                 </div>
                 <div className="text-xs text-muted">${t.baseFee}</div>
+                {t.featured ? (
+                  <div className="mt-1 text-[10px] font-semibold uppercase text-brand-strong">
+                    Most popular
+                  </div>
+                ) : null}
               </button>
             ))}
           </div>
@@ -68,12 +66,6 @@ export function PricingCalculator() {
           <div className="mt-3 space-y-2">
             {ADDONS.map((a) => {
               const isOn = selected.includes(a.id);
-              const disabledBySplit =
-                SPLIT_ADDONS.includes(a.id) &&
-                !isOn &&
-                selected.some(
-                  (x) => SPLIT_ADDONS.includes(x) && x !== a.id
-                );
               return (
                 <button
                   key={a.id}
@@ -83,7 +75,7 @@ export function PricingCalculator() {
                     isOn
                       ? "border-brand bg-brand-soft"
                       : "border-border hover:border-brand/40"
-                  } ${disabledBySplit ? "opacity-50" : ""}`}
+                  }`}
                 >
                   <span
                     className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border ${

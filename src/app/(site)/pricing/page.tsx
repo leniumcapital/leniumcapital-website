@@ -6,7 +6,7 @@ import { TIERS, usd, resetLineShort } from "@/lib/data";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Nine evaluation tiers from $5,000 to $100,000. Choose a size, pay a one-time fee, hit your profit goal, and get funded.",
+    "Six evaluation tiers from $5,000 to $100,000. Choose a size, pay a one-time fee, hit your profit goal, and get funded.",
 };
 
 const STEPS = [
@@ -36,7 +36,7 @@ export default function PricingPage() {
             Build your challenge
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted">
-            Nine account sizes, five add-ons, and a live total. Pick a size, pay
+            Six account sizes, five add-ons, and a live total. Pick a size, pay
             once, and see exactly what it takes to get funded.
           </p>
         </Container>

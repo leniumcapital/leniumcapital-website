@@ -19,14 +19,12 @@ interface ChallengeState {
   currentDrawdown: number;
   /** Highest balance reached, dollars. */
   peakBalance: number;
-  minTradingDays: number;
+  /** Static drawdown floor in dollars (set at account activation). */
+  staticFloorUsd: number;
   daysTraded: number;
-  /** ISO dates (YYYY-MM-DD, UTC) on which the user traded. */
   tradedDates: string[];
   windowStartDate: string;
   windowEndDate: string;
-  /** Daily loss limit, percent of account size. */
-  dailyLossLimit: number;
   updateProgress: (
     progress: Partial<
       Pick<
@@ -36,11 +34,10 @@ interface ChallengeState {
         | "maxDrawdown"
         | "currentDrawdown"
         | "peakBalance"
-        | "minTradingDays"
         | "daysTraded"
         | "windowStartDate"
         | "windowEndDate"
-        | "dailyLossLimit"
+        | "staticFloorUsd"
       >
     >,
   ) => void;
@@ -55,12 +52,11 @@ const initial = {
   maxDrawdown: 0,
   currentDrawdown: 0,
   peakBalance: 0,
-  minTradingDays: 0,
+  staticFloorUsd: 0,
   daysTraded: 0,
   tradedDates: [] as string[],
   windowStartDate: "",
   windowEndDate: "",
-  dailyLossLimit: 0,
 };
 
 export const useChallengeStore = create<ChallengeState>()(
@@ -105,11 +101,19 @@ export function subscribeChallengeToPositions(): () => void {
 
     const challenge = useChallengeStore.getState();
     const equity = account.accountSize + currentProfit;
-    const peakBalance = Math.max(challenge.peakBalance, equity, account.accountSize);
+    const starting = account.accountSize;
+    const floor =
+      challenge.staticFloorUsd > 0
+        ? challenge.staticFloorUsd
+        : starting * (1 - challenge.maxDrawdown / 100);
     const currentDrawdown =
-      peakBalance > 0 ? ((peakBalance - equity) / peakBalance) * 100 : 0;
+      starting > 0 ? Math.max(0, ((starting - equity) / starting) * 100) : 0;
 
-    challenge.updateProgress({ currentProfit, peakBalance });
-    challenge.updateDrawdown(Math.max(0, currentDrawdown), peakBalance);
+    challenge.updateProgress({
+      currentProfit,
+      peakBalance: Math.max(challenge.peakBalance, equity, starting),
+      staticFloorUsd: floor,
+    });
+    challenge.updateDrawdown(Math.max(0, currentDrawdown), equity);
   });
 }

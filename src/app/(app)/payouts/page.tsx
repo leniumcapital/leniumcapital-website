@@ -18,7 +18,7 @@ export default async function PayoutsPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Payouts</h1>
         <p className="mt-2 text-muted">
           {isFunded
-            ? `Profits pay out on a ${PAYOUT_CYCLE_DAYS}-day cycle, in USD by ACH.`
+            ? `Profits pay out within ${PAYOUT_CYCLE_DAYS} business days of each request, in USD by ACH.`
             : "Payouts unlock once you pass your challenge and your account is funded."}
         </p>
 
@@ -38,7 +38,7 @@ export default async function PayoutsPage() {
           <Card>
             <div className="text-sm text-muted">Payout cycle</div>
             <div className="mt-1 text-2xl font-semibold tabular-nums">
-              {PAYOUT_CYCLE_DAYS} days
+              {PAYOUT_CYCLE_DAYS} business days
             </div>
           </Card>
         </div>

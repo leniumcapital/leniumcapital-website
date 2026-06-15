@@ -1,7 +1,12 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import { TIERS } from "@/lib/data";
+import {
+  TIERS,
+  OPENING_PRICE_MIN_CENTS,
+  OPENING_PRICE_MAX_CENTS,
+  MARKET_RESOLUTION_WINDOW_DAYS,
+} from "@/lib/data";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
@@ -16,13 +21,32 @@ export default function SettingsPage() {
         {tier ? (
           <DashboardCard title="Challenge rules">
             <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
-            <RuleRow label="Daily loss limit" value={`${tier.dailyLimitPct}%`} />
+            <RuleRow
+              label="Max drawdown"
+              value={`${tier.maxDrawdownPct}% static floor`}
+            />
+            <RuleRow label="Daily loss limit" value="None" />
             <RuleRow
               label="Max position size"
               value={`${tier.maxPositionPct}% ($${Math.round((tier.size * tier.maxPositionPct) / 100).toLocaleString()})`}
             />
-            <RuleRow label="Minimum trading days" value={`${tier.minTradingDays} days`} />
+            <RuleRow
+              label="Max total exposure"
+              value={`${tier.maxExposurePct}% ($${Math.round((tier.size * tier.maxExposurePct) / 100).toLocaleString()})`}
+            />
+            <RuleRow
+              label="Opening price range"
+              value={`${OPENING_PRICE_MIN_CENTS}¢–${OPENING_PRICE_MAX_CENTS}¢ YES`}
+            />
+            <RuleRow
+              label="Market resolution window"
+              value={`${MARKET_RESOLUTION_WINDOW_DAYS} days`}
+            />
+            <RuleRow
+              label="Consistency rule"
+              value={`${tier.consistencyCapPct}% per market`}
+            />
+            <RuleRow label="Minimum trading days" value="None" />
             <RuleRow label="Challenge window" value={`${tier.windowDays} days`} />
           </DashboardCard>
         ) : (

@@ -1,133 +1,129 @@
 export type Tier = {
   size: number;
   baseFee: number;
-  /** One-time profit (%) required to pass the demo challenge. */
+  resetFee: number;
+  /** Uniform 20% profit target across all tiers. */
   profitTargetPct: number;
-  /** Minimum monthly profit (%) to unlock a payout on the funded account. */
-  fundedTargetPct: number;
   maxDrawdownPct: number;
-  dailyLimitPct: number;
   maxPositionPct: number;
-  minTradingDays: number;
+  maxExposurePct: number;
   windowDays: number;
-  /** Demo consistency cap: max share of total profit from a single day. */
+  /** Evaluation consistency: max share of profit target from one market ticker. */
   consistencyCapPct: number;
-  /** Tier offered only by Lenium ($15k, $20k, $35k, $75k). */
-  exclusive: boolean;
+  /** Recommended starting tier ($25K). */
+  featured?: boolean;
+  /** Unique to Lenium ($75K). */
+  exclusive?: boolean;
 };
 
-/**
- * Nine evaluation tiers. Four sizes ($15k, $20k, $35k, $75k) are exclusive
- * to Lenium. Source: Lenium Pricing, Challenge Rules & Fee Schedule v1.0.
- */
+/** Six evaluation tiers — the only account sizes available. */
 export const TIERS: Tier[] = [
-  { size: 5000, baseFee: 55, profitTargetPct: 25, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 15, minTradingDays: 7, windowDays: 30, consistencyCapPct: 40, exclusive: false },
-  { size: 10000, baseFee: 109, profitTargetPct: 22, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 4, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 40, exclusive: false },
-  { size: 15000, baseFee: 149, profitTargetPct: 20, fundedTargetPct: 5, maxDrawdownPct: 8, dailyLimitPct: 3.5, maxPositionPct: 12, minTradingDays: 8, windowDays: 30, consistencyCapPct: 35, exclusive: true },
-  { size: 20000, baseFee: 189, profitTargetPct: 20, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3.5, maxPositionPct: 10, minTradingDays: 9, windowDays: 35, consistencyCapPct: 35, exclusive: true },
-  { size: 25000, baseFee: 239, profitTargetPct: 18, fundedTargetPct: 4.5, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 10, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: false },
-  { size: 35000, baseFee: 319, profitTargetPct: 16, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 3, maxPositionPct: 8, minTradingDays: 10, windowDays: 35, consistencyCapPct: 30, exclusive: true },
-  { size: 50000, baseFee: 499, profitTargetPct: 15, fundedTargetPct: 4, maxDrawdownPct: 7, dailyLimitPct: 2.5, maxPositionPct: 8, minTradingDays: 12, windowDays: 40, consistencyCapPct: 25, exclusive: false },
-  { size: 75000, baseFee: 699, profitTargetPct: 13, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2.5, maxPositionPct: 6, minTradingDays: 14, windowDays: 40, consistencyCapPct: 25, exclusive: true },
-  { size: 100000, baseFee: 979, profitTargetPct: 11, fundedTargetPct: 3.5, maxDrawdownPct: 6, dailyLimitPct: 2, maxPositionPct: 5, minTradingDays: 15, windowDays: 45, consistencyCapPct: 20, exclusive: false },
+  { size: 5000, baseFee: 65, resetFee: 49, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15 },
+  { size: 10000, baseFee: 119, resetFee: 89, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15 },
+  { size: 25000, baseFee: 249, resetFee: 187, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15, featured: true },
+  { size: 50000, baseFee: 529, resetFee: 397, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15 },
+  { size: 75000, baseFee: 729, resetFee: 547, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15, exclusive: true },
+  { size: 100000, baseFee: 999, resetFee: 749, profitTargetPct: 20, maxDrawdownPct: 10, maxPositionPct: 5, maxExposurePct: 10, windowDays: 30, consistencyCapPct: 15 },
 ];
 
-/** Reset fee is 25% off the original base fee, available after any breach. */
-export const resetFee = (tier: Tier) => Math.floor(tier.baseFee * 0.75);
-/** What a trader saves by resetting instead of buying a fresh challenge. */
-export const resetSavings = (tier: Tier) => tier.baseFee - resetFee(tier);
-/**
- * The $35,000 reset fee ($239) equals the $25,000 base fee, so the reset label
- * must always name the account size on that tier to avoid cross-tier confusion.
- */
-export const resetNeedsSize = (tier: Tier) => tier.size === 35000;
+export const PROFIT_TARGET_PCT = 20;
+export const MAX_DRAWDOWN_PCT = 10;
+export const MAX_POSITION_PCT = 5;
+export const MAX_EXPOSURE_PCT = 10;
+export const OPENING_PRICE_MIN_CENTS = 15;
+export const OPENING_PRICE_MAX_CENTS = 85;
+export const MARKET_RESOLUTION_WINDOW_DAYS = 60;
+export const CHALLENGE_WINDOW_DAYS = 30;
+export const FUNDED_COMMISSION_PCT = 1;
+export const MIN_PAYOUT_PCT = 2;
 
-/** Rules-table phrasing: "Restart this challenge — $X (save $Y vs buying fresh)". */
+export const resetSavings = (tier: Tier) => tier.baseFee - tier.resetFee;
+
 export const resetLineLong = (tier: Tier) =>
-  `${
-    resetNeedsSize(tier)
-      ? `Restart your ${usd(tier.size)} challenge`
-      : "Restart this challenge"
-  } — ${usd(resetFee(tier))} (save ${usd(resetSavings(tier))} vs buying fresh)`;
+  `Restart this challenge — ${usd(tier.resetFee)} (save ${usd(resetSavings(tier))} vs buying fresh)`;
 
-/** Pricing-line phrasing: "Reset a failed attempt: $X (25% off)". */
 export const resetLineShort = (tier: Tier) =>
-  resetNeedsSize(tier)
-    ? `Reset your ${usd(tier.size)} attempt: ${usd(resetFee(tier))} (25% off)`
-    : `Reset a failed attempt: ${usd(resetFee(tier))} (25% off)`;
+  `Reset a failed attempt: ${usd(tier.resetFee)}`;
 
-/** Checkout order-summary title: "$X Challenge — Reset Purchase". */
 export const resetCheckoutTitle = (tier: Tier) =>
   `${usd(tier.size)} Challenge — Reset Purchase`;
 
 /** Default profit split (trader %) included with every base fee. */
 export const DEFAULT_TRADER_SPLIT_PCT = 70;
-/** Funded-account consistency cap: no single day may exceed this share of monthly profit. */
-export const FUNDED_CONSISTENCY_CAP_PCT = 50;
-/** Standard funded-account payout cycle, in days. */
-export const PAYOUT_CYCLE_DAYS = 14;
+/** Funded consistency: max share of monthly profit from one market ticker. */
+export const FUNDED_CONSISTENCY_CAP_PCT = 20;
+/** Standard funded-account payout cycle (business days). */
+export const PAYOUT_CYCLE_DAYS = 7;
+/** Fast payout add-on cycle (business days). */
+export const FAST_PAYOUT_CYCLE_DAYS = 3;
 
-/** One-time profit ($) required to pass the demo challenge. */
 export const demoTargetUsd = (tier: Tier) =>
   Math.round((tier.size * tier.profitTargetPct) / 100);
-/** Minimum monthly profit ($) to unlock a funded payout. */
-export const fundedTargetUsd = (tier: Tier) =>
-  Math.round((tier.size * tier.fundedTargetPct) / 100);
 
-export type AddonId = "split90" | "split95" | "drawdown" | "doubletime" | "fastpayout";
+export const staticDrawdownFloorUsd = (tier: Tier) =>
+  Math.round(tier.size * (1 - tier.maxDrawdownPct / 100));
+
+export const maxPositionUsd = (tier: Tier, balance = tier.size) =>
+  Math.round((balance * tier.maxPositionPct) / 100);
+
+export const maxExposureUsd = (tier: Tier, balance = tier.size) =>
+  Math.round((balance * tier.maxExposurePct) / 100);
+
+export const minPayoutUsd = (tier: Tier) =>
+  Math.round((tier.size * MIN_PAYOUT_PCT) / 100);
+
+export type AddonId =
+  | "split90"
+  | "drawdown"
+  | "consistency"
+  | "doubletime"
+  | "fastpayout";
 
 export type Addon = {
   id: AddonId;
   name: string;
   blurb: string;
-  /** Percentage of base fee (e.g. 0.5 = 50%). Mutually exclusive with `flat`. */
   pctOfBase?: number;
-  /** Flat dollar fee. */
   flat?: number;
-  /** True when this upgrade is exclusive to Lenium. */
-  exclusive: boolean;
 };
 
 export const ADDONS: Addon[] = [
   {
     id: "split90",
     name: "90% profit split",
-    blurb: "Changes the default 70/30 split to 90/10 permanently. Keep 90 cents of every dollar you earn on the funded account.",
+    blurb:
+      "Raises the funded profit split from 70/30 to 90/10 permanently — the maximum split available from any CFTC-regulated prediction market prop firm.",
     pctOfBase: 0.5,
-    exclusive: false,
-  },
-  {
-    id: "split95",
-    name: "95% profit split",
-    blurb: "The highest profit split available anywhere in the prediction market prop firm industry. Keep 95 cents of every dollar — Lenium retains 5%.",
-    pctOfBase: 0.8,
-    exclusive: true,
   },
   {
     id: "drawdown",
     name: "Drawdown boost",
-    blurb: "Raises your maximum drawdown ceiling to 15% and your daily loss limit to 8%, on both the demo challenge and the funded account.",
+    blurb:
+      "Raises max drawdown to 15%, max total exposure to 15%, and max single position to 7.5% on both evaluation and funded accounts.",
     pctOfBase: 0.65,
-    exclusive: false,
+  },
+  {
+    id: "consistency",
+    name: "Consistency boost",
+    blurb:
+      "Raises the consistency threshold from 15% to 25% during evaluation and from 20% to 30% on the funded account.",
+    pctOfBase: 0.2,
   },
   {
     id: "doubletime",
     name: "Double time",
-    blurb: "Doubles your challenge window. More time to hit the profit target — no other rule changes.",
+    blurb:
+      "Extends the evaluation window from 30 to 60 calendar days. No other rules change.",
     pctOfBase: 0.09,
-    exclusive: false,
   },
   {
     id: "fastpayout",
-    name: "Fast payout (7-day)",
-    blurb: "Reduces funded-account payout cycles from 14 days to 7 days.",
+    name: "3-day fast payout",
+    blurb:
+      "Reduces payout processing from 7 business days to 3 business days on every funded payout permanently.",
     flat: 39,
-    exclusive: true,
   },
 ];
-
-/** The two profit-split upgrades cannot both apply to one account. */
-export const SPLIT_ADDONS: AddonId[] = ["split90", "split95"];
 
 export function addonPrice(addon: Addon, baseFee: number): number {
   if (addon.flat != null) return addon.flat;
@@ -175,59 +171,77 @@ export function computePrice(tier: Tier, selected: AddonId[]): PriceBreakdown {
 }
 
 export type RuleRow = {
-  key: keyof Tier;
   label: string;
   format: (t: Tier) => string;
   plain: string;
 };
 
+/** Evaluation-phase rules — uniform across all six tiers (dollar amounts scale by size). */
 export const RULE_ROWS: RuleRow[] = [
   {
-    key: "profitTargetPct",
     label: "Profit target",
-    format: (t) => `${t.profitTargetPct}% ($${demoTargetUsd(t).toLocaleString()})`,
-    plain: "The one-time gain you need to pass. Scaled to your account size.",
+    format: (t) => `20% (${usd(demoTargetUsd(t))})`,
+    plain:
+      "A flat 20% gain on your starting balance. Same percentage on every tier.",
   },
   {
-    key: "maxDrawdownPct",
     label: "Max drawdown",
-    format: (t) => `${t.maxDrawdownPct}%`,
+    format: (t) =>
+      `10% static floor (${usd(staticDrawdownFloorUsd(t))})`,
     plain:
-      "The most your account can fall from its peak before the challenge ends.",
+      "Your floor is set on day one and never rises during evaluation — profits do not tighten the limit.",
   },
   {
-    key: "dailyLimitPct",
-    label: "Daily loss limit",
-    format: (t) => `${t.dailyLimitPct}%`,
-    plain:
-      "The most you can lose in a single day. Prevents one bad event from ending your challenge.",
-  },
-  {
-    key: "minTradingDays",
-    label: "Minimum trading days",
-    format: (t) => `${t.minTradingDays} days`,
-    plain:
-      "The minimum number of distinct days you must trade. Proves a repeatable process, not a single lucky session.",
-  },
-  {
-    key: "maxPositionPct",
     label: "Max position size",
-    format: (t) => `${t.maxPositionPct}%`,
+    format: (t) => `5% (${usd(maxPositionUsd(t))})`,
     plain:
-      "The largest share of your account any single contract can represent. Keeps one binary outcome from deciding everything.",
+      "No single position may exceed 5% of your current balance at entry.",
+  },
+  {
+    label: "Max total exposure",
+    format: (t) => `10% (${usd(maxExposureUsd(t))})`,
+    plain:
+      "The combined value of all open positions cannot exceed 10% of balance.",
+  },
+  {
+    label: "Opening price range",
+    format: () => `${OPENING_PRICE_MIN_CENTS}¢–${OPENING_PRICE_MAX_CENTS}¢ YES`,
+    plain:
+      "New positions only in contracts trading between 15¢ and 85¢ YES — wider than PropMarket's 20¢–80¢ range.",
+  },
+  {
+    label: "Market resolution window",
+    format: () => `Within ${MARKET_RESOLUTION_WINDOW_DAYS} days`,
+    plain:
+      "Positions must be in markets resolving within 60 calendar days of entry.",
+  },
+  {
+    label: "Consistency rule",
+    format: () => "15% per market (target adjusts up, never terminates)",
+    plain:
+      "No single market may contribute more than 15% of your profit target. Exceeding it raises the target — it never ends your account.",
+  },
+  {
+    label: "Challenge window",
+    format: (t) => `${t.windowDays} calendar days`,
+    plain:
+      "30 days to hit your target (60 with Double Time). Expired evaluations use the reset fee.",
   },
 ];
 
-export type EarlyWithdrawalTier = {
-  range: string;
-  feePct: number;
-};
-
-export const EARLY_WITHDRAWAL: EarlyWithdrawalTier[] = [
-  { range: "1–3 days early", feePct: 25 },
-  { range: "4–7 days early", feePct: 20 },
-  { range: "8–11 days early", feePct: 15 },
-  { range: "12–13 days early", feePct: 10 },
+export const PLATFORM_RULES: RuleRow[] = [
+  {
+    label: "Daily loss limit",
+    format: () => "None",
+    plain:
+      "Removed entirely. Drawdown and position limits provide sufficient protection for binary contracts.",
+  },
+  {
+    label: "Minimum trading days",
+    format: () => "None",
+    plain:
+      "Removed entirely. Quality of predictions matters more than trade frequency.",
+  },
 ];
 
 export type FAQ = { q: string; a: string };
@@ -247,27 +261,27 @@ export const FAQS: FAQ[] = [
   },
   {
     q: "How does the challenge work?",
-    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your profit target without breaching the max drawdown or daily loss limit, keep within the max position size, and meet the minimum trading days — and you receive a funded account.",
+    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your 20% profit target within 30 days without breaching the 10% static drawdown floor, while respecting position size, exposure, price range, and consistency rules — and you receive a funded account.",
   },
   {
     q: "What happens when I pass?",
-    a: "You sign a trader agreement and receive access to a funded Lenium sub-account on Kalshi with real capital equal to your challenge size. You trade live markets and earn a share of your profits on a 14-day payout cycle.",
+    a: "You sign a trader agreement and receive access to a funded Lenium sub-account on Kalshi with real capital equal to your challenge size. You trade live markets and earn a share of your profits on a 7-business-day payout cycle.",
   },
   {
     q: "What is the profit split?",
-    a: "The default split is 70% to you, 30% to Lenium. Add the 90% split add-on to lock in 90/10 permanently, or the 95% split add-on for the highest split in the prediction market prop firm industry.",
+    a: "The default split is 70% to you, 30% to Lenium. Add the 90% profit split add-on at purchase to lock in 90/10 permanently — the highest split available from any CFTC-regulated prediction market prop firm.",
   },
   {
     q: "What if I fail the challenge?",
-    a: "Your account is closed. You may reset at 25% off the original challenge fee and begin a new challenge immediately at the same account size.",
+    a: "Your account is closed after a drawdown breach or expiry. You may reset at the discounted reset fee for your tier and begin a new challenge immediately at the same account size.",
   },
   {
     q: "Can I trade any Kalshi market?",
-    a: "Yes. You can trade any market available on Kalshi. The only constraints are the five challenge rules — your profit target, max drawdown, daily loss limit, minimum trading days, and max position size.",
+    a: "You can trade any eligible Kalshi market that resolves within 60 days and has a YES price between 15¢ and 85¢. Position size (5%), total exposure (10%), drawdown, and consistency rules also apply.",
   },
   {
     q: "How are payouts processed?",
-    a: "Funded account payouts are processed via ACH bank transfer on a 14-day cycle. Add the Fast Payout add-on to move to a 7-day cycle. Early withdrawal of profits before the payout date is available for a liquidity service fee of 10% to 25% depending on how early the request is made.",
+    a: "Funded account payouts are processed via ACH bank transfer within 7 business days of each request. The minimum payout is 2% of your starting account balance. Add the 3-day fast payout add-on to reduce processing to 3 business days. A 1% commission applies to opening transactions on funded accounts only.",
   },
 ];
 
@@ -286,11 +300,11 @@ export const LEADERBOARD: LeaderboardEntry[] = [
   { rank: 2, username: "probability_pat", tier: 75000, profitPct: 38.2, earnings: 20055, streak: 31, funded: true },
   { rank: 3, username: "maker_mode", tier: 50000, profitPct: 44.1, earnings: 15435, streak: 27, funded: true },
   { rank: 4, username: "edge_or_exit", tier: 100000, profitPct: 22.6, earnings: 15820, streak: 19, funded: true },
-  { rank: 5, username: "calibrated", tier: 35000, profitPct: 39.7, earnings: 9744, streak: 44, funded: true },
+  { rank: 5, username: "calibrated", tier: 50000, profitPct: 39.7, earnings: 9744, streak: 44, funded: true },
   { rank: 6, username: "limit_only", tier: 25000, profitPct: 47.3, earnings: 8278, streak: 22, funded: true },
   { rank: 7, username: "tail_hedge", tier: 50000, profitPct: 18.9, earnings: 6615, streak: 12, funded: true },
-  { rank: 8, username: "kelly_fraction", tier: 20000, profitPct: 35.2, earnings: 4928, streak: 16, funded: false },
-  { rank: 9, username: "no_taker_fees", tier: 15000, profitPct: 41.0, earnings: 4305, streak: 25, funded: true },
+  { rank: 8, username: "kelly_fraction", tier: 10000, profitPct: 35.2, earnings: 4928, streak: 16, funded: false },
+  { rank: 9, username: "no_taker_fees", tier: 75000, profitPct: 41.0, earnings: 4305, streak: 25, funded: true },
   { rank: 10, username: "settle_at_one", tier: 10000, profitPct: 52.4, earnings: 4192, streak: 14, funded: true },
   { rank: 11, username: "fade_the_hype", tier: 25000, profitPct: 14.8, earnings: 2590, streak: 9, funded: false },
   { rank: 12, username: "resolved_yes", tier: 5000, profitPct: 61.2, earnings: 3060, streak: 18, funded: true },

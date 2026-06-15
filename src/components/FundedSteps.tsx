@@ -20,7 +20,7 @@ const item: Variants = {
 
 /** Step 01 — account-size chips that light up in sequence. */
 function ChooseVisual() {
-  const chips = ["$5K", "$15K", "$50K", "$100K"];
+  const chips = ["$5K", "$25K", "$50K", "$100K"];
   const [active, setActive] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setActive((a) => (a + 1) % chips.length), 1100);
@@ -116,7 +116,7 @@ function FundedVisual() {
         animate={{ opacity: [0.55, 1, 0.55] }}
         transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       >
-        95% yours
+        90% yours
       </motion.span>
     </div>
   );
@@ -138,7 +138,7 @@ const STEPS = [
   {
     n: "03",
     t: "Get funded",
-    d: "Pass and receive a funded Kalshi sub-account with real capital. Keep up to 95% of profits.",
+    d: "Pass and receive a funded Kalshi sub-account with real capital. Keep up to 90% of profits with the split add-on.",
     Visual: FundedVisual,
   },
 ];

@@ -34,7 +34,6 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
     }),
   );
   const tierSize = useAccountStore((s) => s.tier);
-  const dailyLockout = useAccountStore((s) => s.dailyLockout);
 
   const [direction, setDirection] = useState<"yes" | "no">("yes");
   const [size, setSize] = useState(0);
@@ -70,7 +69,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
   }
 
   function handleSubmit() {
-    if (!market || size <= 0 || placeOrder.isPending || dailyLockout) return;
+    if (!market || size <= 0 || placeOrder.isPending) return;
     placeOrder.mutate({
       marketTicker: ticker,
       direction,
@@ -80,7 +79,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
     });
   }
 
-  const confirmDisabled = size <= 0 || placeOrder.isPending || dailyLockout;
+  const confirmDisabled = size <= 0 || placeOrder.isPending;
 
   return (
     <div style={{ padding: 20, fontFamily: T.font }}>
@@ -199,13 +198,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
       </div>
 
       {/* Confirm */}
-      <div
-        title={
-          dailyLockout
-            ? "Daily loss limit reached — trading resumes at midnight UTC"
-            : undefined
-        }
-      >
+      <div>
         <button
           type="button"
           disabled={confirmDisabled}

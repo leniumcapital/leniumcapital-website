@@ -17,9 +17,9 @@ import {
   type AccountChallengeStatus,
 } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
-import { usePositionStore, realizedPnlTodayUtc } from "@/stores/positionStore";
+import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
-import { TIERS, resetFee, usd } from "@/lib/data";
+import { TIERS, usd } from "@/lib/data";
 import {
   T,
   TOP_BAR_HEIGHT,
@@ -221,28 +221,12 @@ function useRuleEnforcement(): void {
     return unsubscribe;
   }, []);
 
-  // Daily loss lockout, recomputed when closed trades change.
-  useEffect(() => {
-    const unsubscribe = usePositionStore.subscribe((positions) => {
-      const account = useAccountStore.getState();
-      const tier = TIERS.find((t) => t.size === account.tier);
-      if (!tier) return;
-      const limit = (tier.size * tier.dailyLimitPct) / 100;
-      const dailyPnl = realizedPnlTodayUtc(positions.closedTrades);
-      const lockout = dailyPnl <= -limit;
-      if (lockout !== account.dailyLockout) {
-        account.setDailyLockout(lockout);
-      }
-    });
-    return unsubscribe;
-  }, []);
+  // Daily loss limit removed — no lockout enforcement.
 }
 
 function RuleBanners() {
   const progress = useChallengeProgress();
-  const dailyLockout = useAccountStore((s) => s.dailyLockout);
   const accountType = useAccountStore((s) => s.accountType);
-  const closedTrades = usePositionStore((s) => s.closedTrades);
 
   if (accountType === "none") return null;
 
@@ -253,34 +237,15 @@ function RuleBanners() {
       key: "drawdown-critical",
       color: T.red,
       bg: T.redMuted,
-      text: "Critical: you are near your max drawdown limit.",
+      text: `Critical: portfolio is near your static floor (${usd(progress.staticFloorUsd)}).`,
     });
   } else if (progress.drawdownConsumedPct >= 75) {
     banners.push({
       key: "drawdown-warning",
       color: T.amber,
       bg: T.amberMuted,
-      text: `Drawdown warning: you have used ${progress.drawdownConsumedPct.toFixed(0)}% of your ${progress.maxDrawdown}% maximum.`,
+      text: `Drawdown warning: ${progress.currentDrawdown.toFixed(1)}% of your ${progress.maxDrawdown}% static limit used.`,
     });
-  }
-
-  if (dailyLockout) {
-    banners.push({
-      key: "daily-lockout",
-      color: T.red,
-      bg: T.redMuted,
-      text: "Daily limit reached. Trading unlocks at midnight UTC.",
-    });
-  } else if (progress.dailyLossLimit > 0) {
-    const dailyPnl = realizedPnlTodayUtc(closedTrades);
-    if (dailyPnl <= -progress.dailyLossLimit * 0.75) {
-      banners.push({
-        key: "daily-warning",
-        color: T.amber,
-        bg: T.amberMuted,
-        text: `Daily loss warning: you have used ${Math.min(100, (-dailyPnl / progress.dailyLossLimit) * 100).toFixed(0)}% of your daily loss limit.`,
-      });
-    }
   }
 
   return (
@@ -315,7 +280,7 @@ function BreachOverlay() {
   const challengeStatus = useAccountStore((s) => s.challengeStatus);
   const tierSize = useAccountStore((s) => s.tier);
   const tier = TIERS.find((t) => t.size === tierSize);
-  const fee = tier ? resetFee(tier) : 0;
+  const fee = tier?.resetFee ?? 0;
 
   return (
     <AnimatePresence>
