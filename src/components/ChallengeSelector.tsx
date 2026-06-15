@@ -99,21 +99,24 @@ export function ChallengeSelector({
     if (isAuthenticated) {
       setCheckingOut(true);
       try {
-        const res = await fetch("/api/challenges/purchase", {
+        const res = await fetch("/api/billing/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             tierSize: tier.size,
             addons: selectedAddons,
+            planType: "challenge",
           }),
         });
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as { error?: string; order?: { orderId: string } };
         if (!res.ok) {
-          toast.error(data.error ?? "Could not start challenge.");
+          toast.error(data.error ?? "Could not create order.");
           return;
         }
-        toast.success(`${formatUsd(tier.size)} challenge started — good luck!`);
-        router.push("/dashboard");
+        toast.success(
+          `Order ${data.order?.orderId ?? ""} created — complete payment in Billing.`,
+        );
+        router.push("/dashboard/billing");
       } catch {
         toast.error("Something went wrong. Please try again.");
       } finally {

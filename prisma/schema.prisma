@@ -26,6 +26,7 @@ model User {
   updatedAt         DateTime         @updatedAt
   accounts          TradingAccount[]
   orders            Order[]
+  billingOrders     BillingOrder[]
 }
 
 model TradingAccount {
@@ -40,8 +41,30 @@ model TradingAccount {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   orders          Order[]
+  billingOrders   BillingOrder[]
 
   @@index([userId])
+}
+
+model BillingOrder {
+  id            String          @id @default(cuid())
+  orderNumber   String          @unique
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       TradingAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  planType      String          // "challenge" | "reset"
+  tierSize      Int
+  balance       Int
+  price         Int
+  status        String          @default("pending") // "pending" | "paid"
+  addons        String          @default("[]")
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Order {

@@ -8,6 +8,11 @@ import {
   isPurchasableTierSize,
   type AddonId,
 } from "@/lib/pricing";
+import {
+  BillingError,
+  recordPaidBillingOrder,
+  prismaBillingErrorCode,
+} from "@/lib/billing-db";
 
 const DEPRECATED_TIER_MESSAGE =
   "That account tier is no longer available. Please choose from our current six options: $5,000, $10,000, $25,000, $50,000, $75,000, or $100,000.";
@@ -65,15 +70,34 @@ export async function POST(req: Request) {
     isPrimary: true,
   };
 
+  let accountId: string;
+
   if (existing) {
-    await prisma.tradingAccount.update({
+    const updated = await prisma.tradingAccount.update({
       where: { id: existing.id },
       data: accountData,
     });
+    accountId = updated.id;
   } else {
-    await prisma.tradingAccount.create({
+    const created = await prisma.tradingAccount.create({
       data: { userId: session.user.id, ...accountData },
     });
+    accountId = created.id;
+  }
+
+  try {
+    await recordPaidBillingOrder(session.user.id, {
+      tierSize: tier.size,
+      addons,
+      price: price.total,
+      accountId,
+      planType: "challenge",
+    });
+  } catch (e) {
+    const code = prismaBillingErrorCode(e);
+    if (!(e instanceof BillingError) && code !== "P2021") {
+      console.error("[purchase] billing record failed", e);
+    }
   }
 
   return NextResponse.json({

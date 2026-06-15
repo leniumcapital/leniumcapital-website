@@ -35,6 +35,7 @@ export function ChallengeStartModal() {
 function Panel({ onClose }: { onClose: () => void }) {
   const { update } = useSession();
   const setAccount = useAccountStore((s) => s.setAccount);
+  const setAddons = useAccountStore((s) => s.setAddons);
   const resetChallenge = useChallengeStore((s) => s.reset);
 
   const defaultTierIdx = TIERS.findIndex((t) => t.size === 25_000);
@@ -56,42 +57,63 @@ function Panel({ onClose }: { onClose: () => void }) {
     setCheckingOut(true);
     setError("");
     try {
-      const res = await fetch("/api/challenges/purchase", {
+      const res = await fetch("/api/billing/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tierSize: tier.size, addons: selected }),
+        body: JSON.stringify({
+          tierSize: tier.size,
+          addons: selected.map((id) => (id === "split90" ? "90split" : id)),
+          planType: "challenge",
+        }),
       });
       const data = (await res.json()) as {
         error?: string;
-        tier?: number;
-        balance?: number;
-        accountType?: "challenge";
-        challengeStatus?: "in_progress";
+        order?: { id: string; orderId: string };
       };
 
       if (!res.ok) {
-        setError(data.error ?? "Could not start challenge.");
+        setError(data.error ?? "Could not create order.");
+        return;
+      }
+
+      if (!data.order?.id) {
+        setError("Could not create order.");
+        return;
+      }
+
+      const payRes = await fetch(`/api/billing/orders/${data.order.id}/complete`, {
+        method: "POST",
+      });
+      const payData = (await payRes.json()) as {
+        error?: string;
+        tier?: number;
+        balance?: number;
+      };
+
+      if (!payRes.ok) {
+        setError(payData.error ?? "Could not complete payment.");
         return;
       }
 
       setAccount({
         accountType: "challenge",
         challengeStatus: "active",
-        tier: data.tier!,
-        balance: data.balance!,
-        accountSize: data.tier!,
+        tier: payData.tier!,
+        balance: payData.balance!,
+        accountSize: payData.tier!,
       });
+      setAddons(selected);
 
       resetChallenge();
 
       await update({
-        tier: data.tier,
-        balance: data.balance,
+        tier: payData.tier,
+        balance: payData.balance,
         accountType: "challenge",
         challengeStatus: "in_progress",
       });
 
-      toast.success(`${usd(data.tier!)} challenge started — good luck!`);
+      toast.success(`${usd(payData.tier!)} challenge started — good luck!`);
       onClose();
     } catch {
       setError("Something went wrong. Please try again.");
