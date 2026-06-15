@@ -129,8 +129,14 @@ export const ADDONS: Addon[] = [
 
 export function addonPrice(addon: Addon, baseFee: number): number {
   if (addon.flat != null) return addon.flat;
-  if (addon.pctOfBase != null) return Math.round(addon.pctOfBase * baseFee);
+  if (addon.pctOfBase != null) return Math.round(addon.pctOfBase * baseFee * 100) / 100;
   return 0;
+}
+
+/** Formatted add-on price with cents when applicable. */
+export function addonPriceLabel(addon: Addon, baseFee: number): string {
+  const price = addonPrice(addon, baseFee);
+  return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
 }
 
 export function bundleDiscountPct(count: number): number {
@@ -177,6 +183,91 @@ export type RuleRow = {
   format: (t: Tier) => string;
   plain: string;
 };
+
+/** Rows for the six-tier comparison grid on the rules page. */
+export const TIER_COMPARISON_ROWS: RuleRow[] = [
+  {
+    label: "Profit target",
+    format: (t) => `20% (${usd(demoTargetUsd(t))})`,
+    plain: "Uniform 20% across all six tiers.",
+  },
+  {
+    label: "Max drawdown",
+    format: (t) => `10% static (${usd(staticDrawdownFloorUsd(t))} floor)`,
+    plain: "Static floor set at activation — never rises with profits.",
+  },
+  {
+    label: "Daily loss limit",
+    format: () => "None",
+    plain: "Removed entirely from evaluation and funded phases.",
+  },
+  {
+    label: "Minimum trading days",
+    format: () => "None",
+    plain: "Removed entirely — quality of predictions matters more than frequency.",
+  },
+  {
+    label: "Max position size",
+    format: (t) => `5% (${usd(maxPositionUsd(t))})`,
+    plain: "No single position may exceed 5% of current balance at entry.",
+  },
+  {
+    label: "Max total exposure",
+    format: (t) => `10% (${usd(maxExposureUsd(t))})`,
+    plain: "Combined open position value cannot exceed 10% of balance.",
+  },
+  {
+    label: "Opening price range",
+    format: () => `${OPENING_PRICE_MIN_CENTS}¢–${OPENING_PRICE_MAX_CENTS}¢ YES`,
+    plain: "Wider than PropMarket's 20¢–80¢ range.",
+  },
+  {
+    label: "Market resolution window",
+    format: () => `${MARKET_RESOLUTION_WINDOW_DAYS} days`,
+    plain: "Positions must be in markets resolving within 60 calendar days.",
+  },
+  {
+    label: "Consistency rule",
+    format: () => "15% per market",
+    plain: "Target adjusts up if exceeded — account is never terminated.",
+  },
+  {
+    label: "Challenge window",
+    format: () => `${CHALLENGE_WINDOW_DAYS} days`,
+    plain: "60 days with Double Time add-on. Expired = reset fee.",
+  },
+  {
+    label: "Evaluation fee",
+    format: (t) => `$${t.baseFee}`,
+    plain: "One-time, non-refundable.",
+  },
+  {
+    label: "Reset fee",
+    format: (t) => `$${t.resetFee}`,
+    plain: "Discounted restart after breach or expiry.",
+  },
+];
+
+export const RULES_INTRO =
+  "This is the definitive and final rule set for the Lenium prediction market prop firm. Every page of the Lenium website, every section of the terms of service, every funded account agreement, and every piece of marketing copy reflects exactly what is written here. Lenium is the first CFTC-regulated prediction market prop firm, built on Kalshi — the only CFTC-licensed prediction market exchange in the United States.";
+
+export const UNCHANGED_RULES: { title: string; body: string }[] = [
+  {
+    title: "Position sizing (5% / 10%)",
+    body: "The 5% maximum single position and 10% maximum total exposure are the mathematical foundation of Lenium's risk architecture. They align maximum instantaneous loss with the drawdown floor.",
+  },
+  {
+    title: "Opening price range ($0.15–$0.85)",
+    body: "Deliberately wider than PropMarket's $0.20–$0.80 range, giving Lenium traders access to a broader set of eligible markets.",
+  },
+  {
+    title: "30-day challenge / 60-day resolution window",
+    body: "The 30-day evaluation window and 60-day market resolution window reflect the natural rhythm of Kalshi's market calendar and remain unchanged.",
+  },
+];
+
+export const RULES_CONCLUSION =
+  "The flat 20% profit target, 10% static evaluation drawdown, $0.15–$0.85 price range, absence of daily loss limits and minimum trading days, 7-day standard payout, and 90% profit split add-on make Lenium the most competitive offer in the CFTC-regulated prediction market prop trading category.";
 
 /** Evaluation-phase rules — uniform across all six tiers (dollar amounts scale by size). */
 export const RULE_ROWS: RuleRow[] = [
@@ -227,24 +318,23 @@ export const RULE_ROWS: RuleRow[] = [
     label: "Challenge window",
     format: (t) => `${t.windowDays} calendar days`,
     plain:
-      "30 days to hit your target (60 with Double Time). Expired evaluations use the reset fee.",
+      "30 calendar days from activation. Expired evaluations are treated like breaches — purchase a reset at the discounted fee. Double Time extends to 60 days.",
   },
-];
-
-export const PLATFORM_RULES: RuleRow[] = [
   {
     label: "Daily loss limit",
     format: () => "None",
     plain:
-      "Removed entirely. Drawdown and position limits provide sufficient protection for binary contracts.",
+      "Removed entirely. Drawdown and position limits provide sufficient protection for binary Kalshi contracts.",
   },
   {
     label: "Minimum trading days",
     format: () => "None",
     plain:
-      "Removed entirely. Quality of predictions matters more than trade frequency.",
+      "Removed entirely. A trader who makes twelve well-researched positions and passes has demonstrated more edge than one trading purely for frequency.",
   },
 ];
+
+export const PLATFORM_RULES: RuleRow[] = [];
 
 /** Funded-phase rules displayed on the rules page. */
 export const FUNDED_RULE_ROWS: RuleRow[] = [

@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import {
   TIERS,
+  TIER_COMPARISON_ROWS,
   resetLineLong,
   ADDONS,
+  compactTier,
   usd,
   INACTIVITY_WARNING_DAYS,
   INACTIVITY_TERMINATE_DAYS,
@@ -12,8 +14,10 @@ import {
 } from "@/lib/data";
 import { resolveRules } from "@/lib/rules";
 
+const DEFAULT_TIER_IDX = TIERS.findIndex((t) => t.size === 25_000);
+
 export function RulesExplorer() {
-  const [idx, setIdx] = useState(2);
+  const [idx, setIdx] = useState(DEFAULT_TIER_IDX >= 0 ? DEFAULT_TIER_IDX : 0);
   const [addons, setAddons] = useState<AddonId[]>([]);
   const tier = TIERS[idx];
 
@@ -22,7 +26,13 @@ export function RulesExplorer() {
     [tier, addons],
   );
   const fundedRules = useMemo(
-    () => resolveRules({ tier, addons, phase: "funded", currentBalance: tier.size }),
+    () =>
+      resolveRules({
+        tier,
+        addons,
+        phase: "funded",
+        currentBalance: tier.size,
+      }),
     [tier, addons],
   );
 
@@ -34,7 +44,41 @@ export function RulesExplorer() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
+      {/* Six-tier comparison — uniform rules, tier-scaled dollar amounts */}
+      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-muted">
+              <th className="px-4 py-3 text-left font-medium text-muted">Rule</th>
+              {TIERS.map((t) => (
+                <th
+                  key={t.size}
+                  className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted"
+                >
+                  {compactTier(t.size)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {TIER_COMPARISON_ROWS.map((r) => (
+              <tr key={r.label}>
+                <td className="px-4 py-3 text-muted">{r.label}</td>
+                {TIERS.map((t) => (
+                  <td
+                    key={t.size}
+                    className="px-3 py-3 text-center font-semibold tabular-nums"
+                  >
+                    {r.format(t)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-8 flex flex-wrap gap-2">
         {TIERS.map((t, i) => (
           <button
             key={t.size}
@@ -50,6 +94,11 @@ export function RulesExplorer() {
             {t.featured ? (
               <span className="ml-1.5 text-[10px] uppercase text-brand-strong">
                 Popular
+              </span>
+            ) : null}
+            {t.exclusive ? (
+              <span className="ml-1.5 text-[10px] uppercase text-brand-strong">
+                Exclusive
               </span>
             ) : null}
           </button>
@@ -83,7 +132,7 @@ export function RulesExplorer() {
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="border-b border-border bg-surface-muted px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-          Evaluation phase
+          Evaluation phase — {usd(tier.size)}
         </div>
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
@@ -109,7 +158,7 @@ export function RulesExplorer() {
             />
             <RuleRow
               label="Market resolution window"
-              value={`Within ${evalRules.marketResolutionWindowDays} days`}
+              value={`Within ${evalRules.marketResolutionWindowDays} calendar days`}
             />
             <RuleRow
               label="Consistency rule"
@@ -117,7 +166,7 @@ export function RulesExplorer() {
             />
             <RuleRow
               label="Challenge window"
-              value={`${evalRules.windowDays} calendar days`}
+              value={`${evalRules.windowDays} calendar days from activation`}
             />
             <RuleRow label="Daily loss limit" value="None" />
             <RuleRow label="Minimum trading days" value="None" />
@@ -128,12 +177,18 @@ export function RulesExplorer() {
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="border-b border-border bg-surface-muted px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-          Funded account (live phase)
+          Funded account (live phase) — {usd(tier.size)}
         </div>
         <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
-            <RuleRow label="Profit target" value="None — no monthly or annual minimum" />
-            <RuleRow label="Time limit" value="None — trade indefinitely within risk rules" />
+            <RuleRow
+              label="Profit target"
+              value="None — no monthly, annual, or performance-review minimum"
+            />
+            <RuleRow
+              label="Time limit"
+              value="None — trade indefinitely within risk rules"
+            />
             <RuleRow
               label="Max drawdown"
               value={`${fundedRules.maxDrawdownPct}% trailing high-water mark`}
@@ -148,7 +203,7 @@ export function RulesExplorer() {
             />
             <RuleRow
               label="Market resolution window"
-              value={`Within ${fundedRules.marketResolutionWindowDays} days`}
+              value={`Within ${fundedRules.marketResolutionWindowDays} calendar days`}
             />
             <RuleRow
               label="Default profit split"
@@ -156,11 +211,11 @@ export function RulesExplorer() {
             />
             <RuleRow
               label="Payout cycle"
-              value={`${fundedRules.payoutCycleDays} business days`}
+              value={`${fundedRules.payoutCycleDays} business days per request`}
             />
             <RuleRow
               label="Minimum payout"
-              value={`2% (${usd(fundedRules.minPayoutUsd)})`}
+              value={`2% of starting balance (${usd(fundedRules.minPayoutUsd)})`}
             />
             <RuleRow
               label="Commission"

@@ -3,17 +3,20 @@ import { Container, Card, CtaButton } from "@/components/ui";
 import { RulesExplorer } from "@/components/RulesExplorer";
 import {
   RULE_ROWS,
-  PLATFORM_RULES,
   FUNDED_RULE_ROWS,
   TERMINATION_CONDITIONS,
   BUNDLE_DISCOUNTS,
+  UNCHANGED_RULES,
+  RULES_INTRO,
+  RULES_CONCLUSION,
   TIERS,
   ADDONS,
-  addonPrice,
+  addonPriceLabel,
   usd,
   demoTargetUsd,
   staticDrawdownFloorUsd,
 } from "@/lib/data";
+
 export const metadata: Metadata = {
   title: "Rules",
   description:
@@ -27,14 +30,14 @@ export default function RulesPage() {
       <section className="border-b border-border py-14">
         <Container>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            The complete Lenium rules framework
+            The Lenium Platform — Final Complete Rules Framework
           </h1>
-          <p className="mt-4 max-w-3xl text-lg text-muted">
-            The definitive rule set for the Lenium prediction market prop firm.
-            Six account tiers, a flat 20% profit target, 10% static evaluation
-            drawdown, no daily loss limit, no minimum trading days, and funded
-            accounts with 7-business-day payouts. This is the single source of
-            truth.
+          <p className="mt-4 max-w-3xl text-lg text-muted">{RULES_INTRO}</p>
+          <p className="mt-4 max-w-3xl text-muted">
+            Six account tiers. A flat 20% profit target. 10% static evaluation
+            drawdown. No daily loss limit. No minimum trading days. 7-business-day
+            funded payouts. This document supersedes all previous rule versions
+            and is the single source of truth.
           </p>
         </Container>
       </section>
@@ -43,12 +46,13 @@ export default function RulesPage() {
       <section className="py-14">
         <Container>
           <h2 className="text-2xl font-semibold tracking-tight">
-            Six account tiers
+            Part One — The six account tiers
           </h2>
-          <p className="mt-2 max-w-2xl text-muted">
-            These are the only account sizes available. No custom sizes, no
-            private arrangements. The $25,000 tier is the recommended starting
-            point. The $75,000 tier is exclusive to Lenium.
+          <p className="mt-2 max-w-3xl text-muted">
+            Lenium offers exactly six account sizes — no exceptions, no custom
+            sizes, no private arrangements. Each tier has a one-time evaluation
+            fee (non-refundable) and a discounted reset fee after a breach or
+            expiry. No monthly subscriptions or hidden charges.
           </p>
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -58,8 +62,8 @@ export default function RulesPage() {
                   <th className="px-5 py-3 font-semibold">Account size</th>
                   <th className="px-5 py-3 font-semibold">Evaluation fee</th>
                   <th className="px-5 py-3 font-semibold">Reset fee</th>
-                  <th className="px-5 py-3 font-semibold">Profit target</th>
-                  <th className="px-5 py-3 font-semibold">Static floor</th>
+                  <th className="px-5 py-3 font-semibold">Profit target (20%)</th>
+                  <th className="px-5 py-3 font-semibold">Static floor (10%)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -92,21 +96,23 @@ export default function RulesPage() {
             </table>
           </div>
           <p className="mt-3 text-sm text-muted">
-            Evaluation fees are non-refundable. Reset fees apply after a breach
-            or expiry. No monthly subscriptions or hidden charges.
+            The $25,000 tier is the recommended starting point. The $75,000
+            tier is unique to Lenium — not offered by any other prediction market
+            prop firm.
           </p>
         </Container>
       </section>
 
-      {/* Interactive explorer */}
+      {/* Tier comparison + interactive explorer */}
       <section className="border-y border-border bg-surface py-14">
         <Container>
           <h2 className="text-2xl font-semibold tracking-tight">
-            Rules by account size
+            Rules across all six tiers
           </h2>
-          <p className="mt-2 text-muted">
-            Select a tier and preview add-ons. Dollar amounts update to your
-            selection; percentage rules are uniform across all six tiers.
+          <p className="mt-2 max-w-3xl text-muted">
+            Percentage rules are uniform on every tier. Dollar amounts scale with
+            account size. Select a tier below to preview add-on effects and see
+            full evaluation and funded detail.
           </p>
           <div className="mt-6">
             <RulesExplorer />
@@ -118,12 +124,13 @@ export default function RulesPage() {
       <section className="py-14">
         <Container>
           <h2 className="text-3xl font-semibold tracking-tight">
-            Evaluation phase rules
+            Part Two — Evaluation phase rules
           </h2>
-          <p className="mt-3 max-w-2xl text-muted">
-            Trade a simulated account mirroring live Kalshi prices. Hit your
-            20% profit target within 30 days (60 with Double Time) without
-            breaching the 10% static drawdown floor.
+          <p className="mt-3 max-w-3xl text-muted">
+            Trade a simulated account mirroring live Kalshi prices. Achieve the
+            20% profit target within 30 calendar days (60 with Double Time)
+            while respecting all risk rules. Portfolio value including open
+            positions is calculated in real time from the Kalshi data feed.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -142,24 +149,6 @@ export default function RulesPage() {
               </Card>
             ))}
           </div>
-
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold">Rules removed</h3>
-            <p className="mt-1 text-sm text-muted">
-              Deliberately eliminated to improve the trader experience.
-            </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {PLATFORM_RULES.map((r) => (
-                <Card key={r.label} className="p-5">
-                  <h4 className="font-semibold">{r.label}</h4>
-                  <p className="mt-1 text-sm font-medium text-brand-strong">
-                    {r.format(TIERS[0])}
-                  </p>
-                  <p className="mt-1.5 text-sm text-muted">{r.plain}</p>
-                </Card>
-              ))}
-            </div>
-          </div>
         </Container>
       </section>
 
@@ -167,12 +156,14 @@ export default function RulesPage() {
       <section className="border-y border-border bg-surface py-14">
         <Container>
           <h2 className="text-3xl font-semibold tracking-tight">
-            Funded account rules
+            Part Three — Funded account rules
           </h2>
-          <p className="mt-3 max-w-2xl text-muted">
-            Upon passing the evaluation, you trade live Kalshi markets with
-            Lenium&apos;s capital. No profit target, no time limit — only risk
-            rules and the inactivity policy apply.
+          <p className="mt-3 max-w-3xl text-muted">
+            Upon passing the evaluation, Lenium allocates real firm capital equal
+            to your account reference balance. No profit target, no time limit, no
+            performance review cycle — only risk rules and the inactivity policy
+            apply. Position and exposure limits scale with your current balance
+            as the account grows.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -192,34 +183,59 @@ export default function RulesPage() {
       {/* Part Four — Add-ons */}
       <section className="py-14">
         <Container>
-          <h2 className="text-3xl font-semibold tracking-tight">Add-ons</h2>
-          <p className="mt-3 max-w-2xl text-muted">
+          <h2 className="text-3xl font-semibold tracking-tight">
+            Part Four — The add-on system
+          </h2>
+          <p className="mt-3 max-w-3xl text-muted">
             Five add-ons available at evaluation purchase or any time during an
-            active funded account. One-time payments — no subscriptions. Prices
-            shown for the $25,000 tier as reference.
+            active funded account. One-time payments — no subscriptions. They
+            apply permanently to the account they are purchased for.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {ADDONS.map((a) => (
               <Card key={a.id} className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-semibold">{a.name}</h3>
-                  <span className="shrink-0 font-semibold text-brand-strong">
-                    {a.flat != null
-                      ? `$${a.flat}`
-                      : `+$${addonPrice(a, TIERS[2].baseFee)}`}
-                  </span>
-                </div>
+                <h3 className="font-semibold">{a.name}</h3>
                 <p className="mt-2 text-sm text-muted">{a.blurb}</p>
               </Card>
             ))}
+          </div>
+
+          <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
+            <div className="border-b border-border bg-surface-muted px-5 py-3 text-sm font-semibold">
+              Add-on prices by tier
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="px-5 py-3 font-semibold">Add-on</th>
+                  {TIERS.map((t) => (
+                    <th key={t.size} className="px-3 py-3 font-semibold">
+                      {usd(t.size)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {ADDONS.map((a) => (
+                  <tr key={a.id}>
+                    <td className="px-5 py-3 text-muted">{a.name}</td>
+                    {TIERS.map((t) => (
+                      <td key={t.size} className="px-3 py-3 font-medium">
+                        {addonPriceLabel(a, t.baseFee)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
             <h3 className="font-semibold">Bundle discounts</h3>
             <p className="mt-1 text-sm text-muted">
               Purchasing multiple add-ons together applies an automatic discount
-              at checkout.
+              at checkout, displayed before payment.
             </p>
             <ul className="mt-3 grid gap-2 sm:grid-cols-2">
               {BUNDLE_DISCOUNTS.map((b) => (
@@ -238,13 +254,13 @@ export default function RulesPage() {
       <section className="border-y border-border bg-surface py-14">
         <Container>
           <h2 className="text-3xl font-semibold tracking-tight">
-            Account termination
+            Part Five — Account termination conditions
           </h2>
-          <p className="mt-3 max-w-2xl text-muted">
+          <p className="mt-3 max-w-3xl text-muted">
             A funded or evaluation account is terminated under any of the
             following conditions. Open positions are force-liquidated at
-            prevailing Kalshi prices. Net profit not yet paid out is paid at
-            the next standard payout cycle. Evaluation fees are never refunded.
+            prevailing Kalshi prices. Net profit not yet paid out is paid at the
+            next standard payout cycle. Evaluation fees are never refunded.
           </p>
           <ul className="mt-6 space-y-3">
             {TERMINATION_CONDITIONS.map((c) => (
@@ -257,6 +273,35 @@ export default function RulesPage() {
               </li>
             ))}
           </ul>
+        </Container>
+      </section>
+
+      {/* Part Six — Unchanged */}
+      <section className="py-14">
+        <Container>
+          <h2 className="text-3xl font-semibold tracking-tight">
+            Part Six — What has not changed
+          </h2>
+          <p className="mt-3 max-w-3xl text-muted">
+            Three elements remain unchanged from the original framework as
+            deliberate decisions.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {UNCHANGED_RULES.map((r) => (
+              <Card key={r.title} className="p-5">
+                <h3 className="font-semibold">{r.title}</h3>
+                <p className="mt-2 text-sm text-muted">{r.body}</p>
+              </Card>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* Conclusion */}
+      <section className="border-y border-border bg-surface py-14">
+        <Container>
+          <h2 className="text-2xl font-semibold tracking-tight">Conclusion</h2>
+          <p className="mt-4 max-w-3xl text-muted">{RULES_CONCLUSION}</p>
         </Container>
       </section>
 
