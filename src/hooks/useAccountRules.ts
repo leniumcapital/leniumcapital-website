@@ -10,7 +10,7 @@ import {
   totalOpenPnl,
 } from "@/stores/positionStore";
 import {
-  findTier,
+  resolveTierForAccount,
   resolveRules,
   equityUsd,
   type ResolvedRules,
@@ -18,7 +18,7 @@ import {
 
 export type AccountRulesState = {
   rules: ResolvedRules | null;
-  tier: ReturnType<typeof findTier>;
+  tier: ReturnType<typeof resolveTierForAccount>;
   currentBalance: number;
   currentProfit: number;
   equity: number;
@@ -49,7 +49,7 @@ export function useAccountRules(): AccountRulesState {
   );
 
   return useMemo(() => {
-    const tier = findTier(account.accountSize);
+    const tier = resolveTierForAccount(account.accountSize);
     if (!tier || account.accountType === "none") {
       return {
         rules: null,

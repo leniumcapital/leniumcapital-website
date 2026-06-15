@@ -13,7 +13,7 @@ import {
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
 import { useMarketStore } from "@/stores/marketStore";
-import { findTier, resolveRules, validateOrder } from "@/lib/rules";
+import { resolveTierForAccount, resolveRules, validateOrder } from "@/lib/rules";
 
 type PlaceOrderInput = {
   marketTicker: string;
@@ -60,7 +60,7 @@ export function usePlaceOrder() {
     mutationFn: async (input: PlaceOrderInput) => {
       const account = useAccountStore.getState();
       const challenge = useChallengeStore.getState();
-      const tier = findTier(account.accountSize);
+      const tier = resolveTierForAccount(account.accountSize);
 
       if (!tier) throw new Error("No active account tier.");
 

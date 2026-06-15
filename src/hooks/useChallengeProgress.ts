@@ -8,7 +8,12 @@ import {
   subscribeChallengeToPositions,
 } from "@/stores/challengeStore";
 import { useMarketStore } from "@/stores/marketStore";
-import { findTier, resolveRules } from "@/lib/rules";
+import {
+  resolveTierForAccount,
+  resolveRules,
+  staticFloorForBalance,
+  drawdownFloorUsd,
+} from "@/lib/rules";
 
 export type ChallengeProgress = {
   profitTarget: number;
@@ -33,18 +38,16 @@ export type ChallengeProgress = {
 };
 
 export function useChallengeSync(): void {
-  const tierSize = useAccountStore((s) => s.tier);
   const accountSize = useAccountStore((s) => s.accountSize);
   const accountType = useAccountStore((s) => s.accountType);
   const addons = useAccountStore((s) => s.addons);
 
   useEffect(() => {
-    if (!tierSize || accountType === "none") return;
-    const tier = findTier(tierSize);
+    if (!accountSize || accountType === "none") return;
+    const tier = resolveTierForAccount(accountSize);
     if (!tier) return;
 
-    const phase =
-      accountType === "funded" ? "funded" : "evaluation";
+    const phase = accountType === "funded" ? "funded" : "evaluation";
     const rules = resolveRules({ tier, addons, phase });
 
     const challenge = useChallengeStore.getState();
@@ -52,24 +55,32 @@ export function useChallengeSync(): void {
     const end = new Date(windowStart);
     end.setDate(end.getDate() + rules.windowDays);
 
-    const staticFloor = Math.round(
-      (accountSize || tier.size) * (1 - rules.maxDrawdownPct / 100),
-    );
+    const staticFloor = staticFloorForBalance(accountSize, rules.maxDrawdownPct);
+    const hwm = Math.max(challenge.highWaterMarkUsd, accountSize);
+    const floor = drawdownFloorUsd({
+      rules,
+      startingBalance: accountSize,
+      highWaterMarkUsd: hwm,
+      staticFloorUsd: staticFloor,
+    });
 
     challenge.updateProgress({
       profitTarget: rules.profitTargetUsd,
-      adjustedProfitTarget: rules.profitTargetUsd,
-      maxDrawdown: rules.maxDrawdownPct,
-      staticFloorUsd: challenge.staticFloorUsd || staticFloor,
-      highWaterMarkUsd: Math.max(
-        challenge.highWaterMarkUsd,
-        accountSize || tier.size,
+      adjustedProfitTarget: Math.max(
+        challenge.adjustedProfitTarget > rules.profitTargetUsd
+          ? challenge.adjustedProfitTarget
+          : rules.profitTargetUsd,
+        rules.profitTargetUsd,
       ),
+      maxDrawdown: rules.maxDrawdownPct,
+      staticFloorUsd: staticFloor,
+      drawdownFloorUsd: floor,
+      highWaterMarkUsd: hwm,
       windowStartDate: windowStart,
-      windowEndDate: challenge.windowEndDate || end.toISOString(),
-      peakBalance: Math.max(challenge.peakBalance, accountSize || tier.size),
+      windowEndDate: end.toISOString(),
+      peakBalance: Math.max(challenge.peakBalance, accountSize),
     });
-  }, [tierSize, accountSize, accountType, addons]);
+  }, [accountSize, accountType, addons]);
 
   useEffect(() => {
     const unsubscribe = subscribeChallengeToPositions((ticker, direction, entry) => {
@@ -109,14 +120,14 @@ export function useChallengeProgress(): ChallengeProgress {
       windowEndDate: s.windowEndDate,
     })),
   );
-  const tierSize = useAccountStore((s) => s.tier);
+  const accountSize = useAccountStore((s) => s.accountSize);
   const addons = useAccountStore((s) => s.addons);
   const accountType = useAccountStore((s) => s.accountType);
-  const tier = findTier(tierSize);
+  const tier = resolveTierForAccount(accountSize);
 
   const phase = accountType === "funded" ? "funded" : "evaluation";
   const rules = tier
-    ? resolveRules({ tier, addons, phase })
+    ? resolveRules({ tier, addons, phase, currentBalance: accountSize })
     : null;
 
   const now = useMinuteNow();
@@ -128,23 +139,41 @@ export function useChallengeProgress(): ChallengeProgress {
     [challenge.windowEndDate, now],
   );
 
-  const target =
+  const profitTargetUsd = rules?.profitTargetUsd ?? challenge.profitTarget;
+  const maxDrawdownPct = rules?.maxDrawdownPct ?? challenge.maxDrawdown;
+  const staticFloor =
+    rules && accountSize > 0
+      ? staticFloorForBalance(accountSize, maxDrawdownPct)
+      : challenge.staticFloorUsd;
+
+  const adjustedTarget = Math.max(
     challenge.adjustedProfitTarget > 0
       ? challenge.adjustedProfitTarget
-      : challenge.profitTarget;
+      : profitTargetUsd,
+    profitTargetUsd,
+  );
+
+  const currentDrawdown = Math.max(0, challenge.currentDrawdown);
 
   return {
     ...challenge,
-    adjustedProfitTarget: target,
+    profitTarget: profitTargetUsd,
+    adjustedProfitTarget: adjustedTarget,
+    maxDrawdown: maxDrawdownPct,
+    currentDrawdown,
+    staticFloorUsd: staticFloor,
     profitPct:
-      target > 0
-        ? Math.min(100, Math.max(0, (challenge.currentProfit / target) * 100))
-        : 0,
-    drawdownConsumedPct:
-      challenge.maxDrawdown > 0
+      adjustedTarget > 0
         ? Math.min(
             100,
-            Math.max(0, (challenge.currentDrawdown / challenge.maxDrawdown) * 100),
+            Math.max(0, (challenge.currentProfit / adjustedTarget) * 100),
+          )
+        : 0,
+    drawdownConsumedPct:
+      maxDrawdownPct > 0
+        ? Math.min(
+            100,
+            Math.max(0, (currentDrawdown / maxDrawdownPct) * 100),
           )
         : 0,
     drawdownMode: rules?.drawdownMode ?? "static",
@@ -154,3 +183,5 @@ export function useChallengeProgress(): ChallengeProgress {
     consistencyCapPct: rules?.consistencyCapPct ?? 15,
   };
 }
+
+// Keep position subscription in the same module so DashboardShell imports one hook.

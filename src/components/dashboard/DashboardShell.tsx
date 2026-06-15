@@ -22,7 +22,7 @@ import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
 import { TIERS, usd } from "@/lib/data";
 import {
-  findTier,
+  resolveTierForAccount,
   resolveRules,
   isDrawdownBreached,
   isChallengeExpired,
@@ -235,7 +235,7 @@ function useRuleEnforcement(): void {
       if (account.accountType === "none" || account.accountSize <= 0) return;
       if (account.challengeStatus !== "active") return;
 
-      const tier = findTier(account.accountSize);
+      const tier = resolveTierForAccount(account.accountSize);
       if (!tier) return;
 
       const phase =

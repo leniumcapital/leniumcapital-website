@@ -5,9 +5,14 @@
 import type { AddonId, Tier } from "@/lib/data";
 import {
   TIERS,
+  CHALLENGE_WINDOW_DAYS,
+  MAX_DRAWDOWN_PCT,
+  MAX_EXPOSURE_PCT,
+  MAX_POSITION_PCT,
   OPENING_PRICE_MIN_CENTS,
   OPENING_PRICE_MAX_CENTS,
   MARKET_RESOLUTION_WINDOW_DAYS,
+  PROFIT_TARGET_PCT,
   DEFAULT_TRADER_SPLIT_PCT,
   PAYOUT_CYCLE_DAYS,
   FAST_PAYOUT_CYCLE_DAYS,
@@ -132,6 +137,41 @@ export function resolveRules(params: {
 
 export function findTier(size: number): Tier | undefined {
   return TIERS.find((t) => t.size === size);
+}
+
+/**
+ * Resolve tier rules for any active account size — including retired tiers
+ * (e.g. $20K) that still use the current uniform framework limits.
+ */
+export function resolveTierForAccount(size: number): Tier | undefined {
+  if (size <= 0) return undefined;
+  const tier = findTier(size);
+  if (tier) return tier;
+  return {
+    size,
+    baseFee: 0,
+    resetFee: 0,
+    profitTargetPct: PROFIT_TARGET_PCT,
+    maxDrawdownPct: MAX_DRAWDOWN_PCT,
+    maxPositionPct: MAX_POSITION_PCT,
+    maxExposurePct: MAX_EXPOSURE_PCT,
+    windowDays: CHALLENGE_WINDOW_DAYS,
+    consistencyCapPct: 15,
+  };
+}
+
+/** Format a percentage for UI — avoids floating-point artifacts like 7.000000000000001. */
+export function formatRulePct(value: number, decimals = 1): string {
+  const factor = 10 ** decimals;
+  return (Math.round(value * factor) / factor).toFixed(decimals);
+}
+
+/** Static drawdown floor for an account size and max drawdown percent. */
+export function staticFloorForBalance(
+  balance: number,
+  maxDrawdownPct: number,
+): number {
+  return Math.round(balance * (1 - maxDrawdownPct / 100));
 }
 
 /** Portfolio equity = starting balance + realized + unrealized P&L. */

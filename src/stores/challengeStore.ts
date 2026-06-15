@@ -8,7 +8,7 @@ import {
   type Position,
 } from "@/stores/positionStore";
 import { useAccountStore } from "@/stores/accountStore";
-import { findTier, resolveRules } from "@/lib/rules";
+import { resolveTierForAccount, resolveRules, staticFloorForBalance } from "@/lib/rules";
 import {
   adjustedProfitTargetUsd,
   drawdownFloorUsd,
@@ -124,7 +124,7 @@ export function subscribeChallengeToPositions(
     const account = useAccountStore.getState();
     if (account.accountSize <= 0) return;
 
-    const tier = findTier(account.accountSize);
+    const tier = resolveTierForAccount(account.accountSize);
     if (!tier) return;
 
     const phase =
@@ -157,10 +157,10 @@ export function subscribeChallengeToPositions(
     const challenge = useChallengeStore.getState();
     const starting = account.accountSize;
 
-    const staticFloor =
-      challenge.staticFloorUsd > 0
-        ? challenge.staticFloorUsd
-        : Math.round(starting * (1 - rules.maxDrawdownPct / 100));
+    const staticFloor = staticFloorForBalance(
+      starting,
+      rules.maxDrawdownPct,
+    );
 
     const hwm = Math.max(
       challenge.highWaterMarkUsd,

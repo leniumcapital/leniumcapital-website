@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { IconClock } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
+import { formatRulePct } from "@/lib/rules";
 import { T } from "@/lib/tokens";
 
 /** Compact challenge progress card pinned to the bottom of the sidebar. */
@@ -82,7 +83,7 @@ function ProgressState() {
       />
       <ProgressRow
         label={p.drawdownMode === "trailing" ? "Trailing drawdown" : "Max drawdown"}
-        value={`${p.currentDrawdown.toFixed(1)}% of ${p.maxDrawdown}%`}
+        value={`${formatRulePct(p.currentDrawdown)}% of ${formatRulePct(p.maxDrawdown, 0)}%`}
         pct={p.drawdownConsumedPct}
         barColor={drawdownColor}
       />

@@ -7,7 +7,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { fetchMarketPrice } from "@/lib/kalshi";
-import { findTier, resolveRules, validateOrder } from "@/lib/rules";
+import { resolveTierForAccount, resolveRules, validateOrder } from "@/lib/rules";
 import type { AddonId } from "@/lib/data";
 import type { OpenPositionSnapshot } from "@/lib/rules";
 
@@ -61,7 +61,7 @@ export async function executeOrder(
     return { ok: false, error: "Order size must be a positive number." };
   }
 
-  const tier = findTier(tierSize);
+  const tier = resolveTierForAccount(tierSize);
   if (!tier) {
     return { ok: false, error: "Invalid account tier." };
   }
