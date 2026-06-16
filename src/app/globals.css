@@ -386,3 +386,45 @@ body {
     animation: none !important;
   }
 }
+
+/* Trending tab — right panel event shortcuts */
+.trending-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 0 24px;
+}
+.trending-grid-column {
+  flex: 1;
+  min-width: 0;
+}
+.featured-events-panel {
+  width: 280px;
+  flex-shrink: 0;
+}
+.featured-events-panel-header {
+  color: #888888;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.featured-events-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (max-width: 1279px) {
+  .featured-events-panel {
+    display: none !important;
+  }
+  .trending-layout {
+    display: block;
+    padding: 0;
+  }
+  .trending-grid-column {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

@@ -66,8 +66,16 @@ export default function MarketsPage() {
                 alignItems: "center",
               }}
             >
+            <motion.span
+              key={heading}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              style={{ display: "inline-flex", alignItems: "center" }}
+            >
               {heading}
               <DemoModePill />
+            </motion.span>
             </h1>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

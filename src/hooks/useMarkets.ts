@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import { computeFeaturedEvents, featuredEventForSeries } from "@/lib/featuredEvents";
 import {
   PRIMARY_TABS,
   SUBCATEGORY_ORDER,
@@ -31,6 +32,42 @@ export function useMarketsQuery() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+}
+
+/**
+ * Recompute featured event series after each markets fetch and whenever the
+ * live feed refreshes event counts. Stored in marketStore — never runs on
+ * every render.
+ */
+export function useFeaturedEventsSync() {
+  const { data } = useMarketsQuery();
+
+  useEffect(() => {
+    if (!data?.markets?.length) return;
+    useMarketStore
+      .getState()
+      .setFeaturedEvents(computeFeaturedEvents(data.markets, data.events ?? []));
+  }, [data?.markets]);
+
+  const eventFingerprint = useMarketStore(
+    useShallow((s) =>
+      s.eventOrder
+        .map((t) => `${t}:${s.events[t]?.marketCount ?? 0}`)
+        .join("|"),
+    ),
+  );
+
+  useEffect(() => {
+    const { markets, order, events, eventOrder } = useMarketStore.getState();
+    const marketList = order.map((t) => markets[t]).filter(Boolean) as Market[];
+    const eventList = eventOrder
+      .map((t) => events[t])
+      .filter(Boolean) as DashboardEvent[];
+    if (marketList.length === 0) return;
+    useMarketStore
+      .getState()
+      .setFeaturedEvents(computeFeaturedEvents(marketList, eventList));
+  }, [eventFingerprint]);
 }
 
 /** Fixed display order of category sections on the Trending tab. */
@@ -94,6 +131,8 @@ export type EventSection = {
   eventTickers: string[];
   /** Hide section header when browsing a single primary category. */
   flat?: boolean;
+  /** Featured-event filter — show header without category navigation. */
+  eventFilter?: boolean;
 };
 
 export type GroupedEvents = {
@@ -161,6 +200,8 @@ export function useGroupedEvents(): GroupedEvents {
   const sortOrder = useUiStore((s) => s.sortOrder);
   const eventSearch = useUiStore((s) => s.eventSearch);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
+  const selectedEventSeries = useUiStore((s) => s.selectedEventSeries);
+  const featuredEvents = useMarketStore((s) => s.featuredEvents);
 
   const eventCategoryKey = useMarketStore(
     useShallow((s) =>
@@ -203,6 +244,25 @@ export function useGroupedEvents(): GroupedEvents {
     const sections: EventSection[] = [];
 
     if (activeCategory === "Trending") {
+      if (selectedEventSeries) {
+        const filtered = all.filter(
+          (t) => events[t].seriesTicker === selectedEventSeries,
+        );
+        const label =
+          featuredEventForSeries(
+            selectedEventSeries,
+            featuredEvents,
+            all.map((t) => events[t]),
+          )?.displayName ?? "Trending";
+
+        sections.push({
+          category: label,
+          eventTickers: sortEventTickers(filtered, events, sortOrder),
+          eventFilter: true,
+        });
+        return { featured: null, sections };
+      }
+
       sections.push({
         category: "Trending",
         eventTickers: topEventsBy24h(all, events, TRENDING_TAB_SIZE),
@@ -249,14 +309,32 @@ export function useGroupedEvents(): GroupedEvents {
     sortOrder,
     eventSearch,
     subCategoryFilter,
+    selectedEventSeries,
+    featuredEvents,
     eventCategoryKey,
   ]);
 }
 
-/** Page heading derived from active primary + subcategory selection. */
+/** Page heading derived from active primary + subcategory + event filter. */
 export function useMarketsHeading(): string {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
+  const selectedEventSeries = useUiStore((s) => s.selectedEventSeries);
+  const featuredEvents = useMarketStore((s) => s.featuredEvents);
+
+  if (activeCategory === "Trending" && selectedEventSeries) {
+    const { events, eventOrder } = useMarketStore.getState();
+    const eventList = eventOrder
+      .map((t) => events[t])
+      .filter((ev): ev is DashboardEvent => !!ev);
+    return (
+      featuredEventForSeries(
+        selectedEventSeries,
+        featuredEvents,
+        eventList,
+      )?.displayName ?? "Trending"
+    );
+  }
 
   if (activeCategory === "Trending") return "Trending";
   if (subCategoryFilter !== "All Markets") return subCategoryFilter;

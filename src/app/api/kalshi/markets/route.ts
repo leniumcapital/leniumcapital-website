@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { fetchDashboardData } from "@/lib/kalshi";
 import { backgroundIconPrefetchFromEvents } from "@/lib/icon-resolvers";
+import { computeFeaturedEvents } from "@/lib/featuredEvents";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -25,8 +26,10 @@ export async function GET() {
 
   backgroundIconPrefetchFromEvents(events);
 
+  const featuredEvents = computeFeaturedEvents(markets, events);
+
   return NextResponse.json(
-    { markets, events },
+    { markets, events, featuredEvents },
     { headers: { "Cache-Control": "private, max-age=30" } },
   );
 }
