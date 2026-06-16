@@ -18,6 +18,8 @@ interface UIState {
   subCategoryFilter: string;
   /** Challenge onboarding overlay — never navigates away from dashboard. */
   challengeModalOpen: boolean;
+  /** First-login flow: choose demo vs live, then account or plan. */
+  onboardingOpen: boolean;
   /** Shown when a non-funded user tries to switch to live mode. */
   accountGateOpen: boolean;
   setCategory: (category: string) => void;
@@ -31,6 +33,8 @@ interface UIState {
   setMarketsScrollTop: (top: number) => void;
   openChallengeModal: () => void;
   closeChallengeModal: () => void;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
   openAccountGate: () => void;
   closeAccountGate: () => void;
   reset: () => void;
@@ -47,6 +51,7 @@ const initial = {
   eventSearch: "",
   subCategoryFilter: "All Markets",
   challengeModalOpen: false,
+  onboardingOpen: false,
   accountGateOpen: false,
 };
 
@@ -65,6 +70,8 @@ export const useUiStore = create<UIState>()((set) => ({
   setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
   openChallengeModal: () => set({ challengeModalOpen: true }),
   closeChallengeModal: () => set({ challengeModalOpen: false }),
+  openOnboarding: () => set({ onboardingOpen: true }),
+  closeOnboarding: () => set({ onboardingOpen: false }),
   openAccountGate: () => set({ accountGateOpen: true }),
   closeAccountGate: () => set({ accountGateOpen: false }),
   reset: () => set(initial),
