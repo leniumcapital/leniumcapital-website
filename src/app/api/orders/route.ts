@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 import { executeOrder } from "@/lib/orderEngine";
 import type { AddonId } from "@/lib/data";
 
@@ -58,6 +59,33 @@ export async function POST(req: Request) {
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  // Persist simulated fills when the user has a trading account (best-effort).
+  if (session.user.id) {
+    try {
+      const account = await prisma.tradingAccount.findFirst({
+        where: { userId: session.user.id, isPrimary: true },
+      });
+      if (account) {
+        await prisma.order.create({
+          data: {
+            id: result.fill.positionId,
+            userId: session.user.id,
+            accountId: account.id,
+            marketTicker: result.fill.marketTicker,
+            question: result.fill.question,
+            direction: result.fill.direction,
+            size: result.fill.size,
+            entryPrice: result.fill.entryPrice,
+            simulated: true,
+            status: "open",
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("[orders] persistence skipped:", e);
+    }
   }
 
   return NextResponse.json({ ok: true, fill: result.fill });

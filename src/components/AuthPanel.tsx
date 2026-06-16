@@ -117,7 +117,7 @@ export function AuthPanel({
     setError("");
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/dashboard/markets" });
+      await signIn("google", { callbackUrl });
     } catch {
       setGoogleLoading(false);
       setError("Could not start Google sign-in. Please try again.");

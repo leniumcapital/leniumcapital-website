@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { auth } from "@/auth";
 import { Container, PillBadge } from "@/components/ui";
 import { ChallengeSelector } from "@/components/ChallengeSelector";
 
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
     "Six evaluation tiers from $5,000 to $100,000. Pick a size, configure add-ons, and see exactly what you pay before you commit.",
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const session = await auth();
+
   return (
     <>
       <section className="border-b border-border py-14">
@@ -28,7 +31,7 @@ export default function PricingPage() {
       <section className="py-12">
         <Container>
           <Suspense fallback={null}>
-            <ChallengeSelector />
+            <ChallengeSelector isAuthenticated={Boolean(session?.user)} />
           </Suspense>
         </Container>
       </section>

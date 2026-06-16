@@ -9,8 +9,11 @@ import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
+import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
+import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
+import { useAccountStatusSync } from "@/hooks/useAccountStatus";
 import {
   useAccountStore,
   type AccountType,
@@ -100,6 +103,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
   useChallengeSync();
+  useAccountStatusSync();
   useRuleEnforcement();
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -202,6 +206,9 @@ function ShellInner({ user, children }: DashboardShellProps) {
       <ErrorBoundary name="Trading drawer">
         <TradingDrawer />
       </ErrorBoundary>
+
+      <ChallengeStartModal />
+      <AccountGateModal />
 
       <BreachOverlay />
 

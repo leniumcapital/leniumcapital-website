@@ -127,7 +127,7 @@ export function ChallengeSelector({
 
     const callbackUrl = `${pathname}?${buildPricingQuery(tier.size, selectedAddons)}`;
     router.push(
-      `/signup?mode=login&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+      `/signup?mode=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`,
     );
   };
 
