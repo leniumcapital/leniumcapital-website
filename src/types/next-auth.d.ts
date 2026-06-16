@@ -1,4 +1,5 @@
 import type { DefaultSession } from "next-auth";
+import type { TradingMode } from "@/lib/account-status";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 
 declare module "next-auth" {
@@ -9,6 +10,10 @@ declare module "next-auth" {
       tier: number;
       challengeStatus: ChallengeStatus;
       balance: number;
+      hasActiveChallenge: boolean;
+      hasFundedAccount: boolean;
+      tradingMode: TradingMode;
+      isNewUser: boolean;
     } & DefaultSession["user"];
   }
 
@@ -17,6 +22,10 @@ declare module "next-auth" {
     tier?: number;
     challengeStatus?: ChallengeStatus;
     balance?: number;
+    hasActiveChallenge?: boolean;
+    hasFundedAccount?: boolean;
+    tradingMode?: TradingMode;
+    isNewUser?: boolean;
   }
 }
 
@@ -27,5 +36,9 @@ declare module "next-auth/jwt" {
     tier?: number;
     challengeStatus?: ChallengeStatus;
     balance?: number;
+    hasActiveChallenge?: boolean;
+    hasFundedAccount?: boolean;
+    tradingMode?: TradingMode;
+    isNewUser?: boolean;
   }
 }

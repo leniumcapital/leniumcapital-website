@@ -1,13 +1,22 @@
 import NextAuth from "next-auth";
+import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
-import { verifyCredentials } from "@/lib/auth-db";
+import Google from "next-auth/providers/google";
+import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
+import type { TradingMode } from "@/lib/account-status";
+
+const POST_AUTH_COOKIE = "lenium_post_auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/signup?mode=login" },
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -18,7 +27,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(credentials?.password ?? "");
         const user = await verifyCredentials(email, password);
         if (!user) return null;
-        // Only non-secret, session-safe fields are returned here.
         return {
           id: user.id,
           email: user.email,
@@ -27,13 +35,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tier: user.tier,
           challengeStatus: user.challengeStatus,
           balance: user.balance,
+          hasActiveChallenge: user.hasActiveChallenge,
+          hasFundedAccount: user.hasFundedAccount,
+          tradingMode: user.tradingMode,
         };
       },
     }),
   ],
   callbacks: {
-    // Persist the account state into the signed JWT at sign-in time so it can
-    // be read from the session on every request without re-fetching.
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
+
+      const email = user.email;
+      if (!email) return false;
+
+      const result = await upsertGoogleUser({
+        email,
+        name: user.name,
+        image: user.image,
+      });
+
+      user.id = result.user.id;
+      user.name = result.user.name;
+      user.email = result.user.email;
+      user.accountType = result.user.accountType;
+      user.tier = result.user.tier;
+      user.challengeStatus = result.user.challengeStatus;
+      user.balance = result.user.balance;
+      user.hasActiveChallenge = result.user.hasActiveChallenge;
+      user.hasFundedAccount = result.user.hasFundedAccount;
+      user.tradingMode = result.user.tradingMode;
+      user.isNewUser = result.isNewUser;
+
+      const cookieStore = await cookies();
+      cookieStore.set(
+        POST_AUTH_COOKIE,
+        result.isNewUser ? "/pricing" : "/dashboard/markets",
+        { maxAge: 120, path: "/", sameSite: "lax" },
+      );
+
+      return true;
+    },
     jwt({ token, user, trigger, session }) {
       if (user) {
         token.uid = user.id as string;
@@ -41,6 +83,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tier = user.tier;
         token.challengeStatus = user.challengeStatus;
         token.balance = user.balance;
+        token.hasActiveChallenge = user.hasActiveChallenge;
+        token.hasFundedAccount = user.hasFundedAccount;
+        token.tradingMode = user.tradingMode;
+        token.isNewUser = user.isNewUser;
       }
       if (trigger === "update" && session) {
         const s = session as {
@@ -48,11 +94,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           balance?: number;
           accountType?: AccountType;
           challengeStatus?: ChallengeStatus;
+          hasActiveChallenge?: boolean;
+          hasFundedAccount?: boolean;
+          tradingMode?: TradingMode;
           user?: {
             tier?: number;
             balance?: number;
             accountType?: AccountType;
             challengeStatus?: ChallengeStatus;
+            hasActiveChallenge?: boolean;
+            hasFundedAccount?: boolean;
+            tradingMode?: TradingMode;
           };
         };
         const patch = s.user ?? s;
@@ -62,6 +114,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (patch.challengeStatus !== undefined) {
           token.challengeStatus = patch.challengeStatus;
         }
+        if (patch.hasActiveChallenge !== undefined) {
+          token.hasActiveChallenge = patch.hasActiveChallenge;
+        }
+        if (patch.hasFundedAccount !== undefined) {
+          token.hasFundedAccount = patch.hasFundedAccount;
+        }
+        if (patch.tradingMode !== undefined) token.tradingMode = patch.tradingMode;
       }
       return token;
     },
@@ -74,8 +133,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.challengeStatus =
           (token.challengeStatus as ChallengeStatus) ?? "pending";
         session.user.balance = (token.balance as number) ?? 0;
+        session.user.hasActiveChallenge =
+          (token.hasActiveChallenge as boolean) ?? false;
+        session.user.hasFundedAccount =
+          (token.hasFundedAccount as boolean) ?? false;
+        session.user.tradingMode = (token.tradingMode as TradingMode) ?? "demo";
+        session.user.isNewUser = (token.isNewUser as boolean) ?? false;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      const cookieStore = await cookies();
+      const postAuth = cookieStore.get(POST_AUTH_COOKIE)?.value;
+      if (postAuth?.startsWith("/")) {
+        cookieStore.delete(POST_AUTH_COOKIE);
+        return `${baseUrl}${postAuth}`;
+      }
+
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
 });

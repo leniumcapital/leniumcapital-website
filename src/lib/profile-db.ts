@@ -130,6 +130,13 @@ export async function updateUserProfile(
           field: "currentPassword",
         };
       }
+      if (!user.password) {
+        return {
+          ok: false,
+          error: "This account uses Google sign-in. Set a password in account settings first.",
+          field: "currentPassword",
+        };
+      }
       const passwordOk = await bcrypt.compare(input.currentPassword, user.password);
       if (!passwordOk) {
         return { ok: false, error: "Current password is incorrect.", field: "currentPassword" };
@@ -194,6 +201,15 @@ export async function changeUserPassword(
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, error: "User not found." };
+
+  if (!user.password) {
+    const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hash },
+    });
+    return { ok: true };
+  }
 
   const ok = await bcrypt.compare(currentPassword, user.password);
   if (!ok) {
