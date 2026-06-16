@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
+import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
+import { seriesIconDirectUrl } from "@/lib/seriesIcon";
 import type { DashboardEvent } from "@/lib/marketDetail";
 import {
   formatCloseLabel,
-  formatMultiplier,
   formatVolShort,
   isEventLive,
   seriesDisplayName,
@@ -49,7 +50,7 @@ export function LazyTrendingCard({
       ) : (
         <div
           className="lenium-skeleton"
-          style={{ height: 140, borderRadius: 10 }}
+          style={{ height: 168, borderRadius: 10 }}
         />
       )}
     </div>
@@ -73,6 +74,8 @@ export function TrendingSectionCard({ eventTicker }: { eventTicker: string }) {
   const live = isEventLive(event.closeTime, now);
   const seriesLabel = seriesDisplayName(event.seriesTicker, event);
   const outcomes = event.outcomes.slice(0, 2);
+  const maxProb = Math.max(...outcomes.map((o) => o.yesPrice), 1);
+  const seriesIcon = seriesIconDirectUrl(event.seriesTicker);
 
   return (
     <div
@@ -90,11 +93,34 @@ export function TrendingSectionCard({ eventTicker }: { eventTicker: string }) {
         flexDirection: "column",
         gap: 10,
         fontFamily: T.font,
+        minHeight: 168,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <CategoryBadge label={event.category} />
-        <span style={{ color: T.textMuted, fontSize: 10 }}>{seriesLabel}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <span
+            style={{
+              color: T.textMuted,
+              fontSize: 10,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {seriesLabel}
+          </span>
+          {seriesIcon && (
+            <MarketOutcomeAvatar
+              name={seriesLabel}
+              category={event.category}
+              directUrl={seriesIcon}
+              seriesTicker={event.seriesTicker}
+              eventTitle={event.title}
+              size={18}
+            />
+          )}
+        </div>
       </div>
 
       <div>
@@ -103,7 +129,7 @@ export function TrendingSectionCard({ eventTicker }: { eventTicker: string }) {
           style={{
             color: T.textPrimary,
             fontSize: 13,
-            fontWeight: 500,
+            fontWeight: 600,
             lineHeight: 1.4,
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -125,17 +151,33 @@ export function TrendingSectionCard({ eventTicker }: { eventTicker: string }) {
         >
           {live && (
             <>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.red }} />
-              <span style={{ color: T.red, fontWeight: 600 }}>LIVE</span>
+              <span
+                className="lenium-live-dot"
+                style={{ width: 6, height: 6, borderRadius: "50%", background: T.red }}
+              />
+              <span style={{ color: T.red, fontWeight: 600, fontSize: 10 }}>LIVE</span>
             </>
           )}
           <span>{formatCloseLabel(event.closeTime, now)}</span>
         </div>
       </div>
 
-      {outcomes.map((o) => (
-        <OutcomeCompactRow key={o.ticker} outcome={o} event={event} />
-      ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
+        {outcomes.map((o) => (
+          <KalshiOutcomeRow
+            key={o.ticker}
+            name={o.name}
+            category={event.category}
+            ticker={o.ticker}
+            yesPrice={o.yesPrice}
+            imageUrl={o.imageUrl}
+            seriesTicker={event.seriesTicker}
+            eventTitle={event.title}
+            isLeader={o.yesPrice >= maxProb - 0.5}
+            compact
+          />
+        ))}
+      </div>
 
       <div
         style={{
@@ -143,6 +185,8 @@ export function TrendingSectionCard({ eventTicker }: { eventTicker: string }) {
           justifyContent: "space-between",
           color: T.textMuted,
           fontSize: 11,
+          marginTop: "auto",
+          paddingTop: 2,
         }}
       >
         <span>{formatVolShort(event.totalVolume)} vol</span>
@@ -169,6 +213,7 @@ function CategoryBadge({ label }: { label: string }) {
         textTransform: "uppercase",
         padding: "2px 8px",
         borderRadius: 4,
+        flexShrink: 0,
       }}
     >
       {label}
@@ -176,77 +221,11 @@ function CategoryBadge({ label }: { label: string }) {
   );
 }
 
-function OutcomeCompactRow({
-  outcome,
-  event,
-}: {
-  outcome: DashboardEvent["outcomes"][0];
-  event: DashboardEvent;
-}) {
-  const livePrice = useMarketStore(
-    (s) => s.markets[outcome.ticker]?.yesPrice ?? outcome.yesPrice,
-  );
-  const high = livePrice >= 70;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        height: 32,
-      }}
-    >
-      <MarketOutcomeAvatar
-        name={outcome.name}
-        category={event.category}
-        directUrl={outcome.imageUrl ?? null}
-        marketTicker={outcome.ticker}
-        size={24}
-      />
-      <span
-        style={{
-          flex: 1,
-          color: "#CCCCCC",
-          fontSize: 12,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {outcome.name}
-      </span>
-      <span style={{ color: T.textMuted, fontSize: 11, flexShrink: 0 }}>
-        {formatMultiplier(livePrice)}
-      </span>
-      <span
-        style={{
-          background: high ? T.greenMutedBg : T.bgTertiary,
-          border: high
-            ? `0.5px solid ${T.greenMutedBorder}`
-            : T.hairline(T.borderHover),
-          borderRadius: 5,
-          padding: "2px 8px",
-          color: high ? T.green : T.textPrimary,
-          fontSize: 12,
-          fontWeight: 600,
-          minWidth: 40,
-          textAlign: "center",
-          flexShrink: 0,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {livePrice}%
-      </span>
-    </div>
-  );
-}
-
 export function TrendingCardSkeleton() {
   return (
     <div
       className="lenium-skeleton"
-      style={{ height: 140, borderRadius: 10 }}
+      style={{ height: 168, borderRadius: 10 }}
     />
   );
 }

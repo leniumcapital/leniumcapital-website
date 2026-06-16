@@ -6,30 +6,19 @@ import {
   iconFallbackInitials,
   normalizeNameKey,
 } from "@/lib/icon-keys";
-import { marketImageCandidates } from "@/lib/kalshiImages";
+import { clientIconCandidates } from "@/lib/clientIconFallbacks";
 
-type LoadPhase = "kalshi" | "resolve" | "fallback";
+type LoadPhase = "candidates" | "resolve" | "fallback";
 
 type MarketOutcomeAvatarProps = {
   name: string;
   category: string;
   size?: number;
   directUrl?: string | null;
-  /** Market ticker — enables Kalshi market-image CDN fallbacks. */
   marketTicker?: string | null;
+  seriesTicker?: string | null;
+  eventTitle?: string | null;
 };
-
-function dedupeUrls(urls: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const u of urls) {
-    const trimmed = u.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
 
 function MarketOutcomeAvatarInner({
   name,
@@ -37,27 +26,35 @@ function MarketOutcomeAvatarInner({
   size = 28,
   directUrl = null,
   marketTicker = null,
+  seriesTicker = null,
+  eventTitle = null,
 }: MarketOutcomeAvatarProps) {
-  const kalshiQueue = useMemo(
+  const candidateQueue = useMemo(
     () =>
-      dedupeUrls([
-        ...(directUrl ? [directUrl] : []),
-        ...(marketTicker ? marketImageCandidates(marketTicker) : []),
-      ]),
-    [directUrl, marketTicker],
+      clientIconCandidates({
+        name,
+        category,
+        directUrl,
+        marketTicker,
+        seriesTicker,
+        eventTitle,
+      }),
+    [name, category, directUrl, marketTicker, seriesTicker, eventTitle],
   );
 
-  const [phase, setPhase] = useState<LoadPhase>("kalshi");
-  const [kalshiIndex, setKalshiIndex] = useState(0);
+  const [phase, setPhase] = useState<LoadPhase>(
+    candidateQueue.length > 0 ? "candidates" : "resolve",
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolveFailed, setResolveFailed] = useState(false);
 
   useEffect(() => {
-    setPhase(kalshiQueue.length > 0 ? "kalshi" : "resolve");
-    setKalshiIndex(0);
+    setPhase(candidateQueue.length > 0 ? "candidates" : "resolve");
+    setCandidateIndex(0);
     setResolvedUrl(null);
     setResolveFailed(false);
-  }, [name, category, directUrl, marketTicker, kalshiQueue]);
+  }, [name, category, directUrl, marketTicker, seriesTicker, eventTitle, candidateQueue]);
 
   useEffect(() => {
     if (phase !== "resolve") return;
@@ -65,6 +62,8 @@ function MarketOutcomeAvatarInner({
     let cancelled = false;
     const params = new URLSearchParams({ name, category });
     if (marketTicker?.trim()) params.set("ticker", marketTicker.trim());
+    if (seriesTicker?.trim()) params.set("series", seriesTicker.trim());
+    if (eventTitle?.trim()) params.set("context", eventTitle.trim());
 
     fetch(`/api/icons/resolve?${params}`)
       .then((res) => res.json())
@@ -86,25 +85,22 @@ function MarketOutcomeAvatarInner({
     return () => {
       cancelled = true;
     };
-  }, [phase, name, category, marketTicker]);
+  }, [phase, name, category, marketTicker, seriesTicker, eventTitle]);
 
   const activeUrl =
-    phase === "kalshi"
-      ? kalshiQueue[kalshiIndex] ?? null
+    phase === "candidates"
+      ? candidateQueue[candidateIndex] ?? null
       : phase === "resolve"
         ? resolvedUrl
         : null;
 
-  const isLoading =
-    (phase === "kalshi" && kalshiQueue.length === 0) ||
-    (phase === "resolve" && !resolvedUrl && !resolveFailed);
-
-  const showFallback = phase === "fallback" || (phase === "resolve" && resolveFailed);
+  const showFallback =
+    phase === "fallback" || (phase === "resolve" && resolveFailed && !resolvedUrl);
 
   const handleImageError = useCallback(() => {
-    if (phase === "kalshi") {
-      if (kalshiIndex + 1 < kalshiQueue.length) {
-        setKalshiIndex((i) => i + 1);
+    if (phase === "candidates") {
+      if (candidateIndex + 1 < candidateQueue.length) {
+        setCandidateIndex((i) => i + 1);
         return;
       }
       setPhase("resolve");
@@ -121,7 +117,7 @@ function MarketOutcomeAvatarInner({
       setResolveFailed(true);
       setPhase("fallback");
     }
-  }, [phase, kalshiIndex, kalshiQueue.length, resolvedUrl, name]);
+  }, [phase, candidateIndex, candidateQueue.length, resolvedUrl, name]);
 
   const initials = iconFallbackInitials(name);
   const fallbackBg = iconFallbackColor(category);
@@ -139,13 +135,22 @@ function MarketOutcomeAvatarInner({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: fallbackBg,
       }}
     >
-      {isLoading && (
-        <div
-          className="icon-avatar-shimmer"
-          style={{ width: "100%", height: "100%", background: "#1C1C1C" }}
-        />
+      {showFallback && (
+        <span
+          style={{
+            color: "#FFFFFF",
+            fontSize,
+            fontWeight: 600,
+            lineHeight: 1,
+            userSelect: "none",
+            zIndex: 1,
+          }}
+        >
+          {initials}
+        </span>
       )}
 
       {activeUrl && !showFallback && (
@@ -156,34 +161,14 @@ function MarketOutcomeAvatarInner({
           alt=""
           width="100%"
           height="100%"
-          style={{ objectFit: "cover", display: "block" }}
+          style={{
+            objectFit: "cover",
+            display: "block",
+            position: "absolute",
+            inset: 0,
+          }}
           onError={handleImageError}
         />
-      )}
-
-      {showFallback && (
-        <div
-          style={{
-            background: fallbackBg,
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span
-            style={{
-              color: "#FFFFFF",
-              fontSize,
-              fontWeight: 600,
-              lineHeight: 1,
-              userSelect: "none",
-            }}
-          >
-            {initials}
-          </span>
-        </div>
       )}
     </div>
   );
@@ -198,7 +183,9 @@ function propsEqual(
     prev.category === next.category &&
     prev.size === next.size &&
     prev.directUrl === next.directUrl &&
-    prev.marketTicker === next.marketTicker
+    prev.marketTicker === next.marketTicker &&
+    prev.seriesTicker === next.seriesTicker &&
+    prev.eventTitle === next.eventTitle
   );
 }
 

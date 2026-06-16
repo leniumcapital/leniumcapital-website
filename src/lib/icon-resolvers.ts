@@ -261,11 +261,31 @@ export async function resolveFromTMDB(name: string): Promise<string | null> {
   }
 }
 
+const STATIC_CRYPTO: Record<string, string> = {
+  btc: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+  bitcoin: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+  eth: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+  ethereum: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+  sol: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
+  solana: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
+};
+
+function resolveCryptoFromContext(...parts: (string | undefined)[]): string | null {
+  const blob = parts.filter(Boolean).join(" ").toLowerCase();
+  if (/\bbtc\b|bitcoin|kxbtc/.test(blob)) return STATIC_CRYPTO.btc;
+  if (/\beth\b|ethereum|kxeth/.test(blob)) return STATIC_CRYPTO.eth;
+  if (/\bsol\b|solana|kxsol/.test(blob)) return STATIC_CRYPTO.sol;
+  return null;
+}
+
 async function resolveByCategory(
   name: string,
   category: string,
+  seriesTicker?: string,
+  eventTitle?: string,
 ): Promise<{ url: string; source: string } | null> {
   const cat = category.trim();
+  const context = [eventTitle, seriesTicker, name].filter(Boolean).join(" ");
 
   if (cat === "Elections" || cat === "Politics") {
     const wiki = await resolveFromWikipedia(name);
@@ -282,13 +302,15 @@ async function resolveByCategory(
   }
 
   if (cat === "Crypto") {
-    const coin = await resolveFromCoinGecko(name);
+    const staticCoin = resolveCryptoFromContext(context);
+    if (staticCoin) return { url: staticCoin, source: "coingecko_static" };
+    const coin = await resolveFromCoinGecko(context || name);
     if (coin) return { url: coin, source: "coingecko" };
     return null;
   }
 
   if (cat === "Economics" || cat === "Finance") {
-    const logo = resolveFromClearbit(name);
+    const logo = resolveFromClearbit(context || name);
     if (logo) return { url: logo, source: "clearbit" };
     const wiki = await resolveFromWikipedia(name);
     if (wiki) return { url: wiki, source: "wikipedia" };
@@ -296,6 +318,8 @@ async function resolveByCategory(
   }
 
   if (cat === "Culture") {
+    const logo = resolveFromClearbit(context || name);
+    if (logo) return { url: logo, source: "clearbit" };
     const tmdb = await resolveFromTMDB(name);
     if (tmdb) return { url: tmdb, source: "tmdb" };
     const wiki = await resolveFromWikipedia(name);
@@ -360,6 +384,8 @@ export async function resolveIconForOutcome(
   category: string,
   kalshiImageUrl?: string | null,
   marketTicker?: string | null,
+  seriesTicker?: string | null,
+  eventTitle?: string | null,
 ): Promise<string | null> {
   if (kalshiImageUrl && kalshiImageUrl.trim()) {
     return kalshiImageUrl.trim();
@@ -388,12 +414,19 @@ export async function resolveIconForOutcome(
       if (marketUrl) return marketUrl;
     }
 
-    if (!nameKey) return null;
+    if (!nameKey && !eventTitle && !seriesTicker) return null;
 
-    const resolved = await resolveByCategory(name, cat);
+    const resolved = await resolveByCategory(
+      name,
+      cat,
+      seriesTicker ?? undefined,
+      eventTitle ?? undefined,
+    );
     if (!resolved) return null;
 
-    cacheIconAsync(nameKey, name.trim(), cat, resolved.url, resolved.source);
+    if (nameKey) {
+      cacheIconAsync(nameKey, name.trim(), cat, resolved.url, resolved.source);
+    }
     return resolved.url;
   } catch {
     return null;

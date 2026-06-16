@@ -250,6 +250,8 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
               key={outcome.ticker}
               outcome={outcome}
               category={event.category}
+              seriesTicker={event.seriesTicker}
+              eventTitle={event.title}
               isLeader={outcome.yesPrice >= maxProb - 0.5}
               showBar={i < 6}
             />
@@ -320,10 +322,14 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
 function HeroOutcomeRow({
   outcome,
   category,
+  seriesTicker,
+  eventTitle,
   isLeader,
 }: {
   outcome: { ticker: string; name: string; yesPrice: number; imageUrl?: string };
   category: string;
+  seriesTicker?: string;
+  eventTitle?: string;
   isLeader: boolean;
   showBar: boolean;
 }) {
@@ -357,6 +363,8 @@ function HeroOutcomeRow({
         category={category}
         directUrl={outcome.imageUrl ?? null}
         marketTicker={outcome.ticker}
+        seriesTicker={seriesTicker}
+        eventTitle={eventTitle}
         size={28}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
