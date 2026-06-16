@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAccountStore } from "@/stores/accountStore";
+import { syncChallengeRuleLimits } from "@/stores/challengeStore";
 import type { AccountStatusPayload } from "@/lib/account-status";
 
 /** Fetch /api/account/status once on dashboard mount and hydrate the store. */
@@ -16,8 +17,10 @@ export function useAccountStatusSync() {
         const data = (await res.json()) as AccountStatusPayload;
         if (cancelled) return;
         useAccountStore.getState().applyAccountStatus(data);
+        syncChallengeRuleLimits();
       } catch {
         // Session layout already seeded basics; status is best-effort.
+        syncChallengeRuleLimits();
       }
     }
 

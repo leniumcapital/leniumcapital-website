@@ -13,7 +13,7 @@ import {
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
 import { useMarketStore } from "@/stores/marketStore";
-import { resolveTierForAccount, resolveRules, validateOrder } from "@/lib/rules";
+import { resolveTierForAccount, resolveRules, validateOrder, effectiveAccountSize } from "@/lib/rules";
 
 type PlaceOrderInput = {
   marketTicker: string;
@@ -60,7 +60,14 @@ export function usePlaceOrder() {
     mutationFn: async (input: PlaceOrderInput) => {
       const account = useAccountStore.getState();
       const challenge = useChallengeStore.getState();
-      const tier = resolveTierForAccount(account.accountSize);
+      const size = effectiveAccountSize({
+        accountSize: account.accountSize,
+        tier: account.tier,
+        challengeTier: account.challengeTier,
+        fundedTier: account.fundedTier,
+        tradingMode: account.tradingMode,
+      });
+      const tier = resolveTierForAccount(size);
 
       if (!tier) throw new Error("No active account tier.");
 
@@ -74,7 +81,7 @@ export function usePlaceOrder() {
         0,
       );
       const currentProfit = realized + unrealized;
-      const equity = account.accountSize + currentProfit;
+      const equity = size + currentProfit;
 
       const rules = resolveRules({
         tier,
@@ -91,7 +98,7 @@ export function usePlaceOrder() {
 
       const clientCheck = validateOrder({
         rules,
-        startingBalance: account.accountSize,
+        startingBalance: size,
         currentProfit,
         highWaterMarkUsd: challenge.highWaterMarkUsd,
         staticFloorUsd: challenge.staticFloorUsd,
