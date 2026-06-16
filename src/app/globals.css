@@ -386,3 +386,31 @@ body {
     animation: none !important;
   }
 }
+
+/* Trending page — Kalshi-style two-column layout with sticky sidebar. */
+.trending-page-layout {
+  min-width: 0;
+}
+
+.trending-right-sidebar {
+  -ms-overflow-style: none;
+}
+.trending-right-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes sidebar-pulse-border {
+  0%,
+  100% {
+    border-color: rgba(0, 232, 122, 0.4);
+  }
+  50% {
+    border-color: rgba(0, 232, 122, 0.8);
+  }
+}
+
+@media (max-width: 1279px) {
+  .trending-right-sidebar {
+    display: none;
+  }
+}

@@ -20,6 +20,12 @@ interface UIState {
   challengeModalOpen: boolean;
   /** Shown when a non-funded user tries to switch to live mode. */
   accountGateOpen: boolean;
+  /** Hero carousel index on the Trending tab. */
+  heroCarouselIndex: number;
+  /** Top featured event tickers for the hero carousel. */
+  heroCarouselMarkets: string[];
+  /** Active sidebar shortcut filter (series ticker or special id). */
+  activeSidebarFilter: string | null;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
@@ -29,6 +35,9 @@ interface UIState {
   setViewMode: (mode: ViewMode) => void;
   setSortOrder: (order: SortOrder) => void;
   setMarketsScrollTop: (top: number) => void;
+  setHeroCarouselIndex: (index: number) => void;
+  setHeroCarouselMarkets: (tickers: string[]) => void;
+  setActiveSidebarFilter: (filter: string | null) => void;
   openChallengeModal: () => void;
   closeChallengeModal: () => void;
   openAccountGate: () => void;
@@ -48,12 +57,21 @@ const initial = {
   subCategoryFilter: "All Markets",
   challengeModalOpen: false,
   accountGateOpen: false,
+  heroCarouselIndex: 0,
+  heroCarouselMarkets: [] as string[],
+  activeSidebarFilter: null as string | null,
 };
 
 export const useUiStore = create<UIState>()((set) => ({
   ...initial,
   setCategory: (activeCategory) =>
-    set({ activeCategory, eventSearch: "", subCategoryFilter: "All Markets" }),
+    set({
+      activeCategory,
+      eventSearch: "",
+      subCategoryFilter: "All Markets",
+      activeSidebarFilter: null,
+      heroCarouselIndex: 0,
+    }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setEventSearch: (eventSearch) => set({ eventSearch }),
   setSubCategoryFilter: (subCategoryFilter) => set({ subCategoryFilter }),
@@ -63,6 +81,10 @@ export const useUiStore = create<UIState>()((set) => ({
   setViewMode: (viewMode) => set({ viewMode }),
   setSortOrder: (sortOrder) => set({ sortOrder }),
   setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
+  setHeroCarouselIndex: (heroCarouselIndex) => set({ heroCarouselIndex }),
+  setHeroCarouselMarkets: (heroCarouselMarkets) => set({ heroCarouselMarkets }),
+  setActiveSidebarFilter: (activeSidebarFilter) =>
+    set({ activeSidebarFilter, heroCarouselIndex: 0 }),
   openChallengeModal: () => set({ challengeModalOpen: true }),
   closeChallengeModal: () => set({ challengeModalOpen: false }),
   openAccountGate: () => set({ accountGateOpen: true }),

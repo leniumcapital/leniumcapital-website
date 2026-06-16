@@ -25,6 +25,7 @@ import {
   type EventSection,
 } from "@/hooks/useMarkets";
 import { MarketCard, SkeletonMarketCard } from "@/components/dashboard/MarketCard";
+import { TrendingPageLayout } from "@/components/dashboard/trending/TrendingPageLayout";
 import {
   MARKET_GRID_GAP,
   MARKET_GRID_ROW_HEIGHT,
@@ -75,6 +76,7 @@ export function MarketGrid() {
   const activeCategory = useUiStore((s) => s.activeCategory);
   const subCategoryFilter = useUiStore((s) => s.subCategoryFilter);
   const viewMode = useUiStore((s) => s.viewMode);
+  const eventSearch = useUiStore((s) => s.eventSearch);
 
   const [visibleSections, setVisibleSections] = useState(INITIAL_SECTIONS);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -101,6 +103,10 @@ export function MarketGrid() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [sections.length, visibleSections]);
+
+  if (activeCategory === "Trending" && !eventSearch.trim()) {
+    return <TrendingPageLayout />;
+  }
 
   const showFeatured = activeCategory === "Trending";
 
