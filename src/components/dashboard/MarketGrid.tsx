@@ -83,10 +83,13 @@ export function MarketGrid() {
 
   const filterKey = `${activeCategory}:${subCategoryFilter}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
-  if (prevFilterKey !== filterKey) {
-    setPrevFilterKey(filterKey);
-    setVisibleSections(INITIAL_SECTIONS);
-  }
+
+  useEffect(() => {
+    if (prevFilterKey !== filterKey) {
+      setPrevFilterKey(filterKey);
+      setVisibleSections(INITIAL_SECTIONS);
+    }
+  }, [filterKey, prevFilterKey]);
 
   // Load the next section shortly before the user reaches the end.
   useEffect(() => {

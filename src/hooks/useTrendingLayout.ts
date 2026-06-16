@@ -40,18 +40,15 @@ export function useTrendingSeriesSections(): SeriesSection[] {
 
 export function useHeroCarouselEvents(): string[] {
   const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
-  const stored = useUiStore((s) => s.heroCarouselMarkets);
   const eventKey = useMarketStore(
     useShallow((s) => s.eventOrder.length),
   );
 
   return useMemo(() => {
     const { events, eventOrder } = useMarketStore.getState();
-    const built = buildHeroEventTickers(events, eventOrder, activeSidebarFilter);
-    if (built.length > 0) return built;
-    return stored;
+    return buildHeroEventTickers(events, eventOrder, activeSidebarFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventKey, activeSidebarFilter, stored]);
+  }, [eventKey, activeSidebarFilter]);
 }
 
 function topEvents(count: number): CompactListItem[] {

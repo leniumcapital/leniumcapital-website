@@ -30,12 +30,18 @@ export function TrendingHeroCard() {
   const heroEvents = useHeroCarouselEvents();
   const index = useUiStore((s) => s.heroCarouselIndex);
   const setIndex = useUiStore((s) => s.setHeroCarouselIndex);
-  const setHeroMarkets = useUiStore((s) => s.setHeroCarouselMarkets);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const safeIndex =
+    heroEvents.length > 0
+      ? Math.min(index, heroEvents.length - 1)
+      : 0;
+
   useEffect(() => {
-    if (heroEvents.length > 0) setHeroMarkets(heroEvents);
-  }, [heroEvents, setHeroMarkets]);
+    if (heroEvents.length > 0 && index >= heroEvents.length) {
+      setIndex(0);
+    }
+  }, [heroEvents.length, index, setIndex]);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -47,17 +53,17 @@ export function TrendingHeroCard() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [heroEvents.length, setIndex, index]);
+  }, [heroEvents.length, setIndex]);
 
   const go = (delta: number) => {
     if (heroEvents.length === 0) return;
-    const next = (index + delta + heroEvents.length) % heroEvents.length;
+    const next = (safeIndex + delta + heroEvents.length) % heroEvents.length;
     setIndex(next);
   };
 
   if (heroEvents.length === 0) return null;
 
-  const eventTicker = heroEvents[index] ?? heroEvents[0];
+  const eventTicker = heroEvents[safeIndex] ?? heroEvents[0];
 
   return (
     <div style={{ marginBottom: 24, fontFamily: T.font }}>
@@ -94,7 +100,7 @@ export function TrendingHeroCard() {
                   textAlign: "center",
                 }}
               >
-                {index + 1} of {heroEvents.length}
+                {safeIndex + 1} of {heroEvents.length}
               </span>
               <NavCircle onClick={() => go(1)} aria-label="Next">
                 <IconChevronRight size={14} stroke={1.5} />
