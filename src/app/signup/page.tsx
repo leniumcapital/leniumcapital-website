@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { Logo } from "@/components/Logo";
 import { AuthPanel } from "@/components/AuthPanel";
 
@@ -31,11 +33,16 @@ type PageProps = {
 
 export default async function SignupPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const session = await auth();
   const initialMode = params.mode === "login" ? "login" : "signup";
   const callbackUrl =
     typeof params.callbackUrl === "string" && params.callbackUrl.startsWith("/")
       ? params.callbackUrl
       : "/dashboard";
+
+  if (session?.user) {
+    redirect(callbackUrl);
+  }
 
   return (
     <section className="relative grid min-h-screen lg:grid-cols-2">

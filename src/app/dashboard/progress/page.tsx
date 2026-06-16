@@ -800,7 +800,7 @@ function CelebrationOverlay() {
             Challenge passed.
           </span>
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/billing"
             style={{
               background: T.green,
               color: T.bgPrimary,

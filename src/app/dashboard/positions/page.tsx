@@ -90,8 +90,11 @@ export default function PositionsPage() {
   );
 }
 
-const PositionRow = React.memo(
-  function PositionRow({ position }: { position: Position }) {
+const PositionRow = React.memo(function PositionRow({
+  position,
+}: {
+  position: Position;
+}) {
     const closePosition = useClosePosition();
 
     // Live current price for this market only.
@@ -196,9 +199,7 @@ const PositionRow = React.memo(
         </td>
       </tr>
     );
-  },
-  (prev, next) => prev.position.id === next.position.id,
-);
+});
 
 function DirectionBadge({ direction }: { direction: Direction }) {
   const yes = direction === "yes";

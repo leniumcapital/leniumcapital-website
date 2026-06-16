@@ -41,7 +41,7 @@ function EmptyState() {
         No active challenge
       </span>
       <Link
-        href="/pricing"
+        href="/dashboard/challenge/select"
         style={{
           display: "block",
           width: "100%",

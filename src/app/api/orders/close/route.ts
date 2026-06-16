@@ -30,35 +30,39 @@ export async function POST(req: Request) {
     );
   }
 
-  const order = await prisma.order.findFirst({
-    where: {
-      id: positionId,
-      userId: session.user.id,
-      status: "open",
-    },
-  });
-
-  if (!order) {
-    return NextResponse.json({ error: "Position not found." }, { status: 404 });
-  }
-
   const result = await executeClose(marketTicker, direction);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      status: "closed",
-      exitPrice: result.exitPrice,
-      closedAt: new Date(),
-    },
-  });
+  // Best-effort DB sync when a persisted order row exists.
+  let simulated = true;
+  try {
+    const order = await prisma.order.findFirst({
+      where: {
+        id: positionId,
+        userId: session.user.id,
+        status: "open",
+      },
+    });
+    if (order) {
+      simulated = order.simulated;
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: "closed",
+          exitPrice: result.exitPrice,
+          closedAt: new Date(),
+        },
+      });
+    }
+  } catch (e) {
+    console.warn("[orders/close] DB sync skipped:", e);
+  }
 
   return NextResponse.json({
     ok: true,
     exitPrice: result.exitPrice,
-    simulated: order.simulated,
+    simulated,
   });
 }

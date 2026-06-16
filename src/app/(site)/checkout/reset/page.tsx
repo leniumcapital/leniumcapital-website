@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Container } from "@/components/ui";
 import {
   TIERS,
@@ -13,7 +14,44 @@ import {
 export default function ResetCheckoutPage() {
   const defaultIdx = TIERS.findIndex((t) => t.size === 25_000);
   const [idx, setIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const router = useRouter();
   const tier = TIERS[idx];
+
+  async function handleCheckout() {
+    setCheckingOut(true);
+    try {
+      const res = await fetch("/api/billing/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tierSize: tier.size,
+          addons: [],
+          planType: "reset",
+        }),
+      });
+      const data = (await res.json()) as { error?: string; order?: { orderId: string } };
+
+      if (res.status === 401) {
+        router.push(
+          `/signup?mode=login&callbackUrl=${encodeURIComponent("/checkout/reset")}`,
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not create reset order.");
+        return;
+      }
+
+      toast.success("Reset order created — complete payment in Billing.");
+      router.push("/dashboard/billing");
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setCheckingOut(false);
+    }
+  }
 
   return (
     <section className="py-14">
@@ -46,7 +84,6 @@ export default function ResetCheckoutPage() {
           </div>
         </div>
 
-        {/* Order summary */}
         <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
           <div className="border-b border-border px-6 py-4">
             <h2 className="font-semibold">{resetCheckoutTitle(tier)}</h2>
@@ -71,12 +108,14 @@ export default function ResetCheckoutPage() {
           </div>
         </div>
 
-        <Link
-          href="/signup"
-          className="mt-5 block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong"
+        <button
+          type="button"
+          disabled={checkingOut}
+          onClick={() => void handleCheckout()}
+          className="mt-5 block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong disabled:opacity-60"
         >
-          Pay {usd(tier.resetFee)} & restart
-        </Link>
+          {checkingOut ? "Creating order…" : `Pay ${usd(tier.resetFee)} & restart`}
+        </button>
       </Container>
     </section>
   );
