@@ -148,6 +148,7 @@ export function DetailChart({
                 name={o.name}
                 category={category}
                 directUrl={o.imageUrl ?? null}
+                marketTicker={o.ticker}
                 size={28}
               />
               <span style={{ color: T.textSecondary, fontSize: 12 }}>
@@ -284,6 +285,7 @@ export function DetailChart({
                                   name={outcome.name}
                                   category={category}
                                   directUrl={outcome.imageUrl ?? null}
+                                  marketTicker={outcome.ticker}
                                   size={28}
                                 />
                               ) : (

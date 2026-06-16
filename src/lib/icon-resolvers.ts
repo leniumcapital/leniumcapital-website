@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import { normalizeNameKey } from "@/lib/icon-keys";
+import { marketImageCandidates } from "@/lib/kalshiImages";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -346,10 +347,19 @@ function cacheIconAsync(
     .catch(() => {});
 }
 
+async function findFirstWorkingMarketImage(ticker: string): Promise<string | null> {
+  for (const url of marketImageCandidates(ticker)) {
+    const res = await fetchWithTimeout(url, { method: "HEAD" });
+    if (res?.ok) return url;
+  }
+  return null;
+}
+
 export async function resolveIconForOutcome(
   name: string,
   category: string,
   kalshiImageUrl?: string | null,
+  marketTicker?: string | null,
 ): Promise<string | null> {
   if (kalshiImageUrl && kalshiImageUrl.trim()) {
     return kalshiImageUrl.trim();
@@ -357,15 +367,28 @@ export async function resolveIconForOutcome(
 
   const nameKey = normalizeNameKey(name);
   const cat = category.trim() || "Other";
-  if (!nameKey) return null;
+  if (!nameKey && !marketTicker) return null;
 
   try {
-    const cached = await prisma.iconMapping.findUnique({
-      where: { nameKey_category: { nameKey, category: cat } },
-    });
-    if (cached && !cached.isInvalidated) {
-      return cached.imageUrl;
+    if (nameKey) {
+      const cached = await prisma.iconMapping.findUnique({
+        where: { nameKey_category: { nameKey, category: cat } },
+      });
+      if (cached && !cached.isInvalidated) {
+        return cached.imageUrl;
+      }
     }
+
+    if (marketTicker?.trim()) {
+      const marketUrl = await findFirstWorkingMarketImage(marketTicker.trim());
+      if (marketUrl && nameKey) {
+        cacheIconAsync(nameKey, name.trim(), cat, marketUrl, "kalshi_market");
+        return marketUrl;
+      }
+      if (marketUrl) return marketUrl;
+    }
+
+    if (!nameKey) return null;
 
     const resolved = await resolveByCategory(name, cat);
     if (!resolved) return null;
@@ -408,24 +431,31 @@ export async function cacheKalshiIcon(
   }
 }
 
-export type PrefetchOutcome = { name: string; category: string };
+export type PrefetchOutcome = { name: string; category: string; ticker?: string | null };
 
 export type IconPrefetchOutcome = {
   name: string;
   category: string;
   imageUrl?: string | null;
+  ticker?: string | null;
 };
 
 /** Fire-and-forget icon cache warm-up from dashboard events. */
 export function backgroundIconPrefetchFromEvents(
-  events: { category: string; outcomes: { name: string; imageUrl?: string }[] }[],
+  events: {
+    category: string;
+    outcomes: { name: string; imageUrl?: string; ticker?: string }[];
+  }[],
 ): void {
   void queueIconPrefetchFromEvents(events);
 }
 
 /** Collect outcomes needing resolution and warm the cache without blocking. */
 export async function queueIconPrefetchFromEvents(
-  events: { category: string; outcomes: { name: string; imageUrl?: string }[] }[],
+  events: {
+    category: string;
+    outcomes: { name: string; imageUrl?: string; ticker?: string }[];
+  }[],
 ): Promise<number> {
   const seen = new Set<string>();
   const toPrefetch: PrefetchOutcome[] = [];
@@ -449,10 +479,10 @@ export async function queueIconPrefetchFromEvents(
             where: { nameKey_category: { nameKey, category } },
           });
           if (!existing || existing.isInvalidated) {
-            toPrefetch.push({ name, category });
+            toPrefetch.push({ name, category, ticker: o.ticker ?? null });
           }
         } catch {
-          toPrefetch.push({ name, category });
+          toPrefetch.push({ name, category, ticker: o.ticker ?? null });
         }
       }
     }
@@ -480,7 +510,7 @@ export async function prefetchOutcomesBatch(
         });
         if (existing && !existing.isInvalidated) return;
         queued++;
-        await resolveIconForOutcome(o.name, cat, null);
+        await resolveIconForOutcome(o.name, cat, null, o.ticker ?? null);
       }),
     );
   }

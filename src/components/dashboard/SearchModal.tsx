@@ -162,6 +162,7 @@ function SearchResultRow({
       <MarketOutcomeAvatar
         name={outcomeNameFromQuestion(question)}
         category={category}
+        marketTicker={ticker}
         size={20}
       />
       <span

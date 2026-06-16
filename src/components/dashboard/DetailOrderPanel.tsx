@@ -264,6 +264,7 @@ export function DetailOrderPanel({
                     name={outcome?.name ?? detail.question}
                     category={detail.category}
                     directUrl={outcome?.imageUrl ?? null}
+                    marketTicker={outcome?.ticker ?? detail.ticker}
                     size={36}
                   />
                   <span
@@ -317,6 +318,7 @@ export function DetailOrderPanel({
                   name={detail.question}
                   category={detail.category}
                   directUrl={detail.outcomes[0]?.imageUrl ?? null}
+                  marketTicker={detail.ticker}
                   size={36}
                 />
                 <span

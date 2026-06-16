@@ -133,6 +133,7 @@ function TickerCard({
             name={market.title}
             category={market.category}
             directUrl={market.image ?? null}
+            marketTicker={market.id}
             size={24}
           />
           <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-white/70">

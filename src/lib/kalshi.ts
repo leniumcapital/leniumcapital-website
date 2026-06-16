@@ -13,8 +13,7 @@ import type {
 } from "@/lib/marketDetail";
 import {
   structuredTargetId,
-  structuredTargetImageKey,
-  structuredTargetUrl,
+  resolveOutcomeImageCandidates,
   type StructuredTargetData,
 } from "@/lib/kalshiImages";
 import {
@@ -392,12 +391,9 @@ function resolveOutcomeImageUrl(
   seriesTicker: string,
   targets: Map<string, StructuredTargetData>,
 ): string | undefined {
-  const id = structuredTargetId(market.custom_strike);
-  if (!id) return undefined;
-  const target = targets.get(id);
-  if (!target) return undefined;
-  const key = structuredTargetImageKey(target, seriesTicker);
-  return key ? structuredTargetUrl(key) : undefined;
+  const ticker = market.ticker;
+  if (!ticker) return undefined;
+  return resolveOutcomeImageCandidates(ticker, market, seriesTicker, targets)[0];
 }
 
 async function fetchEventMeta(

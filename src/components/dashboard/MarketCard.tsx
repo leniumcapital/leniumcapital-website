@@ -103,6 +103,7 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           name={event.title}
           category={event.category}
           directUrl={seriesIconDirectUrl(event.seriesTicker)}
+          marketTicker={event.leaderTicker}
           size={24}
         />
         <span
@@ -181,6 +182,7 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           name={event.title}
           category={event.category}
           directUrl={seriesIconDirectUrl(event.seriesTicker)}
+          marketTicker={event.leaderTicker}
           size={24}
         />
         <span
@@ -321,6 +323,7 @@ function OutcomeRow({
         name={outcome.name}
         category={category}
         directUrl={outcome.imageUrl ?? null}
+        marketTicker={outcome.ticker}
         size={AVATAR_SIZE}
       />
 

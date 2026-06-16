@@ -107,6 +107,7 @@ function HistoryRow({ trade }: { trade: ClosedTrade }) {
           <MarketOutcomeAvatar
             name={outcomeNameFromQuestion(trade.question)}
             category={trade.category}
+            marketTicker={trade.marketTicker}
             size={24}
           />
           <span

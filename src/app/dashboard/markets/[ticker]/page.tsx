@@ -319,6 +319,7 @@ function OutcomesTable({
               name={o.name}
               category={category}
               directUrl={o.imageUrl ?? null}
+              marketTicker={o.ticker}
               size={36}
             />
 

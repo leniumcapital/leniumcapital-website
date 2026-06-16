@@ -129,6 +129,7 @@ const PositionRow = React.memo(
             <MarketOutcomeAvatar
               name={outcomeNameFromQuestion(position.question)}
               category={position.category}
+              marketTicker={position.marketTicker}
               size={24}
             />
             <span

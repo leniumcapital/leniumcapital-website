@@ -1,73 +1,131 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   iconFallbackColor,
   iconFallbackInitials,
   normalizeNameKey,
 } from "@/lib/icon-keys";
+import { marketImageCandidates } from "@/lib/kalshiImages";
 
-type AvatarStatus = "loading" | "resolved" | "fallback";
+type LoadPhase = "kalshi" | "resolve" | "fallback";
 
 type MarketOutcomeAvatarProps = {
   name: string;
   category: string;
   size?: number;
   directUrl?: string | null;
+  /** Market ticker — enables Kalshi market-image CDN fallbacks. */
+  marketTicker?: string | null;
 };
+
+function dedupeUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const u of urls) {
+    const trimmed = u.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
 
 function MarketOutcomeAvatarInner({
   name,
   category,
   size = 28,
   directUrl = null,
+  marketTicker = null,
 }: MarketOutcomeAvatarProps) {
-  const [status, setStatus] = useState<AvatarStatus>("loading");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [hasImageError, setHasImageError] = useState(false);
+  const kalshiQueue = useMemo(
+    () =>
+      dedupeUrls([
+        ...(directUrl ? [directUrl] : []),
+        ...(marketTicker ? marketImageCandidates(marketTicker) : []),
+      ]),
+    [directUrl, marketTicker],
+  );
+
+  const [phase, setPhase] = useState<LoadPhase>("kalshi");
+  const [kalshiIndex, setKalshiIndex] = useState(0);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [resolveFailed, setResolveFailed] = useState(false);
 
   useEffect(() => {
-    if (directUrl && directUrl.trim()) {
-      setStatus("resolved");
-      setImageUrl(directUrl.trim());
-      setHasImageError(false);
-      return;
-    }
+    setPhase(kalshiQueue.length > 0 ? "kalshi" : "resolve");
+    setKalshiIndex(0);
+    setResolvedUrl(null);
+    setResolveFailed(false);
+  }, [name, category, directUrl, marketTicker, kalshiQueue]);
 
-    setStatus("loading");
-    setImageUrl(null);
-    setHasImageError(false);
+  useEffect(() => {
+    if (phase !== "resolve") return;
 
+    let cancelled = false;
     const params = new URLSearchParams({ name, category });
+    if (marketTicker?.trim()) params.set("ticker", marketTicker.trim());
+
     fetch(`/api/icons/resolve?${params}`)
       .then((res) => res.json())
       .then((data: { url?: string | null }) => {
+        if (cancelled) return;
         if (data.url && typeof data.url === "string" && data.url.trim()) {
-          setStatus("resolved");
-          setImageUrl(data.url.trim());
+          setResolvedUrl(data.url.trim());
         } else {
-          setStatus("fallback");
+          setResolveFailed(true);
+          setPhase("fallback");
         }
       })
-      .catch(() => setStatus("fallback"));
-  }, [name, category, directUrl]);
+      .catch(() => {
+        if (cancelled) return;
+        setResolveFailed(true);
+        setPhase("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, name, category, marketTicker]);
+
+  const activeUrl =
+    phase === "kalshi"
+      ? kalshiQueue[kalshiIndex] ?? null
+      : phase === "resolve"
+        ? resolvedUrl
+        : null;
+
+  const isLoading =
+    (phase === "kalshi" && kalshiQueue.length === 0) ||
+    (phase === "resolve" && !resolvedUrl && !resolveFailed);
+
+  const showFallback = phase === "fallback" || (phase === "resolve" && resolveFailed);
+
+  const handleImageError = useCallback(() => {
+    if (phase === "kalshi") {
+      if (kalshiIndex + 1 < kalshiQueue.length) {
+        setKalshiIndex((i) => i + 1);
+        return;
+      }
+      setPhase("resolve");
+      return;
+    }
+
+    if (phase === "resolve" && resolvedUrl) {
+      const nameKey = normalizeNameKey(name);
+      void fetch("/api/icons/invalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name_key: nameKey }),
+      });
+      setResolveFailed(true);
+      setPhase("fallback");
+    }
+  }, [phase, kalshiIndex, kalshiQueue.length, resolvedUrl, name]);
 
   const initials = iconFallbackInitials(name);
   const fallbackBg = iconFallbackColor(category);
   const fontSize = Math.round(size / 2.4);
-
-  const handleImageError = () => {
-    setHasImageError(true);
-    setStatus("fallback");
-    const nameKey = normalizeNameKey(name);
-    void fetch("/api/icons/invalidate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name_key: nameKey }),
-    });
-  };
-
-  const showFallback = status === "fallback" || hasImageError;
 
   return (
     <div
@@ -83,17 +141,18 @@ function MarketOutcomeAvatarInner({
         justifyContent: "center",
       }}
     >
-      {status === "loading" && (
+      {isLoading && (
         <div
           className="icon-avatar-shimmer"
           style={{ width: "100%", height: "100%", background: "#1C1C1C" }}
         />
       )}
 
-      {status === "resolved" && !hasImageError && imageUrl && (
+      {activeUrl && !showFallback && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={imageUrl}
+          key={activeUrl}
+          src={activeUrl}
           alt=""
           width="100%"
           height="100%"
@@ -138,7 +197,8 @@ function propsEqual(
     prev.name === next.name &&
     prev.category === next.category &&
     prev.size === next.size &&
-    prev.directUrl === next.directUrl
+    prev.directUrl === next.directUrl &&
+    prev.marketTicker === next.marketTicker
   );
 }
 

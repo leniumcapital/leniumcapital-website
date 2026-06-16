@@ -92,6 +92,31 @@ function normalizeFlagCode(code: string): string {
   return FLAG_CODE[c] ?? c;
 }
 
+/** Ordered Kalshi CDN URLs for an outcome — structured target first, then market photos. */
+export function resolveOutcomeImageCandidates(
+  marketTicker: string,
+  market: { custom_strike?: Record<string, string> },
+  seriesTicker: string,
+  targets: Map<string, StructuredTargetData>,
+): string[] {
+  const urls: string[] = [];
+
+  const id = structuredTargetId(market.custom_strike);
+  if (id) {
+    const target = targets.get(id);
+    if (target) {
+      const key = structuredTargetImageKey(target, seriesTicker);
+      if (key) urls.push(structuredTargetUrl(key));
+    }
+  }
+
+  for (const candidate of marketImageCandidates(marketTicker)) {
+    if (!urls.includes(candidate)) urls.push(candidate);
+  }
+
+  return urls;
+}
+
 /** Pull the UUID from a market's custom_strike object. */
 export function structuredTargetId(
   customStrike?: Record<string, string>,
