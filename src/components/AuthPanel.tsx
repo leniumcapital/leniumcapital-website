@@ -173,21 +173,11 @@ export function AuthPanel({
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
-          <div className="flex items-center gap-3 py-1">
-            <div className="h-px flex-1 bg-[#1C1C1C]" />
-            <span className="text-xs text-muted">or</span>
-            <div className="h-px flex-1 bg-[#1C1C1C]" />
-          </div>
-
-          <button
-            type="button"
+          <GoogleSignInSection
             disabled={loading || googleLoading}
-            onClick={() => void handleGoogleSignIn()}
-            className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-[#1C1C1C] bg-[#111111] text-sm font-medium text-white transition-colors hover:border-[#2C2C2C] hover:bg-[#161616] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <GoogleLogo size={20} />
-            {googleLoading ? "Redirecting…" : "Continue with Google"}
-          </button>
+            loading={googleLoading}
+            onSignIn={() => void handleGoogleSignIn()}
+          />
 
           <p className="text-center text-sm text-muted">
             No account yet?{" "}
@@ -264,11 +254,17 @@ export function AuthPanel({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
           className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-[#04130b] transition-colors hover:bg-brand-strong disabled:opacity-60"
         >
           {loading ? "Creating account…" : "Create account"}
         </button>
+
+        <GoogleSignInSection
+          disabled={loading || googleLoading}
+          loading={googleLoading}
+          onSignIn={() => void handleGoogleSignIn()}
+        />
 
         <p className="text-center text-xs text-muted">
           By creating an account you agree to our Terms and Privacy Policy.
@@ -285,6 +281,36 @@ export function AuthPanel({
           </button>
         </p>
       </form>
+    </>
+  );
+}
+
+function GoogleSignInSection({
+  disabled,
+  loading,
+  onSignIn,
+}: {
+  disabled: boolean;
+  loading: boolean;
+  onSignIn: () => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-[#1C1C1C]" />
+        <span className="text-xs text-muted">or</span>
+        <div className="h-px flex-1 bg-[#1C1C1C]" />
+      </div>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSignIn}
+        className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-[#1C1C1C] bg-[#111111] text-sm font-medium text-white transition-colors hover:border-[#2C2C2C] hover:bg-[#161616] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <GoogleLogo size={20} />
+        {loading ? "Redirecting…" : "Continue with Google"}
+      </button>
     </>
   );
 }
