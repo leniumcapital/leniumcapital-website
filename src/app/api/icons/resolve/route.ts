@@ -9,6 +9,8 @@ export async function GET(req: Request) {
   const name = searchParams.get("name")?.trim();
   const category = searchParams.get("category")?.trim();
   const ticker = searchParams.get("ticker")?.trim() ?? null;
+  const series = searchParams.get("series")?.trim() ?? null;
+  const context = searchParams.get("context")?.trim() ?? null;
 
   if (!name || !category) {
     return NextResponse.json(
@@ -17,7 +19,14 @@ export async function GET(req: Request) {
     );
   }
 
-  const url = await resolveIconForOutcome(name, category, null, ticker);
+  const url = await resolveIconForOutcome(
+    name,
+    category,
+    null,
+    ticker,
+    series,
+    context,
+  );
   const headers: Record<string, string> = {};
   if (url) {
     headers["Cache-Control"] = "public, max-age=86400";

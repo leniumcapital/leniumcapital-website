@@ -8,13 +8,13 @@ import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { seriesIconDirectUrl } from "@/lib/seriesIcon";
+import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
 import { compactUsd } from "@/lib/data";
 import { MARKET_CARD_MIN_HEIGHT } from "@/lib/marketGrid";
 import { T } from "@/lib/tokens";
 
-const AVATAR_SIZE = 28;
 const PILL_MIN_WIDTH = 52;
 
 function formatCloseTime(iso: string, now: number): string {
@@ -267,6 +267,8 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
             key={outcome.ticker}
             outcome={outcome}
             category={event.category}
+            seriesTicker={event.seriesTicker}
+            eventTitle={event.title}
           />
         ))}
       </div>
@@ -299,63 +301,24 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
 function OutcomeRow({
   outcome,
   category,
+  seriesTicker,
+  eventTitle,
 }: {
   outcome: EventOutcome;
   category: string;
+  seriesTicker?: string;
+  eventTitle?: string;
 }) {
-  const livePrice = useMarketStore(
-    (s) => s.markets[outcome.ticker]?.yesPrice ?? outcome.yesPrice,
-  );
-  const multiplier = livePrice > 0 ? 100 / livePrice : 0;
-
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `${AVATAR_SIZE}px minmax(0, 1fr) auto auto`,
-        columnGap: 8,
-        alignItems: "center",
-        width: "100%",
-        minWidth: 0,
-      }}
-    >
-      <MarketOutcomeAvatar
-        name={outcome.name}
-        category={category}
-        directUrl={outcome.imageUrl ?? null}
-        marketTicker={outcome.ticker}
-        size={AVATAR_SIZE}
-      />
-
-      <span
-        title={outcome.name}
-        style={{
-          minWidth: 0,
-          color: T.textPrimary,
-          fontSize: 13,
-          fontWeight: 500,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {outcome.name}
-      </span>
-
-      <span
-        style={{
-          color: T.textMuted,
-          fontSize: 12,
-          fontVariantNumeric: "tabular-nums",
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {multiplier >= 10 ? multiplier.toFixed(1) : multiplier.toFixed(2)}x
-      </span>
-
-      <LivePricePill ticker={outcome.ticker} fallback={outcome.yesPrice} />
-    </div>
+    <KalshiOutcomeRow
+      name={outcome.name}
+      category={category}
+      ticker={outcome.ticker}
+      yesPrice={outcome.yesPrice}
+      imageUrl={outcome.imageUrl}
+      seriesTicker={seriesTicker}
+      eventTitle={eventTitle}
+    />
   );
 }
 
