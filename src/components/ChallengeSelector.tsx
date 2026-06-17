@@ -10,6 +10,7 @@ import {
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast, Toaster } from "sonner";
 import { Card, PillBadge } from "@/components/ui";
+import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 import {
   TIERS,
   ADDONS,
@@ -125,7 +126,7 @@ export function ChallengeSelector({
       return;
     }
 
-    const callbackUrl = `${pathname}?${buildPricingQuery(tier.size, selectedAddons)}`;
+    const callbackUrl = `${CHALLENGE_SELECT_PATH}?${buildPricingQuery(tier.size, selectedAddons)}`;
     router.push(
       `/signup?mode=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`,
     );

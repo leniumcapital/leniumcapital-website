@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Logo } from "@/components/Logo";
 import { AuthPanel } from "@/components/AuthPanel";
+import { safeCallbackUrl } from "@/lib/callback-url";
 
 export const metadata: Metadata = {
   title: "Create account",
@@ -35,10 +36,10 @@ export default async function SignupPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await auth();
   const initialMode = params.mode === "login" ? "login" : "signup";
-  const callbackUrl =
-    typeof params.callbackUrl === "string" && params.callbackUrl.startsWith("/")
-      ? params.callbackUrl
-      : "/dashboard";
+  const callbackUrl = safeCallbackUrl(
+    typeof params.callbackUrl === "string" ? params.callbackUrl : null,
+    "/dashboard",
+  );
 
   if (session?.user) {
     redirect(callbackUrl);

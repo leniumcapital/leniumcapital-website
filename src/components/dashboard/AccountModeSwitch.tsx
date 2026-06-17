@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore, syncChallengeRuleLimits } from "@/stores/challengeStore";
 import { usePositionStore } from "@/stores/positionStore";
+import { useUiStore } from "@/stores/uiStore";
 import type { AccountChallengeStatus } from "@/stores/accountStore";
 import type { ChallengeStatus } from "@/lib/users";
 import { T } from "@/lib/tokens";
@@ -57,12 +58,7 @@ export function AccountModeSwitch() {
     }
 
     if (mode === "live" && !hasLive) {
-      toast.info("Pass your challenge to unlock a live funded account.", {
-        action: {
-          label: "View progress",
-          onClick: () => router.push("/dashboard/progress"),
-        },
-      });
+      useUiStore.getState().openAccountGate();
       return;
     }
 

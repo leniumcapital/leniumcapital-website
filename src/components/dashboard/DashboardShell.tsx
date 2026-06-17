@@ -16,12 +16,14 @@ import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/us
 import { useAccountStatusSync } from "@/hooks/useAccountStatus";
 import { reconcileCashBalance } from "@/lib/accountBalance";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
+import { ensureTradingStateForUser } from "@/lib/clientStateReset";
+import { parseAddonsParam } from "@/lib/pricing";
+import { toRulesAddonIds, hasSplit90Addon } from "@/lib/addonIds";
 import {
   useAccountStore,
   type AccountType,
   type AccountChallengeStatus,
 } from "@/stores/accountStore";
-import type { AddonId } from "@/lib/data";
 import { useChallengeStore } from "@/stores/challengeStore";
 import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -72,6 +74,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
   // Seed account state from the (server-validated) session.
   useEffect(() => {
+    ensureTradingStateForUser(user.id);
     useAccountStore.getState().setAccount({
       userId: user.id,
       name: user.name,
@@ -102,7 +105,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
       });
     }
     if (addonsParam) {
-      const ids = addonsParam.split(",").filter(Boolean) as AddonId[];
+      const ids = toRulesAddonIds(parseAddonsParam(addonsParam));
       useAccountStore.getState().setAddons(ids);
     }
   }, []);
@@ -413,7 +416,7 @@ function RuleBanners() {
     }
   }
 
-  if (addons.includes("split90")) {
+  if (hasSplit90Addon(addons)) {
     banners.push({
       key: "split90",
       color: T.green,

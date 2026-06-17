@@ -21,6 +21,7 @@ import {
   INACTIVITY_WARNING_DAYS,
   INACTIVITY_TERMINATE_DAYS,
 } from "@/lib/data";
+import { hasSplit90Addon } from "@/lib/addonIds";
 
 export type AccountPhase = "evaluation" | "funded";
 export type DrawdownMode = "static" | "trailing";
@@ -95,7 +96,7 @@ export function resolveRules(params: {
 
   const hasDrawdownBoost = addons.includes("drawdown");
   const hasConsistencyBoost = addons.includes("consistency");
-  const hasSplit90 = addons.includes("split90");
+  const hasSplit90 = hasSplit90Addon(addons);
   const hasDoubleTime = addons.includes("doubletime");
   const hasFastPayout = addons.includes("fastpayout");
 

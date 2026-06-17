@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { startNavigationLoading } from "@/components/NavigationLoader";
 import { GoogleLogo } from "@/components/GoogleLogo";
 import { safeCallbackUrl } from "@/lib/callback-url";
+import { clearPersistedTradingState } from "@/lib/clientStateReset";
 
 export type AuthMode = "signup" | "login";
 
@@ -92,6 +93,7 @@ export function AuthPanel({
       return;
     }
 
+    clearPersistedTradingState();
     startNavigationLoading();
     router.push(callbackUrl);
     router.refresh();
@@ -112,6 +114,7 @@ export function AuthPanel({
       setError("Incorrect email or password. Please try again.");
       return;
     }
+    clearPersistedTradingState();
     startNavigationLoading();
     router.push(callbackUrl);
     router.refresh();

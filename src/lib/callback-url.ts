@@ -17,7 +17,8 @@ export function safeCallbackUrl(
 
 export function loginWithCallback(callbackUrl = DEFAULT_CALLBACK): string {
   const params = new URLSearchParams({
+    mode: "login",
     callbackUrl: safeCallbackUrl(callbackUrl),
   });
-  return `/login?${params.toString()}`;
+  return `/signup?${params.toString()}`;
 }

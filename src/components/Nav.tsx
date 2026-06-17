@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Logo } from "./Logo";
 import { StartChallengeCta } from "@/components/StartChallengeCta";
-import { resetAllStores } from "@/stores";
+import { clearActiveUserMarker, clearPersistedTradingState } from "@/lib/clientStateReset";
 import { usd } from "@/lib/data";
 
 const LINKS = [
@@ -40,7 +40,8 @@ export function Nav() {
   const overlay = pathname === "/" && !scrolled && !open;
 
   async function handleLogout() {
-    resetAllStores();
+    clearPersistedTradingState();
+    clearActiveUserMarker();
     await signOut({ redirect: false });
     router.push("/");
     router.refresh();

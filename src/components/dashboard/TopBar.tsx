@@ -20,7 +20,7 @@ import { SearchModal } from "@/components/dashboard/SearchModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useAccountStore } from "@/stores/accountStore";
 import { useUiStore } from "@/stores/uiStore";
-import { resetAllStores } from "@/stores";
+import { clearActiveUserMarker, clearPersistedTradingState } from "@/lib/clientStateReset";
 import { T, TOP_BAR_HEIGHT } from "@/lib/tokens";
 
 interface TopBarProps {
@@ -196,7 +196,8 @@ function RightSection() {
     .toUpperCase();
 
   async function handleLogout() {
-    resetAllStores();
+    clearPersistedTradingState();
+    clearActiveUserMarker();
     await signOut({ callbackUrl: "/" });
   }
 

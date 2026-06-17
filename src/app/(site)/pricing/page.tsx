@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { Container, PillBadge } from "@/components/ui";
 import { ChallengeSelector } from "@/components/ChallengeSelector";
 import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
+import { buildPricingQuery, parseAddonsParam, parseTierParam } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -12,10 +13,18 @@ export const metadata: Metadata = {
     "Six evaluation tiers from $5,000 to $100,000. Pick a size, configure add-ons, and see exactly what you pay before you commit.",
 };
 
-export default async function PricingPage() {
+type PageProps = {
+  searchParams: Promise<{ tier?: string; addons?: string }>;
+};
+
+export default async function PricingPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.user) {
-    redirect(CHALLENGE_SELECT_PATH);
+    const params = await searchParams;
+    const tier = parseTierParam(params.tier ?? null);
+    const addons = parseAddonsParam(params.addons ?? null);
+    const query = buildPricingQuery(tier.size, addons);
+    redirect(`${CHALLENGE_SELECT_PATH}?${query}`);
   }
 
   return (

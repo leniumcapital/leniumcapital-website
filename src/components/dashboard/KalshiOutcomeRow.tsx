@@ -43,7 +43,7 @@ export function KalshiOutcomeRow({
   const hasStorePrice = useMarketStore((s) => ticker in s.markets);
   const livePrice = storePrice ?? yesPrice;
   const loading = !hasStorePrice && yesPrice <= 0;
-  const barPct = normalizedProbability ?? livePrice;
+  const barPct = livePrice;
 
   const [flash, setFlash] = useState<string | null>(null);
   const prev = useRef(livePrice);

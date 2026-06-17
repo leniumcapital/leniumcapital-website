@@ -9,8 +9,8 @@ import { T } from "@/lib/tokens";
 
 const STATS = [
   { label: "Account sizes", value: "$5K to $100K" },
-  { label: "Starting from", value: "$55 one-time fee" },
-  { label: "Your profit split", value: "Up to 95%" },
+  { label: "Starting from", value: "$65 one-time fee" },
+  { label: "Your profit split", value: "Up to 90%" },
 ] as const;
 
 export function AccountGateModal() {
