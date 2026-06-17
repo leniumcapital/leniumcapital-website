@@ -125,6 +125,11 @@ export function AccountModeSwitch() {
         },
       });
 
+      const statusRes = await fetch("/api/account/status");
+      if (statusRes.ok) {
+        useAccountStore.getState().applyAccountStatus(await statusRes.json());
+      }
+
       toast.success(
         mode === "demo" ? "Switched to demo account" : "Switched to live account",
       );

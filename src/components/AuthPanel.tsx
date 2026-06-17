@@ -102,6 +102,10 @@ export function AuthPanel({
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
     setLoading(true);
     const res = await signIn("credentials", {
       email,

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -10,7 +11,7 @@ import {
   type Direction,
   currentPriceFor,
 } from "@/stores/positionStore";
-import { useAccountStore } from "@/stores/accountStore";
+import { useAccountStore, activeAccountId } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
 import { useMarketStore } from "@/stores/marketStore";
 import { resolveTierForAccount, resolveRules, validateOrder, effectiveAccountSize } from "@/lib/rules";
@@ -37,6 +38,7 @@ type OrderResponse = {
     entryPrice: number;
     openedAt: number;
     commission?: number;
+    balance?: number;
   };
 };
 
@@ -57,9 +59,13 @@ function buildOpenSnapshots() {
 
 /** Place a simulated order through the server, then record it client-side. */
 export function usePlaceOrder() {
+  const { update } = useSession();
+
   return useMutation({
     mutationFn: async (input: PlaceOrderInput) => {
       const account = useAccountStore.getState();
+      const accountId = activeAccountId(account);
+      if (!accountId) throw new Error("No active trading account.");
       const challenge = useChallengeStore.getState();
       const size = effectiveAccountSize({
         accountSize: account.accountSize,
@@ -129,18 +135,17 @@ export function usePlaceOrder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          accountId,
           marketTicker: input.marketTicker,
           direction: input.direction,
           size: input.size,
+          category: input.category,
           marketExpiry: input.marketExpiry ?? market?.expiry,
           openPositions: buildOpenSnapshots(),
           currentProfit,
           highWaterMarkUsd: challenge.highWaterMarkUsd,
           staticFloorUsd: challenge.staticFloorUsd,
           windowEndDate: challenge.windowEndDate,
-          addons: account.addons,
-          accountType: account.accountType,
-          challengeStatus: account.challengeStatus,
         }),
       });
       const data = (await res.json()) as OrderResponse;
@@ -165,12 +170,17 @@ export function usePlaceOrder() {
       useChallengeStore.getState().addTradedDate(todayUtcIso());
       const account = useAccountStore.getState();
       account.recordTrade();
-      const totalCost = fill.size + commission;
-      account.updateBalance(Math.max(0, account.balance - totalCost));
+      if (typeof fill.balance === "number") {
+        account.updateBalance(fill.balance);
+      } else {
+        const totalCost = fill.size + commission;
+        account.updateBalance(Math.max(0, account.balance - totalCost));
+      }
       if (commission > 0) {
         account.addCommission(commission);
       }
       reconcileCashBalance();
+      void update({ user: { balance: useAccountStore.getState().balance } });
       toast.success(
         `Order placed — buying ${fill.direction.toUpperCase()} $${fill.size.toLocaleString()} on ${fill.question}`,
       );
@@ -181,16 +191,28 @@ export function usePlaceOrder() {
   });
 }
 
-type CloseResponse = { ok?: boolean; error?: string; exitPrice?: number };
+type CloseResponse = {
+  ok?: boolean;
+  error?: string;
+  exitPrice?: number;
+  balance?: number;
+  pnl?: number;
+};
 
 /** Close a position at the live price via the server. */
 export function useClosePosition() {
+  const { update } = useSession();
+
   return useMutation({
     mutationFn: async (position: Position) => {
+      const accountId = activeAccountId(useAccountStore.getState());
+      if (!accountId) throw new Error("No active trading account.");
+
       const res = await fetch("/api/orders/close", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          accountId,
           positionId: position.id,
           marketTicker: position.marketTicker,
           direction: position.direction,
@@ -200,16 +222,21 @@ export function useClosePosition() {
       if (!res.ok || data.exitPrice == null) {
         throw new Error(data.error ?? "Close failed");
       }
-      return { position, exitPrice: data.exitPrice };
+      return { position, exitPrice: data.exitPrice, data };
     },
-    onSuccess: ({ position, exitPrice }) => {
+    onSuccess: ({ position, exitPrice, data }) => {
       const closed = usePositionStore
         .getState()
         .closePosition(position.id, exitPrice);
       if (closed) {
         const account = useAccountStore.getState();
-        account.updateBalance(account.balance + position.size + closed.pnl);
+        if (typeof data.balance === "number") {
+          account.updateBalance(data.balance);
+        } else {
+          account.updateBalance(account.balance + position.size + closed.pnl);
+        }
         reconcileCashBalance();
+        void update({ user: { balance: useAccountStore.getState().balance } });
         const sign = closed.pnl >= 0 ? "+" : "−";
         toast.success(
           `Position closed — ${sign}$${Math.abs(closed.pnl).toFixed(2)} on ${position.question}`,

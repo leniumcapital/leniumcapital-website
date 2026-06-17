@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
         destination: "/signup?mode=login",
         permanent: true,
       },
+      {
+        source: "/account",
+        destination: "/dashboard/account",
+        permanent: false,
+      },
+      {
+        source: "/payouts",
+        destination: "/dashboard/payouts",
+        permanent: false,
+      },
     ];
   },
 };

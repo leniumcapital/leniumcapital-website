@@ -23,7 +23,7 @@ import { UnderlyingChart } from "@/components/dashboard/UnderlyingChart";
 import { DetailOrderPanel } from "@/components/dashboard/DetailOrderPanel";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { Sparkline } from "@/components/dashboard/Sparkline";
-import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
+import { DemoModePill } from "@/components/dashboard/DemoModeBadges";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { compactUsd } from "@/lib/pricing";
 import { T, tradeSidePillStyle } from "@/lib/tokens";

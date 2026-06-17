@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { IconChevronRight } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
@@ -22,7 +22,6 @@ import {
   shortcutMatchesEvent,
   type FeaturedEventShortcut,
 } from "@/lib/featuredEvents";
-import { resolveEventIcon, resolvePanelShortcutIcon } from "@/lib/eventIcon";
 import { T } from "@/lib/tokens";
 
 export const TrendingRightSidebar = memo(function TrendingRightSidebar() {
@@ -172,56 +171,15 @@ function ShortcutCard({
 }
 
 function ShortcutIcon({ shortcut }: { shortcut: FeaturedEventShortcut }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const icon = resolvePanelShortcutIcon(
-    shortcut.seriesFilter,
-    shortcut.displayName,
-    shortcut.category,
-    imgFailed ? null : shortcut.iconUrl,
+  return (
+    <MarketOutcomeAvatar
+      name={shortcut.displayName}
+      category={shortcut.category}
+      directUrl={shortcut.iconUrl ?? null}
+      seriesTicker={shortcut.seriesFilter}
+      size={28}
+    />
   );
-
-  if (icon.kind === "url" && icon.url && !imgFailed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={icon.url}
-        alt=""
-        width={28}
-        height={28}
-        onError={() => setImgFailed(true)}
-        style={{ objectFit: "contain", borderRadius: 4 }}
-      />
-    );
-  }
-
-  if (icon.kind === "tabler" && icon.Icon) {
-    const Icon = icon.Icon;
-    return <Icon size={22} color={icon.iconColor ?? "#fff"} stroke={1.5} />;
-  }
-
-  if (icon.kind === "avatar" && icon.avatarName) {
-    return (
-      <MarketOutcomeAvatar
-        name={icon.avatarName}
-        category={icon.avatarCategory ?? shortcut.category}
-        seriesTicker={shortcut.seriesFilter}
-        size={28}
-      />
-    );
-  }
-
-  const fallback = resolveEventIcon(
-    shortcut.seriesFilter,
-    shortcut.displayName,
-    shortcut.category,
-    null,
-  );
-  if (fallback.Icon) {
-    const Icon = fallback.Icon;
-    return <Icon size={22} color={fallback.iconColor ?? "#fff"} stroke={1.5} />;
-  }
-
-  return null;
 }
 
 const SidebarTrendingList = memo(function SidebarTrendingList() {

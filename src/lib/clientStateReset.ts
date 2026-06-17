@@ -2,6 +2,7 @@ import { resetAllStores } from "@/stores";
 
 const PERSISTED_KEYS = ["lenium-positions", "lenium-challenge"] as const;
 const ACTIVE_USER_KEY = "lenium-active-user";
+const ONBOARDING_DONE_KEY = "lenium_onboarding_done";
 
 /** Drop persisted trading state so a new login never inherits another user's data. */
 export function clearPersistedTradingState(): void {
@@ -10,6 +11,7 @@ export function clearPersistedTradingState(): void {
   for (const key of PERSISTED_KEYS) {
     window.localStorage.removeItem(key);
   }
+  window.sessionStorage.removeItem(ONBOARDING_DONE_KEY);
 }
 
 /** Remember which user owns client-side trading state; clear on user change. */

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { TradingMode } from "@/lib/account-status";
-import type { AddonId } from "@/lib/data";
+import type { TradingMode, AccountStatusPayload } from "@/lib/account-status";
+import type { AddonId } from "@/lib/pricing";
 import { effectiveAccountSize } from "@/lib/rules";
 
 export type AccountType = "challenge" | "funded" | "none";
@@ -81,7 +81,13 @@ interface AccountState {
         | "challengeTier"
         | "fundedTier"
       >
-    >,
+    > &
+      Partial<
+        Pick<
+          AccountStatusPayload,
+          "purchasedAddons" | "activeBalance" | "challengePurchasedAddons" | "fundedPurchasedAddons"
+        >
+      >,
   ) => void;
   setTradingMode: (mode: TradingMode) => boolean;
   setAddons: (addons: AddonId[]) => void;
@@ -182,6 +188,25 @@ export const useAccountStore = create<AccountState>()((set, get) => ({
   applyAccountStatus: (status) => {
     const next = { ...get(), ...status };
     const modeFields = applyModeFields(next, next.tradingMode);
+
+    if (status.purchasedAddons) {
+      modeFields.addons = status.purchasedAddons;
+    } else if (next.tradingMode === "live" && status.fundedPurchasedAddons) {
+      modeFields.addons = status.fundedPurchasedAddons;
+    } else if (status.challengePurchasedAddons) {
+      modeFields.addons = status.challengePurchasedAddons;
+    }
+
+    if (typeof status.activeBalance === "number") {
+      if (next.tradingMode === "live") {
+        modeFields.fundedBalance = status.activeBalance;
+        modeFields.balance = status.activeBalance;
+      } else {
+        modeFields.challengeBalance = status.activeBalance;
+        modeFields.balance = status.activeBalance;
+      }
+    }
+
     const merged = { ...next, ...modeFields };
     const size = effectiveAccountSize({
       accountSize: merged.accountSize,
@@ -226,3 +251,14 @@ export const useAccountStore = create<AccountState>()((set, get) => ({
 }));
 
 export { mapDbChallengeStatus };
+
+/** Active trading account id for the current demo/live mode. */
+export function activeAccountId(state: Pick<
+  AccountState,
+  "tradingMode" | "challengeAccountId" | "fundedAccountId"
+>): string | null {
+  if (state.tradingMode === "live" && state.fundedAccountId) {
+    return state.fundedAccountId;
+  }
+  return state.challengeAccountId;
+}
