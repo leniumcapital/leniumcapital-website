@@ -52,6 +52,45 @@ export function formatVolShort(usd: number): string {
   return `$${Math.round(usd)}`;
 }
 
+/** Kalshi card footer volume — full commas under $1M. */
+export function formatVolKalshi(usd: number): string {
+  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(2)}B`;
+  if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`;
+  return `$${Math.round(usd).toLocaleString("en-US")}`;
+}
+
+/** Kalshi-style date label: "Jun 16 @ 5:05PM". */
+export function formatCloseLabelKalshi(iso: string, now: number): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .replace(" ", "");
+  if (now > 0) {
+    const today = new Date(now);
+    const tomorrow = new Date(now + 86_400_000);
+    if (d.toDateString() === today.toDateString()) return `Today @ ${time}`;
+    if (d.toDateString() === tomorrow.toDateString()) return `Tomorrow @ ${time}`;
+  }
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${date} @ ${time}`;
+}
+
+/** Kalshi footer market count — "Spread and Total   2 markets". */
+export function formatMarketCountLabel(event: DashboardEvent): string {
+  const n = event.marketCount;
+  const isGame =
+    event.category === "Sports" ||
+    /GAME$/i.test(event.seriesTicker) ||
+    /MATCH$/i.test(event.seriesTicker);
+
+  if (n === 1) return "Spread and Total   1 market";
+  if (isGame && n === 2) return "Spread and Total   2 markets";
+  if (isGame && n > 2) return `Spread and Total   ${n} markets`;
+  return `${n} market${n === 1 ? "" : "s"}`;
+}
+
 export function formatCloseLabel(iso: string, now: number): string {
   if (!iso) return "";
   const d = new Date(iso);
