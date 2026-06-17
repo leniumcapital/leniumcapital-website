@@ -8,6 +8,7 @@ import {
   subscribeChallengeToPositions,
   syncChallengeRuleLimits,
 } from "@/stores/challengeStore";
+import { reconcileCashBalance } from "@/hooks/usePositions";
 import { useMarketStore } from "@/stores/marketStore";
 import {
   effectiveAccountSize,
@@ -51,6 +52,7 @@ export function useChallengeSync(): void {
 
   useEffect(() => {
     syncChallengeRuleLimits();
+    reconcileCashBalance();
   }, [
     accountSize,
     tier,
