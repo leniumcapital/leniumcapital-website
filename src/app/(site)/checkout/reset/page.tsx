@@ -7,9 +7,9 @@ import { Container } from "@/components/ui";
 import {
   TIERS,
   usd,
-  resetSavings,
+  resetSavingsUsd,
   resetCheckoutTitle,
-} from "@/lib/data";
+} from "@/lib/pricing";
 
 export default function ResetCheckoutPage() {
   const defaultIdx = TIERS.findIndex((t) => t.size === 25_000);
@@ -91,12 +91,12 @@ export default function ResetCheckoutPage() {
           <div className="space-y-3 px-6 py-5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted">Original fee</span>
-              <span className="font-medium">{usd(tier.baseFee)}</span>
+              <span className="font-medium">{usd(tier.fee)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted">Reset discount</span>
               <span className="font-medium text-brand-strong">
-                −{usd(resetSavings(tier))}
+                −{usd(resetSavingsUsd(tier))}
               </span>
             </div>
             <div className="flex items-end justify-between border-t border-border pt-3">

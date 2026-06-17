@@ -6,7 +6,7 @@ import { useChallengeProgress } from "@/hooks/useChallengeProgress";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
-import { usd, ADDONS } from "@/lib/data";
+import { usd, ADDONS } from "@/lib/pricing";
 
 export default function SettingsPage() {
   const accountType = useAccountStore((s) => s.accountType);

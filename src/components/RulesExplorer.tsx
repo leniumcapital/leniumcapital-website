@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  TIERS,
+  TIERS_RULES as TIERS,
   TIER_COMPARISON_ROWS,
   resetLineLong,
   ADDONS,
@@ -11,7 +11,7 @@ import {
   INACTIVITY_WARNING_DAYS,
   INACTIVITY_TERMINATE_DAYS,
   type AddonId,
-} from "@/lib/data";
+} from "@/lib/pricing";
 import { resolveRules } from "@/lib/rules";
 
 const DEFAULT_TIER_IDX = TIERS.findIndex((t) => t.size === 25_000);

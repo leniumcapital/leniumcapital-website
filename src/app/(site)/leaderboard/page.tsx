@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Container, PillBadge } from "@/components/ui";
-import { LEADERBOARD, usd } from "@/lib/data";
+import { LEADERBOARD, usd } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Leaderboard",

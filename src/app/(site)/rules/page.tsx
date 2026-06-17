@@ -10,12 +10,13 @@ import {
   RULES_INTRO,
   RULES_CONCLUSION,
   TIERS,
+  TIERS_RULES,
   ADDONS,
   addonPriceLabel,
   usd,
   demoTargetUsd,
   staticDrawdownFloorUsd,
-} from "@/lib/data";
+} from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Rules",
@@ -67,7 +68,7 @@ export default function RulesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {TIERS.map((t) => (
+                {TIERS_RULES.map((t) => (
                   <tr key={t.size}>
                     <td className="px-5 py-3 font-semibold">
                       {usd(t.size)}
@@ -142,7 +143,7 @@ export default function RulesPage() {
                 <div>
                   <h3 className="font-semibold">{r.label}</h3>
                   <p className="mt-1 text-sm font-medium text-brand-strong">
-                    {r.format(TIERS[2])}
+                    {r.format(TIERS_RULES[2])}
                   </p>
                   <p className="mt-1.5 text-sm text-muted">{r.plain}</p>
                 </div>
@@ -171,7 +172,7 @@ export default function RulesPage() {
               <Card key={r.label} className="p-5">
                 <h3 className="font-semibold">{r.label}</h3>
                 <p className="mt-1 text-sm font-medium text-brand-strong">
-                  {r.format(TIERS[2])}
+                  {r.format(TIERS_RULES[2])}
                 </p>
                 <p className="mt-1.5 text-sm text-muted">{r.plain}</p>
               </Card>
@@ -196,7 +197,7 @@ export default function RulesPage() {
             {ADDONS.map((a) => (
               <Card key={a.id} className="p-5">
                 <h3 className="font-semibold">{a.name}</h3>
-                <p className="mt-2 text-sm text-muted">{a.blurb}</p>
+                <p className="mt-2 text-sm text-muted">{a.description}</p>
               </Card>
             ))}
           </div>
@@ -222,7 +223,7 @@ export default function RulesPage() {
                     <td className="px-5 py-3 text-muted">{a.name}</td>
                     {TIERS.map((t) => (
                       <td key={t.size} className="px-3 py-3 font-medium">
-                        {addonPriceLabel(a, t.baseFee)}
+                        {addonPriceLabel(a, t.fee)}
                       </td>
                     ))}
                   </tr>

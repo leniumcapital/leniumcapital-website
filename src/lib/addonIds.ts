@@ -1,12 +1,42 @@
-import type { AddonId as PricingAddonId } from "@/lib/pricing";
-import type { AddonId as RulesAddonId } from "@/lib/data";
+import type { AddonId } from "@/lib/pricing";
 
-/** Map checkout add-on ids to the ids used by rules/trading state. */
-export function toRulesAddonIds(ids: PricingAddonId[]): RulesAddonId[] {
-  return ids.map((id) => (id === "90split" ? "split90" : id) as RulesAddonId);
+const LEGACY_ALIASES: Record<string, AddonId> = {
+  split90: "90split",
+  split95: "90split",
+};
+
+const VALID = new Set<AddonId>([
+  "90split",
+  "drawdown",
+  "consistency",
+  "doubletime",
+  "fastpayout",
+]);
+
+/** Canonical add-on ids for database storage and rules — always pricing.ts shape. */
+export function normalizePurchasedAddons(raw: readonly string[] | null | undefined): AddonId[] {
+  if (!raw?.length) return [];
+  const out: AddonId[] = [];
+  for (const id of raw) {
+    const normalized = LEGACY_ALIASES[id] ?? id;
+    if (VALID.has(normalized as AddonId) && !out.includes(normalized as AddonId)) {
+      out.push(normalized as AddonId);
+    }
+  }
+  return out;
 }
 
-/** Accept either checkout or rules add-on ids when resolving purchased upgrades. */
+/** Parse a comma-separated checkout URL param into canonical ids. */
+export function normalizeAddonsParam(value: string | null | undefined): AddonId[] {
+  if (!value) return [];
+  return normalizePurchasedAddons(value.split(",").map((s) => s.trim()));
+}
+
+/** @deprecated Use normalizePurchasedAddons — kept for callers mid-migration. */
+export function toRulesAddonIds(ids: AddonId[]): AddonId[] {
+  return normalizePurchasedAddons(ids);
+}
+
 export function hasSplit90Addon(addons: readonly string[]): boolean {
-  return addons.includes("split90") || addons.includes("90split");
+  return addons.includes("90split") || addons.includes("split90");
 }

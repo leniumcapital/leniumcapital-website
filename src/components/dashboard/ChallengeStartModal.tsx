@@ -13,10 +13,12 @@ import {
   TIERS,
   ADDONS,
   computePrice,
+  addonPrice,
   usd,
+  formatPct,
   CHALLENGE_WINDOW_DAYS,
   type AddonId,
-} from "@/lib/data";
+} from "@/lib/pricing";
 import { T } from "@/lib/tokens";
 
 const PANEL_WIDTH = 520;
@@ -62,7 +64,7 @@ function Panel({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tierSize: tier.size,
-          addons: selected.map((id) => (id === "split90" ? "90split" : id)),
+          addons: selected,
           planType: "challenge",
         }),
       });
@@ -252,7 +254,7 @@ function Panel({ onClose }: { onClose: () => void }) {
                   {usd(t.size)}
                 </div>
                 <div style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
-                  ${t.baseFee}
+                  ${t.fee}
                 </div>
               </button>
             ))}
@@ -262,8 +264,7 @@ function Panel({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
             {ADDONS.map((addon) => {
               const isOn = selected.includes(addon.id);
-              const addonCost =
-                addon.flat ?? Math.round((addon.pctOfBase ?? 0) * tier.baseFee);
+              const addonCost = addonPrice(addon, tier.fee);
 
               return (
                 <button
@@ -318,7 +319,7 @@ function Panel({ onClose }: { onClose: () => void }) {
                         lineHeight: 1.4,
                       }}
                     >
-                      {addon.blurb}
+                      {addon.description}
                     </span>
                   </span>
                 </button>
@@ -339,10 +340,10 @@ function Panel({ onClose }: { onClose: () => void }) {
               gap: 8,
             }}
           >
-            <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-            <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}% static floor`} />
-            <RuleRow label="Max position" value={`${tier.maxPositionPct}% of balance`} />
-            <RuleRow label="Max exposure" value={`${tier.maxExposurePct}% of balance`} />
+            <RuleRow label="Profit target" value={formatPct(tier.profitTarget)} />
+            <RuleRow label="Max drawdown" value={`${formatPct(tier.maxDrawdown)} static floor`} />
+            <RuleRow label="Max position" value={`${formatPct(tier.maxPositionSize)} of balance`} />
+            <RuleRow label="Max exposure" value={`${formatPct(tier.maxExposure)} of balance`} />
             <RuleRow label="Daily loss limit" value="None" />
             <RuleRow label="Min trading days" value="None" />
             <RuleRow
@@ -363,7 +364,7 @@ function Panel({ onClose }: { onClose: () => void }) {
         >
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ color: T.textMuted, fontSize: 13 }}>Challenge fee</span>
-            <span style={{ color: T.textPrimary, fontSize: 13 }}>${tier.baseFee}</span>
+            <span style={{ color: T.textPrimary, fontSize: 13 }}>${tier.fee}</span>
           </div>
           {price.addonLines.length > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>

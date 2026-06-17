@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FALLBACK_TICKERS, type TickerMarket } from "@/lib/data";
+import { FALLBACK_TICKERS, type TickerMarket } from "@/lib/pricing";
 
 // Always run on each request; we cache the upstream Kalshi call briefly below.
 export const dynamic = "force-dynamic";

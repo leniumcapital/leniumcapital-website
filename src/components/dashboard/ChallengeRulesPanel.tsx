@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import { TIERS } from "@/lib/data";
+import { TIERS_RULES as TIERS } from "@/lib/pricing";
 import { T } from "@/lib/tokens";
 
 export function ChallengeRulesPanel() {

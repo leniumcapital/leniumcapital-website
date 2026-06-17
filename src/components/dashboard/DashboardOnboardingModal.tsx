@@ -18,10 +18,12 @@ import {
   TIERS,
   ADDONS,
   computePrice,
+  addonPrice,
   usd,
+  formatPct,
   CHALLENGE_WINDOW_DAYS,
   type AddonId,
-} from "@/lib/data";
+} from "@/lib/pricing";
 import { T } from "@/lib/tokens";
 
 const ONBOARDING_DONE_KEY = "lenium_onboarding_done";
@@ -398,8 +400,8 @@ function DemoStep({ onComplete }: { onComplete: () => void }) {
           border: T.hairline(),
         }}
       >
-        <RuleRow label="Profit target" value={`${tier.profitTargetPct}%`} />
-        <RuleRow label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
+        <RuleRow label="Profit target" value={formatPct(tier.profitTarget)} />
+        <RuleRow label="Max drawdown" value={formatPct(tier.maxDrawdown)} />
         <RuleRow label="Challenge window" value={`${CHALLENGE_WINDOW_DAYS} days`} />
       </div>
 
@@ -469,7 +471,7 @@ function LiveStep({ onComplete }: { onComplete: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tierSize: tier.size,
-          addons: selected.map((id) => (id === "split90" ? "90split" : id)),
+          addons: selected,
           planType: "challenge",
         }),
       });
@@ -547,8 +549,7 @@ function LiveStep({ onComplete }: { onComplete: () => void }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
         {ADDONS.map((addon) => {
           const isOn = selected.includes(addon.id);
-          const addonCost =
-            addon.flat ?? Math.round((addon.pctOfBase ?? 0) * tier.baseFee);
+          const addonCost = addonPrice(addon, tier.fee);
 
           return (
             <button
@@ -603,7 +604,7 @@ function LiveStep({ onComplete }: { onComplete: () => void }) {
                     lineHeight: 1.4,
                   }}
                 >
-                  {addon.blurb}
+                  {addon.description}
                 </span>
               </span>
             </button>
@@ -622,7 +623,7 @@ function LiveStep({ onComplete }: { onComplete: () => void }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ color: T.textMuted, fontSize: 13 }}>Challenge fee</span>
-          <span style={{ color: T.textPrimary, fontSize: 13 }}>${tier.baseFee}</span>
+          <span style={{ color: T.textPrimary, fontSize: 13 }}>${tier.fee}</span>
         </div>
         {price.addonLines.length > 0 && (
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -728,7 +729,7 @@ function TierGrid({
             {usd(t.size)}
           </div>
           <div style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
-            ${t.baseFee}
+            ${t.fee}
           </div>
         </button>
       ))}

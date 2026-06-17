@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { Container, Card } from "@/components/ui";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 import { challengeStatusLabel } from "@/lib/users";
 
 export const metadata: Metadata = { title: "Account" };

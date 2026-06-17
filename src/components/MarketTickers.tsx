@@ -6,7 +6,7 @@ import {
   categoryMeta,
   compactUsd,
   type TickerMarket,
-} from "@/lib/data";
+} from "@/lib/pricing";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 
 const ROW_CONFIG = [

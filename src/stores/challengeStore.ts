@@ -19,7 +19,7 @@ import {
   equityUsd,
   profitByTicker,
 } from "@/lib/rules";
-import { MAX_DRAWDOWN_PCT, PROFIT_TARGET_PCT } from "@/lib/data";
+import { MAX_DRAWDOWN_PCT, PROFIT_TARGET_PCT } from "@/lib/pricing";
 
 interface ChallengeState {
   profitTarget: number;

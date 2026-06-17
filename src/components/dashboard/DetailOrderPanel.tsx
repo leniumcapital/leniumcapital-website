@@ -10,7 +10,7 @@ import { DemoOrderDisclaimer } from "@/components/dashboard/ModeSwitcher";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 import { T, tradeSidePanelStyle } from "@/lib/tokens";
 import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 

@@ -12,12 +12,12 @@ import {
   greenButtonStyle,
 } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
-import { formatUsd } from "@/lib/pricing";
-import type { AddonId as DataAddonId } from "@/lib/data";
+import { formatUsd, type AddonId } from "@/lib/pricing";
+import { normalizePurchasedAddons } from "@/lib/addonIds";
 import type { BillingOrderDto } from "@/lib/billing-types";
 
-function mapAddonsToStore(addons: BillingOrderDto["addons"]): DataAddonId[] {
-  return addons.map((id) => (id === "90split" ? "split90" : id)) as DataAddonId[];
+function mapAddonsToStore(addons: BillingOrderDto["addons"]): AddonId[] {
+  return normalizePurchasedAddons(addons);
 }
 
 function money(n: number): string {

@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Logo } from "./Logo";
 import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { clearActiveUserMarker, clearPersistedTradingState } from "@/lib/clientStateReset";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 
 const LINKS = [
   { href: "/", label: "Home" },

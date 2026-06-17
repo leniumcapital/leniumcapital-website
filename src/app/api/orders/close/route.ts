@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
 import { executeClose } from "@/lib/orderEngine";
+import { persistCloseOrder } from "@/lib/orders-db";
 
 export const dynamic = "force-dynamic";
 
@@ -12,20 +12,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { positionId?: string; marketTicker?: string; direction?: string };
+  let body: {
+    accountId?: string;
+    positionId?: string;
+    marketTicker?: string;
+    direction?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  const accountId = String(body.accountId ?? "");
   const marketTicker = String(body.marketTicker ?? "");
   const direction = body.direction === "no" ? "no" : "yes";
   const positionId = String(body.positionId ?? "");
 
-  if (!marketTicker || !positionId) {
+  if (!accountId || !marketTicker || !positionId) {
     return NextResponse.json(
-      { error: "Missing positionId or marketTicker" },
+      { error: "Missing accountId, positionId, or marketTicker." },
       { status: 400 },
     );
   }
@@ -35,34 +41,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  // Best-effort DB sync when a persisted order row exists.
-  let simulated = true;
   try {
-    const order = await prisma.order.findFirst({
-      where: {
-        id: positionId,
-        userId: session.user.id,
-        status: "open",
-      },
+    const closed = await persistCloseOrder({
+      userId: session.user.id,
+      accountId,
+      positionId,
+      exitPrice: result.exitPrice,
     });
-    if (order) {
-      simulated = order.simulated;
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: "closed",
-          exitPrice: result.exitPrice,
-          closedAt: new Date(),
-        },
-      });
-    }
-  } catch (e) {
-    console.warn("[orders/close] DB sync skipped:", e);
-  }
 
-  return NextResponse.json({
-    ok: true,
-    exitPrice: result.exitPrice,
-    simulated,
-  });
+    return NextResponse.json({
+      ok: true,
+      exitPrice: result.exitPrice,
+      balance: closed.balance,
+      pnl: closed.pnl,
+      simulated: true,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Could not close position.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

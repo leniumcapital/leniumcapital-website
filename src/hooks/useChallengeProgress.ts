@@ -16,7 +16,7 @@ import {
   staticFloorForBalance,
   formatRulePct,
 } from "@/lib/rules";
-import { MAX_DRAWDOWN_PCT, PROFIT_TARGET_PCT } from "@/lib/data";
+import { MAX_DRAWDOWN_PCT, PROFIT_TARGET_PCT } from "@/lib/pricing";
 
 export type ChallengeProgress = {
   profitTarget: number;

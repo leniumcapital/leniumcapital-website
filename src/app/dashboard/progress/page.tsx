@@ -19,7 +19,7 @@ import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 
 export default function ProgressPage() {
   const accountType = useAccountStore((s) => s.accountType);

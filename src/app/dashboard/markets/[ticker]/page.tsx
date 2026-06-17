@@ -25,7 +25,7 @@ import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
-import { compactUsd } from "@/lib/data";
+import { compactUsd } from "@/lib/pricing";
 import { T, tradeSidePillStyle } from "@/lib/tokens";
 import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 import {
