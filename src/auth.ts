@@ -8,6 +8,7 @@ import {
   syncAuthUrlEnv,
 } from "@/lib/auth-env";
 import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
+import type { SessionUserPayload } from "@/lib/auth-db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 import type { TradingMode } from "@/lib/account-status";
 import { safeCallbackUrl } from "@/lib/callback-url";
@@ -16,6 +17,29 @@ import { safeCallbackUrl } from "@/lib/callback-url";
 syncAuthUrlEnv();
 
 const POST_AUTH_COOKIE = "lenium_post_auth";
+
+type GoogleProfile = {
+  email?: string | null;
+  email_verified?: boolean;
+  picture?: string | null;
+  name?: string | null;
+};
+
+function applySessionUserToToken(
+  token: Record<string, unknown>,
+  payload: SessionUserPayload,
+  isNewUser?: boolean,
+) {
+  token.uid = payload.id;
+  token.accountType = payload.accountType;
+  token.tier = payload.tier;
+  token.challengeStatus = payload.challengeStatus;
+  token.balance = payload.balance;
+  token.hasActiveChallenge = payload.hasActiveChallenge;
+  token.hasFundedAccount = payload.hasFundedAccount;
+  token.tradingMode = payload.tradingMode;
+  if (typeof isNewUser === "boolean") token.isNewUser = isNewUser;
+}
 
 const providers: Provider[] = [];
 
@@ -67,52 +91,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
 
-      const googleProfile = profile as
-        | { email?: string | null; email_verified?: boolean }
-        | undefined;
+      const googleProfile = profile as GoogleProfile | undefined;
       const email = user.email ?? googleProfile?.email ?? null;
       if (!email) {
         console.error("Google sign-in rejected: profile did not include an email.");
         return "/signup?error=AccessDenied";
       }
 
-      try {
-        const result = await upsertGoogleUser({
-          email,
-          name: user.name,
-          image: user.image,
-        });
-
-        user.id = result.user.id;
-        user.name = result.user.name;
-        user.email = result.user.email;
-        user.accountType = result.user.accountType;
-        user.tier = result.user.tier;
-        user.challengeStatus = result.user.challengeStatus;
-        user.balance = result.user.balance;
-        user.hasActiveChallenge = result.user.hasActiveChallenge;
-        user.hasFundedAccount = result.user.hasFundedAccount;
-        user.tradingMode = result.user.tradingMode;
-        user.isNewUser = result.isNewUser;
-      } catch (error) {
-        console.error("Google sign-in database error:", error);
-        return "/signup?error=OAuthCallback";
-      }
-
+      // Allow OAuth to complete; database upsert runs in the jwt callback.
       return true;
     },
-    jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.uid = user.id as string;
-        token.accountType = user.accountType;
-        token.tier = user.tier;
-        token.challengeStatus = user.challengeStatus;
-        token.balance = user.balance;
-        token.hasActiveChallenge = user.hasActiveChallenge;
-        token.hasFundedAccount = user.hasFundedAccount;
-        token.tradingMode = user.tradingMode;
-        token.isNewUser = user.isNewUser;
+    async jwt({ token, user, account, profile, trigger, session }) {
+      if (user && account?.provider === "google") {
+        const googleProfile = profile as GoogleProfile | undefined;
+        const email = user.email ?? googleProfile?.email;
+        if (!email) return token;
+
+        try {
+          const result = await upsertGoogleUser({
+            email,
+            name: user.name ?? googleProfile?.name,
+            image: user.image ?? googleProfile?.picture,
+          });
+          applySessionUserToToken(token, result.user, result.isNewUser);
+        } catch (error) {
+          console.error("Google sign-in database error:", error);
+          throw error;
+        }
+      } else if (user) {
+        applySessionUserToToken(token, {
+          id: user.id as string,
+          email: user.email ?? "",
+          name: user.name ?? "",
+          accountType: (user.accountType as AccountType) ?? "challenge",
+          tier: user.tier ?? 0,
+          challengeStatus: (user.challengeStatus as ChallengeStatus) ?? "pending",
+          balance: user.balance ?? 0,
+          hasActiveChallenge: user.hasActiveChallenge ?? false,
+          hasFundedAccount: user.hasFundedAccount ?? false,
+          tradingMode: (user.tradingMode as TradingMode) ?? "demo",
+        });
       }
+
       if (trigger === "update" && session) {
         const s = session as {
           tier?: number;

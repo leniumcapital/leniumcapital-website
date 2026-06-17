@@ -107,9 +107,6 @@ export async function verifyCredentials(
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email: normalized },
-    include: {
-      accounts: { orderBy: { updatedAt: "desc" } },
-    },
   });
   if (!user) return null;
 
@@ -118,8 +115,9 @@ export async function verifyCredentials(
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return null;
 
-  const primary = user.accounts.find((a) => a.isPrimary) ?? user.accounts[0] ?? null;
-  return toSessionPayload(user, primary, user.accounts);
+  const accounts = await loadTradingAccountsForUser(user.id);
+  const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
+  return toSessionPayload(user, primary, accounts);
 }
 
 export type SignupResult =
@@ -170,6 +168,23 @@ export type GoogleUpsertResult = {
   isNewUser: boolean;
 };
 
+function sanitizeAvatarUrl(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("https://")) return null;
+  return trimmed.slice(0, 2048);
+}
+
+function sanitizeDisplayName(
+  name: string | null | undefined,
+  email: string,
+): string {
+  const fromName = name?.trim();
+  if (fromName) return fromName.slice(0, 120);
+  const local = email.split("@")[0]?.trim();
+  return (local || "Trader").slice(0, 120);
+}
+
 /** Load trading accounts without failing Google/email sign-in on schema drift. */
 async function loadTradingAccountsForUser(userId: string) {
   try {
@@ -183,6 +198,13 @@ async function loadTradingAccountsForUser(userId: string) {
   }
 }
 
+function prismaErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+  return undefined;
+}
+
 /** Create or update a user from a Google OAuth profile. */
 export async function upsertGoogleUser(profile: {
   email: string;
@@ -194,42 +216,46 @@ export async function upsertGoogleUser(profile: {
     throw new Error("Google account did not provide a valid email.");
   }
 
-  const displayName =
-    profile.name?.trim() || normalized.split("@")[0] || "Trader";
+  const displayName = sanitizeDisplayName(profile.name, normalized);
+  const avatarUrl = sanitizeAvatarUrl(profile.image);
 
   const existing = await prisma.user.findUnique({
     where: { email: normalized },
+    select: { id: true },
   });
 
-  if (existing) {
-    const updated = await prisma.user.update({
-      where: { id: existing.id },
-      data: {
+  let user;
+  try {
+    user = await prisma.user.upsert({
+      where: { email: normalized },
+      create: {
+        email: normalized,
         name: displayName,
-        avatarUrl: profile.image ?? existing.avatarUrl,
+        avatarUrl,
+      },
+      update: {
+        name: displayName,
+        ...(avatarUrl ? { avatarUrl } : {}),
       },
     });
-
-    const accounts = await loadTradingAccountsForUser(updated.id);
-    const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
-
-    return {
-      user: toSessionPayload(updated, primary, accounts),
-      isNewUser: false,
-    };
+  } catch (error) {
+    const code = prismaErrorCode(error);
+    console.error("Google upsert failed:", { code, email: normalized, error });
+    if (code === "P2002") {
+      user = await prisma.user.findUniqueOrThrow({
+        where: { email: normalized },
+      });
+    } else {
+      throw error;
+    }
   }
 
-  const created = await prisma.user.create({
-    data: {
-      email: normalized,
-      name: displayName,
-      avatarUrl: profile.image ?? null,
-    },
-  });
+  const accounts = await loadTradingAccountsForUser(user.id);
+  const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
   return {
-    user: toSessionPayload(created, null, []),
-    isNewUser: true,
+    user: toSessionPayload(user, primary, accounts),
+    isNewUser: !existing,
   };
 }
 

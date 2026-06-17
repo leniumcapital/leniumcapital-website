@@ -390,7 +390,7 @@ function describeAuthError(code: string): string {
       return "This email is already registered with a password. Log in with email and password instead.";
     case "OAuthSignin":
     case "OAuthCallback":
-      return "Google sign-in failed during the redirect. Try again in a moment.";
+      return "Google could not finish creating your account. Try email sign-up instead, or retry in a moment.";
     default:
       return "Could not sign in with Google. Try again or use email and password.";
   }
