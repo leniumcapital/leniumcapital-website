@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAccountStore } from "@/stores/accountStore";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
 import type { AccountStatusPayload } from "@/lib/account-status";
 
 /** Fetch /api/account/status once on dashboard mount and hydrate the store. */
-export function useAccountStatusSync() {
+export function useAccountStatusSync(): boolean {
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -21,6 +23,8 @@ export function useAccountStatusSync() {
       } catch {
         // Session layout already seeded basics; status is best-effort.
         syncChallengeRuleLimits();
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     }
 
@@ -29,4 +33,6 @@ export function useAccountStatusSync() {
       cancelled = true;
     };
   }, []);
+
+  return loaded;
 }

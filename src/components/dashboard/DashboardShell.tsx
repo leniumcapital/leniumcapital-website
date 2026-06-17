@@ -12,6 +12,7 @@ import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
 import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
 import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { DashboardOnboardingModal, isOnboardingDone } from "@/components/dashboard/DashboardOnboardingModal";
 import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useAccountStatusSync } from "@/hooks/useAccountStatus";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
@@ -108,7 +109,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
-  useAccountStatusSync();
+  const accountStatusLoaded = useAccountStatusSync();
+  useDashboardOnboarding(user, accountStatusLoaded);
   useChallengeSync();
   useRuleEnforcement();
 
@@ -213,6 +215,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
         <TradingDrawer />
       </ErrorBoundary>
 
+      <DashboardOnboardingModal />
       <ChallengeStartModal />
       <AccountGateModal />
 
@@ -232,6 +235,24 @@ function ShellInner({ user, children }: DashboardShellProps) {
       />
     </div>
   );
+}
+
+/** Show first-login onboarding when the user has no active account yet. */
+function useDashboardOnboarding(user: SessionUser, statusLoaded: boolean): void {
+  useEffect(() => {
+    if (!statusLoaded) return;
+    if (isOnboardingDone()) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tier")) return;
+
+    const account = useAccountStore.getState();
+    if (account.hasActiveChallenge || account.hasFundedAccount) return;
+    if (user.tier > 0 && user.accountType !== "none") return;
+    if (account.accountType !== "none" && account.tier > 0) return;
+
+    useUiStore.getState().openOnboarding();
+  }, [user, statusLoaded]);
 }
 
 // ─── Automated rule enforcement ───────────────────────────────────────────────
