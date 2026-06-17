@@ -6,7 +6,7 @@ import { MarketTickers } from "@/components/MarketTickers";
 import { FundingVisualizer } from "@/components/FundingVisualizer";
 import { FundedSteps } from "@/components/FundedSteps";
 import { TierTeaserGrid } from "@/components/TierTeaserGrid";
-import { STATS } from "@/lib/data";
+import { STATS } from "@/lib/pricing";
 import { SITE_EMAIL, SITE_TWITTER_URL } from "@/lib/site";
 
 const FOUNDATION = [

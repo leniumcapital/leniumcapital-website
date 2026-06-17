@@ -10,6 +10,7 @@ import {
   IconHistory,
   IconSettings,
   IconUser,
+  IconBook,
   IconBriefcase,
   IconReceipt,
 } from "@tabler/icons-react";
@@ -30,7 +31,8 @@ const SETTINGS_NAV = [
   { icon: IconUser, label: "Profile", href: "/dashboard/profile" },
   { icon: IconBriefcase, label: "Account", href: "/dashboard/account" },
   { icon: IconReceipt, label: "Billing", href: "/dashboard/billing" },
-  { icon: IconSettings, label: "Challenge Rules", href: "/dashboard/challenge-rules" },
+  { icon: IconSettings, label: "Settings", href: "/dashboard/settings" },
+  { icon: IconBook, label: "Challenge Rules", href: "/dashboard/challenge-rules" },
 ] as const;
 
 export function Sidebar() {

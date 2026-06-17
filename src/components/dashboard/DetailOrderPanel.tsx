@@ -6,11 +6,11 @@ import { IconFlask } from "@tabler/icons-react";
 import { toast } from "sonner";
 import type { MarketDetail } from "@/lib/marketDetail";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
-import { DemoOrderDisclaimer } from "@/components/dashboard/ModeSwitcher";
+import { DemoOrderDisclaimer } from "@/components/dashboard/DemoModeBadges";
 import { useMarketStore } from "@/stores/marketStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 import { T, tradeSidePanelStyle } from "@/lib/tokens";
 import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 

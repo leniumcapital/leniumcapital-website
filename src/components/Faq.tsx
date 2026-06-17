@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FAQ } from "@/lib/data";
+import type { FAQ } from "@/lib/pricing";
 
 export function FaqList({ items }: { items: FAQ[] }) {
   const [open, setOpen] = useState<number | null>(0);

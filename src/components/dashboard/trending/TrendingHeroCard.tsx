@@ -46,13 +46,17 @@ export function TrendingHeroCard() {
     }
   }, [heroEvents, index, setIndex]);
 
-  useEffect(() => {
+  function restartAutoAdvance() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (heroEvents.length <= 1) return;
     timerRef.current = setInterval(() => {
       const cur = useUiStore.getState().heroCarouselIndex;
       setIndex((cur + 1) % heroEvents.length);
     }, AUTO_MS);
+  }
+
+  useEffect(() => {
+    restartAutoAdvance();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -62,6 +66,7 @@ export function TrendingHeroCard() {
     if (heroEvents.length === 0) return;
     const next = (safeIndex + delta + heroEvents.length) % heroEvents.length;
     setIndex(next);
+    restartAutoAdvance();
   };
 
   if (heroEvents.length === 0) return null;

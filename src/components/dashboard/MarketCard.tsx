@@ -8,6 +8,7 @@ import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { KalshiEventCard } from "@/components/dashboard/KalshiEventCard";
+import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 import { seriesIconDirectUrl } from "@/lib/seriesIcon";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import type { DashboardEvent } from "@/lib/marketDetail";
@@ -85,26 +86,62 @@ function MarketCardInner({
   };
 
   if (variant === "row") {
-    const top = event.outcomes[0];
     return (
-      <div
-        onClick={openDetail}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          height: 56,
-          padding: "0 16px",
-          background: T.bgSecondary,
-          border: T.hairline(hovered ? T.borderHover : T.border),
-          borderRadius: 10,
-          cursor: "pointer",
-          transition: `border-color ${T.transition}`,
-          fontFamily: T.font,
-        }}
-      >
+      <MarketCardRow
+        event={event}
+        hovered={hovered}
+        onHover={setHovered}
+        onOpen={openDetail}
+      />
+    );
+  }
+
+  return (
+    <KalshiEventCard
+      event={event}
+      hovered={hovered}
+      onHover={setHovered}
+      maxOutcomes={2}
+      fillHeight
+    />
+  );
+}
+
+function MarketCardRow({
+  event,
+  hovered,
+  onHover,
+  onOpen,
+}: {
+  event: DashboardEvent;
+  hovered: boolean;
+  onHover: (v: boolean) => void;
+  onOpen: () => void;
+}) {
+  const top = event.outcomes[0];
+  const livePrice = useMarketStore(
+    (s) => s.markets[top.ticker]?.yesPrice ?? top.yesPrice,
+  );
+
+  return (
+    <div
+      onClick={onOpen}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: "10px 16px",
+        background: T.bgSecondary,
+        border: T.hairline(hovered ? T.borderHover : T.border),
+        borderRadius: 10,
+        cursor: "pointer",
+        transition: `border-color ${T.transition}`,
+        fontFamily: T.font,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <MarketOutcomeAvatar
           name={event.title}
           category={event.category}
@@ -129,41 +166,10 @@ function MarketCardInner({
         >
           {event.title}
         </span>
-        <span
-          style={{
-            color: T.textMuted,
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: 160,
-          }}
-        >
-          {top.name}
-        </span>
         <LivePricePill ticker={top.ticker} fallback={top.yesPrice} />
-        <span
-          style={{
-            color: T.textMuted,
-            fontSize: 11,
-            minWidth: 64,
-            textAlign: "right",
-          }}
-        >
-          {event.marketCount} mkts
-        </span>
       </div>
-    );
-  }
-
-  return (
-    <KalshiEventCard
-      event={event}
-      hovered={hovered}
-      onHover={setHovered}
-      maxOutcomes={2}
-      fillHeight
-    />
+      <ProbabilityBar probability={livePrice} height={2} />
+    </div>
   );
 }
 

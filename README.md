@@ -106,12 +106,12 @@ npm run seed:icons
 src/
   app/            # routes (App Router) + layout + global styles
   components/      # Nav, Footer, Logo, ThemeToggle, calculators, FAQ, UI primitives
-  lib/data.ts      # tiers, add-ons, rules, FAQs, leaderboard + pricing helpers
+  lib/pricing.ts   # tiers, add-ons, rules constants, FAQs, leaderboard + pricing helpers
 ```
 
 All tier pricing, profit targets, drawdown/daily/position limits, add-on costs,
 bundle discounts, reset fees, and the PropMarket comparison live in
-[`src/lib/data.ts`](src/lib/data.ts) — edit there to update the whole site.
+[`src/lib/pricing.ts`](src/lib/pricing.ts) — edit there to update the whole site.
 
 ## Notes
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 import {
   SITE_EMAIL,
+  SITE_DISCORD_URL,
   SITE_TWITTER_HANDLE,
   SITE_TWITTER_URL,
 } from "@/lib/site";
@@ -48,6 +49,16 @@ export function Footer() {
                 className="hover:text-foreground"
               >
                 {SITE_TWITTER_HANDLE}
+              </a>
+            </li>
+            <li>
+              <a
+                href={SITE_DISCORD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground"
+              >
+                Discord
               </a>
             </li>
             <li>

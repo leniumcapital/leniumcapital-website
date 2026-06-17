@@ -11,7 +11,7 @@ import {
 } from "@/stores/positionStore";
 import { useMarketsQuery } from "@/hooks/useMarkets";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
-import { SimulatedPositionsLabel } from "@/components/dashboard/ModeSwitcher";
+import { SimulatedPositionsLabel } from "@/components/dashboard/DemoModeBadges";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { outcomeNameFromQuestion } from "@/lib/outcomeName";
 import { T } from "@/lib/tokens";

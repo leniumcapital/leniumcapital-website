@@ -6,7 +6,7 @@ import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { StartChallengeButton } from "@/components/dashboard/StartChallengeButton";
 import { DashboardCard, DashboardPage } from "@/components/dashboard/DashboardPage";
 import { T } from "@/lib/tokens";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 
 export function AccountPanel() {
   const tierSize = useAccountStore((s) => s.tier);

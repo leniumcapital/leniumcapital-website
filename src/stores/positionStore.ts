@@ -35,6 +35,7 @@ interface PositionState {
   addPosition: (position: Position) => void;
   closePosition: (positionId: string, exitPrice: number) => ClosedTrade | null;
   setPositions: (positions: Position[]) => void;
+  hydrateFromServer: (open: Position[], closed: ClosedTrade[]) => void;
   reset: () => void;
 }
 
@@ -72,6 +73,13 @@ export const usePositionStore = create<PositionState>()(
         set((s) => {
           s.positions = {};
           for (const p of positions) s.positions[p.id] = p;
+        }),
+
+      hydrateFromServer: (open, closed) =>
+        set(() => {
+          const positions: Record<string, Position> = {};
+          for (const p of open) positions[p.id] = p;
+          return { positions, closedTrades: closed };
         }),
 
       reset: () => set(() => ({ positions: {}, closedTrades: [] })),

@@ -2,9 +2,9 @@
  * Lenium rules engine — resolves tier + add-on + phase into enforceable limits
  * and validates orders against the complete framework.
  */
-import type { AddonId, Tier } from "@/lib/data";
+import type { AddonId, Tier } from "@/lib/pricing";
 import {
-  TIERS,
+  TIERS_RULES as TIERS,
   CHALLENGE_WINDOW_DAYS,
   MAX_DRAWDOWN_PCT,
   MAX_EXPOSURE_PCT,
@@ -20,7 +20,7 @@ import {
   MIN_PAYOUT_PCT,
   INACTIVITY_WARNING_DAYS,
   INACTIVITY_TERMINATE_DAYS,
-} from "@/lib/data";
+} from "@/lib/pricing";
 import { hasSplit90Addon } from "@/lib/addonIds";
 
 export type AccountPhase = "evaluation" | "funded";
@@ -201,7 +201,7 @@ export function effectiveAccountSize(params: {
 export type AccountRuleContext = {
   accountSize: number;
   accountType: "challenge" | "funded" | "none";
-  addons?: import("@/lib/data").AddonId[];
+  addons?: import("@/lib/pricing").AddonId[];
 };
 
 /** Resolve live trading rules for any account — never returns null when size > 0. */

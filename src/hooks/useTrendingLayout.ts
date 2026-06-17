@@ -26,6 +26,34 @@ function activeEventTickers(
   });
 }
 
+function filteredPool(
+  eventOrder: string[],
+  events: Record<string, import("@/lib/marketDetail").DashboardEvent>,
+  sidebarFilter: string | null,
+): string[] {
+  return filterEventsBySidebar(
+    activeEventTickers(eventOrder, events),
+    events,
+    sidebarFilter,
+  );
+}
+
+function compactFromTickers(
+  tickers: string[],
+  markets: ReturnType<typeof useMarketStore.getState>["markets"],
+  events: ReturnType<typeof useMarketStore.getState>["events"],
+  mapRow: (
+    eventTicker: string,
+    ev: NonNullable<(typeof events)[string]>,
+    rank: number,
+  ) => CompactListItem,
+): CompactListItem[] {
+  return tickers.map((eventTicker, i) => {
+    const ev = events[eventTicker];
+    return mapRow(eventTicker, ev, i + 1);
+  });
+}
+
 export function useTrendingSeriesSections(): SeriesSection[] {
   const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const eventKey = useMarketStore(
@@ -40,12 +68,7 @@ export function useTrendingSeriesSections(): SeriesSection[] {
 
   return useMemo(() => {
     const { events, eventOrder } = useMarketStore.getState();
-    const tickers = filterEventsBySidebar(
-      activeEventTickers(eventOrder, events),
-      events,
-      activeSidebarFilter,
-    );
-
+    const tickers = filteredPool(eventOrder, events, activeSidebarFilter);
     return groupEventsBySeries(tickers, events);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventKey, activeSidebarFilter, catalogKey]);
@@ -65,40 +88,45 @@ export function useHeroCarouselEvents(): string[] {
   }, [eventKey, activeSidebarFilter, catalogKey]);
 }
 
-function topEvents(count: number): CompactListItem[] {
-  const { events, eventOrder, markets } = useMarketStore.getState();
-  const sorted = activeEventTickers(eventOrder, events).slice(0, count);
-
-  return sorted.map((eventTicker, i) => {
-    const ev = events[eventTicker];
-    const m = markets[ev.leaderTicker];
-    const change = priceChange24h(m);
-    return {
-      rank: i + 1,
-      eventTicker,
-      leaderTicker: ev.leaderTicker,
-      title: ev.title,
-      subtitle: ev.subCategory ?? ev.category,
-      probability: m?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
-      change: change ?? undefined,
-    };
-  });
-}
-
 export function useSidebarTrending(): CompactListItem[] {
+  const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const key = useMarketStore(
-    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}:${activeSidebarFilter}`),
   );
-  return useMemo(() => topEvents(COMPACT_LIST_SIZE), [key]);
+  const heroKey = useHeroCarouselEvents();
+
+  return useMemo(() => {
+    const { events, eventOrder, markets } = useMarketStore.getState();
+    const heroSet = new Set(heroKey);
+    const pool = filteredPool(eventOrder, events, activeSidebarFilter).filter(
+      (t) => !heroSet.has(t),
+    );
+    const sorted = pool.slice(0, COMPACT_LIST_SIZE);
+    return compactFromTickers(sorted, markets, events, (eventTicker, ev, rank) => {
+      const m = markets[ev.leaderTicker];
+      const change = priceChange24h(m);
+      return {
+        rank,
+        eventTicker,
+        leaderTicker: ev.leaderTicker,
+        title: ev.title,
+        subtitle: ev.subCategory ?? ev.category,
+        probability: m?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
+        change: change ?? undefined,
+      };
+    });
+  }, [key, heroKey, activeSidebarFilter]);
 }
 
 export function useSidebarPrimaries(): CompactListItem[] {
+  const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const key = useMarketStore(
-    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}:${activeSidebarFilter}`),
   );
+
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const filtered = activeEventTickers(eventOrder, events)
+    const filtered = filteredPool(eventOrder, events, activeSidebarFilter)
       .filter((t) => {
         const ev = events[t];
         return ev && isPrimaryMarket(ev);
@@ -108,11 +136,10 @@ export function useSidebarPrimaries(): CompactListItem[] {
 
     if (filtered.length === 0) return [];
 
-    return filtered.map((eventTicker, i) => {
-      const ev = events[eventTicker];
+    return compactFromTickers(filtered, markets, events, (eventTicker, ev, rank) => {
       const m = markets[ev.leaderTicker];
       return {
-        rank: i + 1,
+        rank,
         eventTicker,
         leaderTicker: ev.leaderTicker,
         title: ev.title,
@@ -120,16 +147,18 @@ export function useSidebarPrimaries(): CompactListItem[] {
         probability: m?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
       };
     });
-  }, [key]);
+  }, [key, activeSidebarFilter]);
 }
 
 export function useSidebarMovers(): CompactListItem[] {
+  const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const key = useMarketStore(
-    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}:${activeSidebarFilter}`),
   );
+
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const ranked = activeEventTickers(eventOrder, events)
+    const ranked = filteredPool(eventOrder, events, activeSidebarFilter)
       .map((eventTicker) => {
         const ev = events[eventTicker];
         const m = markets[ev.leaderTicker];
@@ -154,52 +183,54 @@ export function useSidebarMovers(): CompactListItem[] {
       probability: markets[row.ev.leaderTicker]?.yesPrice ?? 0,
       change: row.change,
     }));
-  }, [key]);
+  }, [key, activeSidebarFilter]);
 }
 
 export function useSidebarNew(): CompactListItem[] {
+  const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const key = useMarketStore(
-    useShallow((s) => `${s.catalogSyncedAt}:${Object.keys(s.eventFirstSeenAt).length}`),
+    useShallow(
+      (s) =>
+        `${s.catalogSyncedAt}:${Object.keys(s.eventFirstSeenAt).length}:${activeSidebarFilter}`,
+    ),
   );
+
   return useMemo(() => {
     const { events, eventOrder, markets, eventFirstSeenAt } =
       useMarketStore.getState();
-    const recent = activeEventTickers(eventOrder, events)
+    const recent = filteredPool(eventOrder, events, activeSidebarFilter)
       .sort(
         (a, b) =>
           (eventFirstSeenAt[b] ?? 0) - (eventFirstSeenAt[a] ?? 0),
       )
       .slice(0, COMPACT_LIST_SIZE);
-    return recent.map((eventTicker, i) => {
-      const ev = events[eventTicker];
-      if (!ev) return null;
-      return {
-        rank: i + 1,
-        eventTicker,
-        leaderTicker: ev.leaderTicker,
-        title: ev.title,
-        subtitle: ev.subCategory ?? ev.category,
-        probability: markets[ev.leaderTicker]?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
-      };
-    }).filter(Boolean) as CompactListItem[];
-  }, [key]);
+    return compactFromTickers(recent, markets, events, (eventTicker, ev, rank) => ({
+      rank,
+      eventTicker,
+      leaderTicker: ev.leaderTicker,
+      title: ev.title,
+      subtitle: ev.subCategory ?? ev.category,
+      probability: markets[ev.leaderTicker]?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
+    }));
+  }, [key, activeSidebarFilter]);
 }
 
 export function useSidebarHighestVolume(): CompactListItem[] {
+  const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
   const key = useMarketStore(
-    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}:${activeSidebarFilter}`),
   );
+
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const sorted = activeEventTickers(eventOrder, events)
+    const sorted = filteredPool(eventOrder, events, activeSidebarFilter)
       .sort((a, b) => events[b].totalVolume - events[a].totalVolume)
       .slice(0, COMPACT_LIST_SIZE);
 
-    return sorted.map((eventTicker, i) => {
-      const ev = events[eventTicker];
+    return compactFromTickers(sorted, markets, events, (eventTicker, ev, rank) => {
       const m = markets[ev.leaderTicker];
       return {
-        rank: i + 1,
+        rank,
         eventTicker,
         leaderTicker: ev.leaderTicker,
         title: ev.title,
@@ -207,7 +238,7 @@ export function useSidebarHighestVolume(): CompactListItem[] {
         probability: m?.yesPrice ?? ev.outcomes[0]?.yesPrice ?? 0,
       };
     });
-  }, [key]);
+  }, [key, activeSidebarFilter]);
 }
 
 function formatVol(usd: number): string {

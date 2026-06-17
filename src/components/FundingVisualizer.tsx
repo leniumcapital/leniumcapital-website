@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { animate, useMotionValue } from "framer-motion";
-import { TIERS, usd } from "@/lib/data";
+import { TIERS, usd } from "@/lib/pricing";
 
 // Six account tiers, ascending — single source of truth for size + fee.
-const STEPS = TIERS.map((t) => ({ size: t.size, fee: t.baseFee })).sort(
+const STEPS = TIERS.map((t) => ({ size: t.size, fee: t.fee })).sort(
   (a, b) => a.size - b.size,
 );
 

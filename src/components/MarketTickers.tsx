@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  FALLBACK_TICKERS,
-  categoryMeta,
-  compactUsd,
-  type TickerMarket,
-} from "@/lib/data";
+import { FALLBACK_TICKERS, compactUsd, type TickerMarket } from "@/lib/pricing";
+import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 
 const ROW_CONFIG = [
@@ -119,7 +115,6 @@ function TickerCard({
   active: "yes" | "no" | null;
   onTrade: (id: string, side: "yes" | "no") => void;
 }) {
-  const meta = categoryMeta(market.category);
   const yes = market.yes;
   const no = 100 - yes;
   const yesMult = (100 / Math.max(1, yes)).toFixed(2);
@@ -211,31 +206,34 @@ function OutcomeRow({
       : "border-rose-400/40 text-rose-300 hover:bg-rose-400/10";
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group/row flex w-full items-center justify-between gap-3 rounded-lg outline-none"
-    >
-      <span className={`border-b pb-0.5 text-sm text-white/85 ${underline}`}>
-        {label}
-      </span>
-      <span className="flex items-center gap-2">
-        {isYes && dir !== 0 && (
-          <span
-            className={`text-[10px] ${
-              dir === 1 ? "text-emerald-400" : "text-rose-400"
-            }`}
-          >
-            {dir === 1 ? "▲" : "▼"}
-          </span>
-        )}
-        <span className="font-mono text-xs text-white/45">{mult}x</span>
-        <span
-          className={`rounded-full border px-2.5 py-1 text-sm font-semibold transition-colors ${pill}`}
-        >
-          {pct}%
+    <div className="w-full space-y-1">
+      <button
+        type="button"
+        onClick={onClick}
+        className="group/row flex w-full items-center justify-between gap-3 rounded-lg outline-none"
+      >
+        <span className={`border-b pb-0.5 text-sm text-white/85 ${underline}`}>
+          {label}
         </span>
-      </span>
-    </button>
+        <span className="flex items-center gap-2">
+          {isYes && dir !== 0 && (
+            <span
+              className={`text-[10px] ${
+                dir === 1 ? "text-emerald-400" : "text-rose-400"
+              }`}
+            >
+              {dir === 1 ? "▲" : "▼"}
+            </span>
+          )}
+          <span className="font-mono text-xs text-white/45">{mult}x</span>
+          <span
+            className={`rounded-full border px-2.5 py-1 text-sm font-semibold transition-colors ${pill}`}
+          >
+            {pct}%
+          </span>
+        </span>
+      </button>
+      <ProbabilityBar probability={pct} height={2} entrance={false} />
+    </div>
   );
 }

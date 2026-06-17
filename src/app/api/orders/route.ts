@@ -1,42 +1,78 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
 import { executeOrder } from "@/lib/orderEngine";
-import type { AddonId } from "@/lib/data";
+import {
+  getTradingAccountForUser,
+  listOrdersForAccount,
+  persistOpenOrder,
+} from "@/lib/orders-db";
+import type { OpenPositionSnapshot } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
+
+/** Open + closed orders for the authenticated user's trading account. */
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const accountId = searchParams.get("accountId");
+  if (!accountId) {
+    return NextResponse.json({ error: "Missing accountId." }, { status: 400 });
+  }
+
+  const account = await getTradingAccountForUser(session.user.id, accountId);
+  if (!account) {
+    return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  }
+
+  const { open, closed } = await listOrdersForAccount(session.user.id, accountId);
+
+  return NextResponse.json({
+    accountId,
+    balance: account.balance,
+    purchasedAddons: account.purchasedAddons,
+    open,
+    closed,
+  });
+}
 
 /** Place a simulated order at the live Kalshi price. Session required. */
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: {
+    accountId?: string;
     marketTicker?: string;
     direction?: string;
     size?: number;
+    category?: string;
     marketExpiry?: string;
-    openPositions?: Array<{
-      marketTicker: string;
-      size: number;
-      entryPrice: number;
-      direction: "yes" | "no";
-      currentPrice: number;
-    }>;
+    openPositions?: OpenPositionSnapshot[];
     currentProfit?: number;
     highWaterMarkUsd?: number;
     staticFloorUsd?: number;
     windowEndDate?: string;
-    addons?: AddonId[];
-    accountType?: string;
-    challengeStatus?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const accountId = String(body.accountId ?? "");
+  if (!accountId) {
+    return NextResponse.json({ error: "Missing accountId." }, { status: 400 });
+  }
+
+  const account = await getTradingAccountForUser(session.user.id, accountId);
+  if (!account) {
+    return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
   const result = await executeOrder(
@@ -50,43 +86,36 @@ export async function POST(req: Request) {
       highWaterMarkUsd: Number(body.highWaterMarkUsd ?? 0),
       staticFloorUsd: Number(body.staticFloorUsd ?? 0),
       windowEndDate: body.windowEndDate,
-      addons: body.addons,
-      accountType: body.accountType ?? session.user.accountType,
-      challengeStatus: body.challengeStatus ?? session.user.challengeStatus,
     },
-    session.user.tier ?? 0,
+    account,
+    body.openPositions ?? [],
   );
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  // Persist simulated fills when the user has a trading account (best-effort).
-  if (session.user.id) {
-    try {
-      const account = await prisma.tradingAccount.findFirst({
-        where: { userId: session.user.id, isPrimary: true },
-      });
-      if (account) {
-        await prisma.order.create({
-          data: {
-            id: result.fill.positionId,
-            userId: session.user.id,
-            accountId: account.id,
-            marketTicker: result.fill.marketTicker,
-            question: result.fill.question,
-            direction: result.fill.direction,
-            size: result.fill.size,
-            entryPrice: result.fill.entryPrice,
-            simulated: true,
-            status: "open",
-          },
-        });
-      }
-    } catch (e) {
-      console.warn("[orders] persistence skipped:", e);
-    }
-  }
+  try {
+    const { balance } = await persistOpenOrder({
+      userId: session.user.id,
+      accountId: account.id,
+      positionId: result.fill.positionId,
+      marketTicker: result.fill.marketTicker,
+      question: result.fill.question,
+      category: body.category,
+      direction: result.fill.direction,
+      size: result.fill.size,
+      entryPrice: result.fill.entryPrice,
+      openedAt: result.fill.openedAt,
+      debitAmount: result.fill.size + result.fill.commission,
+    });
 
-  return NextResponse.json({ ok: true, fill: result.fill });
+    return NextResponse.json({
+      ok: true,
+      fill: { ...result.fill, balance },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Could not persist order.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

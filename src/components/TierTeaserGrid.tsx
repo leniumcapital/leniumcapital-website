@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { PillBadge } from "@/components/ui";
-import { TIERS, usd } from "@/lib/data";
+import { TIERS, usd, formatPct } from "@/lib/pricing";
 
 export function TierTeaserGrid() {
   return (
@@ -25,16 +25,16 @@ export function TierTeaserGrid() {
               </span>
               {t.exclusive ? (
                 <PillBadge tone="brand">Exclusive</PillBadge>
-              ) : t.featured ? (
+              ) : t.popular ? (
                 <PillBadge tone="brand">Popular</PillBadge>
               ) : null}
             </div>
             <div className="mt-3 text-sm text-muted">
               from{" "}
-              <span className="font-semibold text-foreground">${t.baseFee}</span>
+              <span className="font-semibold text-foreground">${t.fee}</span>
             </div>
             <div className="mt-1 text-xs text-muted">
-              {t.profitTargetPct}% profit target
+              {formatPct(t.profitTarget)} profit target
             </div>
           </Link>
         </motion.div>

@@ -7,9 +7,13 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { fetchMarketPrice } from "@/lib/kalshi";
-import { resolveTierForAccount, resolveRules, validateOrder, effectiveAccountSize } from "@/lib/rules";
-import type { AddonId } from "@/lib/data";
+import {
+  resolveTierForAccount,
+  resolveRules,
+  validateOrder,
+} from "@/lib/rules";
 import type { OpenPositionSnapshot } from "@/lib/rules";
+import type { TradingAccountRecord } from "@/lib/trading-accounts";
 
 export type OrderRequest = {
   marketTicker: string;
@@ -21,9 +25,6 @@ export type OrderRequest = {
   highWaterMarkUsd?: number;
   staticFloorUsd?: number;
   windowEndDate?: string;
-  addons?: AddonId[];
-  accountType?: string;
-  challengeStatus?: string;
 };
 
 export type OrderFill = {
@@ -35,6 +36,7 @@ export type OrderFill = {
   entryPrice: number;
   openedAt: number;
   commission: number;
+  balance: number;
 };
 
 export type OrderResult =
@@ -47,7 +49,8 @@ export type OrderResult =
  */
 export async function executeOrder(
   request: OrderRequest,
-  tierSize: number,
+  account: TradingAccountRecord,
+  openPositions: OpenPositionSnapshot[] = [],
 ): Promise<OrderResult> {
   const { marketTicker, direction, size } = request;
 
@@ -61,21 +64,18 @@ export async function executeOrder(
     return { ok: false, error: "Order size must be a positive number." };
   }
 
-  const tier = resolveTierForAccount(
-    effectiveAccountSize({ accountSize: tierSize, tier: tierSize }),
-  );
+  const tier = resolveTierForAccount(account.tier);
   if (!tier) {
     return { ok: false, error: "Invalid account tier." };
   }
 
-  const accountType = request.accountType ?? "challenge";
-  const phase = accountType === "funded" ? "funded" : "evaluation";
+  const phase = account.accountType === "funded" ? "funded" : "evaluation";
   const currentProfit = request.currentProfit ?? 0;
   const equity = tier.size + currentProfit;
 
   const rules = resolveRules({
     tier,
-    addons: request.addons ?? [],
+    addons: account.purchasedAddons,
     phase,
     currentBalance: equity,
   });
@@ -96,7 +96,7 @@ export async function executeOrder(
     currentProfit,
     highWaterMarkUsd: request.highWaterMarkUsd ?? tier.size,
     staticFloorUsd: request.staticFloorUsd ?? 0,
-    openPositions: request.openPositions ?? [],
+    openPositions,
     newOrder: {
       size,
       direction,
@@ -104,13 +104,21 @@ export async function executeOrder(
       entryPrice,
       marketExpiry: request.marketExpiry ?? price.expiry,
     },
-    challengeStatus: request.challengeStatus ?? "active",
-    accountType,
+    challengeStatus: account.challengeStatus,
+    accountType: account.accountType,
     windowEndDate: request.windowEndDate,
   });
 
   if (!validation.ok) {
     return { ok: false, error: validation.error };
+  }
+
+  const totalCost = size + validation.commission;
+  if (totalCost > account.balance) {
+    return {
+      ok: false,
+      error: `Insufficient balance — $${Math.round(account.balance).toLocaleString()} available.`,
+    };
   }
 
   return {
@@ -124,6 +132,7 @@ export async function executeOrder(
       entryPrice,
       openedAt: Date.now(),
       commission: validation.commission,
+      balance: account.balance - totalCost,
     },
   };
 }

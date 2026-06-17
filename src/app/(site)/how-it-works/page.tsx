@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container, CtaButton, Card, PillBadge } from "@/components/ui";
 import { FaqList } from "@/components/Faq";
-import { FAQS, PAYOUT_CYCLE_DAYS, FAST_PAYOUT_CYCLE_DAYS, TIERS, compactTier } from "@/lib/data";
+import { FAQS, PAYOUT_CYCLE_DAYS, FAST_PAYOUT_CYCLE_DAYS, TIERS, compactTier } from "@/lib/pricing";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {

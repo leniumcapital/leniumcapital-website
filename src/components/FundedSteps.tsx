@@ -3,7 +3,7 @@
 import { motion, type Variants } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { CtaButton } from "@/components/ui";
-import { TIERS, compactTier } from "@/lib/data";
+import { TIERS, compactTier } from "@/lib/pricing";
 
 const container: Variants = {
   hidden: {},

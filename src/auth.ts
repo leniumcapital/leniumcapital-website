@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
-import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 import type { TradingMode } from "@/lib/account-status";
 
@@ -69,15 +68,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       user.isNewUser = result.isNewUser;
 
       const cookieStore = await cookies();
-      if (result.isNewUser) {
-        cookieStore.set(POST_AUTH_COOKIE, CHALLENGE_SELECT_PATH, {
-          maxAge: 120,
-          path: "/",
-          sameSite: "lax",
-        });
-      } else {
-        cookieStore.delete(POST_AUTH_COOKIE);
-      }
+      // Honor callbackUrl from the OAuth flow — do not override with a fixed path.
+      cookieStore.delete(POST_AUTH_COOKIE);
 
       return true;
     },

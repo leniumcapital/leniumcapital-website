@@ -14,11 +14,12 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardOnboardingModal, isOnboardingDone } from "@/components/dashboard/DashboardOnboardingModal";
 import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useAccountStatusSync } from "@/hooks/useAccountStatus";
+import { useTradingDataSync } from "@/hooks/useTradingDataSync";
 import { reconcileCashBalance } from "@/lib/accountBalance";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
 import { ensureTradingStateForUser } from "@/lib/clientStateReset";
 import { parseAddonsParam } from "@/lib/pricing";
-import { toRulesAddonIds, hasSplit90Addon } from "@/lib/addonIds";
+import { normalizeAddonsParam, hasSplit90Addon } from "@/lib/addonIds";
 import {
   useAccountStore,
   type AccountType,
@@ -27,7 +28,12 @@ import {
 import { useChallengeStore } from "@/stores/challengeStore";
 import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
-import { TIERS, usd } from "@/lib/data";
+import {
+  TIERS,
+  formatUsd,
+  INACTIVITY_WARNING_DAYS,
+  INACTIVITY_TERMINATE_DAYS,
+} from "@/lib/pricing";
 import {
   resolveTierForAccount,
   resolveRules,
@@ -38,10 +44,6 @@ import {
   equityUsd,
   daysSinceLastTrade,
 } from "@/lib/rules";
-import {
-  INACTIVITY_WARNING_DAYS,
-  INACTIVITY_TERMINATE_DAYS,
-} from "@/lib/data";
 import {
   T,
   TOP_BAR_HEIGHT,
@@ -105,14 +107,14 @@ function ShellInner({ user, children }: DashboardShellProps) {
       });
     }
     if (addonsParam) {
-      const ids = toRulesAddonIds(parseAddonsParam(addonsParam));
-      useAccountStore.getState().setAddons(ids);
+      useAccountStore.getState().setAddons(normalizeAddonsParam(addonsParam));
     }
   }, []);
 
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
   const accountStatusLoaded = useAccountStatusSync();
+  useTradingDataSync(accountStatusLoaded);
   useDashboardOnboarding(user, accountStatusLoaded);
   useChallengeSync();
   useRuleEnforcement();
@@ -381,7 +383,7 @@ function RuleBanners() {
       key: "drawdown-critical",
       color: T.red,
       bg: T.redMuted,
-      text: `Critical: portfolio is near your ${ddLabel} floor (${usd(progress.drawdownFloorUsd)}).`,
+      text: `Critical: portfolio is near your ${ddLabel} floor (${formatUsd(progress.drawdownFloorUsd)}).`,
     });
   } else if (progress.drawdownConsumedPct >= 75) {
     banners.push({
@@ -400,7 +402,7 @@ function RuleBanners() {
       key: "consistency-adjust",
       color: T.amber,
       bg: T.amberMuted,
-      text: `Consistency rule: profit target adjusted to ${usd(progress.adjustedProfitTarget)} (one market exceeded ${progress.consistencyCapPct}%).`,
+      text: `Consistency rule: profit target adjusted to ${formatUsd(progress.adjustedProfitTarget)} (one market exceeded ${progress.consistencyCapPct}%).`,
     });
   }
 
@@ -418,7 +420,7 @@ function RuleBanners() {
 
   if (hasSplit90Addon(addons)) {
     banners.push({
-      key: "split90",
+      key: "90split",
       color: T.green,
       bg: T.greenMutedBg,
       text: "90/10 profit split active on this account.",
@@ -535,7 +537,7 @@ function BreachOverlay() {
                 textDecoration: "none",
               }}
             >
-              Reset for {usd(fee)} →
+              Reset for {formatUsd(fee)} →
             </Link>
             ) : null}
           </motion.div>

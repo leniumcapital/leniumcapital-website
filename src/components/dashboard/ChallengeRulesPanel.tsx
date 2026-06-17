@@ -1,15 +1,20 @@
 "use client";
 
 import { useAccountStore } from "@/stores/accountStore";
-import { TIERS } from "@/lib/data";
+import { resolveRulesForAccount, formatRulePct } from "@/lib/rules";
 import { T } from "@/lib/tokens";
 
 export function ChallengeRulesPanel() {
   const tierSize = useAccountStore((s) => s.tier);
   const accountType = useAccountStore((s) => s.accountType);
-  const tier = TIERS.find((t) => t.size === tierSize);
+  const addons = useAccountStore((s) => s.addons);
+  const rules = resolveRulesForAccount({
+    accountType,
+    accountSize: tierSize,
+    addons,
+  });
 
-  if (accountType === "none" || !tier) {
+  if (accountType === "none" || !rules) {
     return (
       <div style={{ padding: 32, maxWidth: 640, fontFamily: T.font }}>
         <h1
@@ -44,7 +49,8 @@ export function ChallengeRulesPanel() {
         Challenge rules
       </h1>
       <p style={{ marginTop: 8, marginBottom: 28, fontSize: 14, color: T.textMuted }}>
-        Rules for your ${tier.size.toLocaleString()} evaluation account.
+        Effective rules for your ${rules.tierSize.toLocaleString()} evaluation account
+        {addons.length > 0 ? " (including purchased add-ons)" : ""}.
       </p>
 
       <div
@@ -65,19 +71,36 @@ export function ChallengeRulesPanel() {
             marginBottom: 12,
           }}
         >
-          Your tier
+          Your effective limits
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <Row label="Profit target" value={`${tier.profitTargetPct}%`} />
-          <Row label="Max drawdown" value={`${tier.maxDrawdownPct}%`} />
+          <Row
+            label="Profit target"
+            value={`${formatRulePct(rules.profitTargetPct)}% ($${rules.profitTargetUsd.toLocaleString()})`}
+          />
+          <Row
+            label="Max drawdown"
+            value={`${formatRulePct(rules.maxDrawdownPct)}%`}
+          />
           <Row label="Daily loss limit" value="None" />
           <Row
             label="Max position size"
-            value={`${tier.maxPositionPct}% ($${Math.round((tier.size * tier.maxPositionPct) / 100).toLocaleString()})`}
+            value={`${formatRulePct(rules.maxPositionPct)}% ($${rules.maxPositionUsd.toLocaleString()})`}
+          />
+          <Row
+            label="Max total exposure"
+            value={`${formatRulePct(rules.maxExposurePct)}% ($${rules.maxExposureUsd.toLocaleString()})`}
           />
           <Row label="Minimum trading days" value="None" />
-          <Row label="Challenge window" value={`${tier.windowDays} days`} />
-          <Row label="Consistency cap" value={`${tier.consistencyCapPct}%`} />
+          <Row label="Challenge window" value={`${rules.windowDays} days`} />
+          <Row
+            label="Consistency cap"
+            value={`${formatRulePct(rules.consistencyCapPct)}% per market`}
+          />
+          <Row
+            label="Profit split (when funded)"
+            value={`${rules.traderSplitPct}/${100 - rules.traderSplitPct}`}
+          />
         </div>
       </div>
     </div>
@@ -86,9 +109,9 @@ export function ChallengeRulesPanel() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-      <span style={{ color: T.textMuted, fontSize: 13 }}>{label}</span>
-      <span style={{ color: T.textPrimary, fontSize: 13, textAlign: "right" }}>{value}</span>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 14 }}>
+      <span style={{ color: T.textMuted }}>{label}</span>
+      <span style={{ color: T.textPrimary, textAlign: "right" }}>{value}</span>
     </div>
   );
 }

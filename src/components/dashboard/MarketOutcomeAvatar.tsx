@@ -96,6 +96,7 @@ function MarketOutcomeAvatarInner({
 
   const showFallback =
     phase === "fallback" || (phase === "resolve" && resolveFailed && !resolvedUrl);
+  const showShimmer = !showFallback && !activeUrl;
 
   const handleImageError = useCallback(() => {
     if (phase === "candidates") {
@@ -135,9 +136,23 @@ function MarketOutcomeAvatarInner({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: fallbackBg,
+        background: showShimmer ? "#1C1C1C" : fallbackBg,
       }}
     >
+      {showShimmer && (
+        <div
+          className="lenium-avatar-shimmer"
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "50%",
+            background:
+              "linear-gradient(90deg, #1C1C1C 0%, #2A2A2A 50%, #1C1C1C 100%)",
+            backgroundSize: "200% 100%",
+            animation: "lenium-shimmer 1.5s ease-in-out infinite",
+          }}
+        />
+      )}
       {showFallback && (
         <span
           style={{

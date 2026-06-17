@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { Container, Card } from "@/components/ui";
-import { usd, PAYOUT_CYCLE_DAYS, DEFAULT_TRADER_SPLIT_PCT } from "@/lib/data";
+import { usd, PAYOUT_CYCLE_DAYS, DEFAULT_TRADER_SPLIT_PCT } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Payouts" };
 

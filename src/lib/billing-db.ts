@@ -6,6 +6,7 @@ import {
   isPurchasableTierSize,
   type AddonId,
 } from "@/lib/pricing";
+import { normalizePurchasedAddons } from "@/lib/addonIds";
 import type {
   BillingOrderDto,
   BillingOrderStatus,
@@ -205,6 +206,7 @@ export async function completeBillingOrder(
     balance: order.balance,
     challengeStatus: "in_progress",
     isPrimary: true,
+    purchasedAddons: normalizePurchasedAddons(parseAddons(order.addons)),
   };
 
   let accountId: string;

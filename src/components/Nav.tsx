@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Logo } from "./Logo";
 import { StartChallengeCta } from "@/components/StartChallengeCta";
 import { clearActiveUserMarker, clearPersistedTradingState } from "@/lib/clientStateReset";
-import { usd } from "@/lib/data";
+import { usd } from "@/lib/pricing";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -20,8 +20,9 @@ const LINKS = [
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const user = session?.user;
+  const sessionLoading = status === "loading";
 
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -77,7 +78,12 @@ export function Nav() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          {user ? (
+          {sessionLoading ? (
+            <div
+              className="h-9 w-28 animate-pulse rounded-lg bg-white/10"
+              aria-hidden
+            />
+          ) : user ? (
             <>
               <BalancePill balance={user.balance} overlay={overlay} />
               <Link
@@ -274,14 +280,14 @@ function ProfileMenu({
               Dashboard
             </Link>
             <Link
-              href="/payouts"
+              href="/dashboard/payouts"
               onClick={() => setOpen(false)}
               className="block px-4 py-2 text-foreground hover:bg-surface-muted"
             >
               Payouts
             </Link>
             <Link
-              href="/account"
+              href="/dashboard/account"
               onClick={() => setOpen(false)}
               className="block px-4 py-2 text-foreground hover:bg-surface-muted"
             >
