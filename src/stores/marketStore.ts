@@ -61,8 +61,6 @@ interface MarketState {
   eventFirstSeenAt: Record<string, number>;
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
-  /** @deprecated Prefer syncCatalogFromKalshi for live feed updates. */
-  setEvents: (events: DashboardEvent[]) => void;
   /** Replace catalog from Kalshi: add new events, remove closed ones, resort trending. */
   syncCatalogFromKalshi: (payload: {
     events: DashboardEvent[];
@@ -70,8 +68,6 @@ interface MarketState {
   }) => void;
   /** Drop events whose close/game time has passed — runs between catalog syncs. */
   pruneFinishedEvents: () => void;
-  /** Populate the store from the initial REST fetch (alias of setMarkets). */
-  initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
   /** Single setState for a whole accumulator flush — one React notification. */
   batchUpdatePrices: (updates: Record<string, PriceUpdate>) => void;
@@ -222,14 +218,6 @@ export const useMarketStore = create<MarketState>()(
         mergeMarkets(s, markets);
       }),
 
-    setEvents: (events) =>
-      set((s) => {
-        for (const ev of events) {
-          if (!s.events[ev.eventTicker]) s.eventOrder.push(ev.eventTicker);
-          s.events[ev.eventTicker] = ev;
-        }
-      }),
-
     syncCatalogFromKalshi: ({ events, markets }) =>
       set((s) => {
         const now = Date.now();
@@ -240,11 +228,6 @@ export const useMarketStore = create<MarketState>()(
     pruneFinishedEvents: () =>
       set((s) => {
         pruneExpiredEventsFromState(s, Date.now());
-      }),
-
-    initializeMarkets: (markets) =>
-      set((s) => {
-        mergeMarkets(s, markets);
       }),
 
     updatePrice: ({ ticker, yesPrice, noPrice, volume }) =>
@@ -310,14 +293,3 @@ export const useMarketStore = create<MarketState>()(
       })),
   })),
 );
-
-/** Category contract counts, derived live. Stable selector helper. */
-export function selectCategoryCounts(s: MarketState): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const ticker of s.order) {
-    const cat = s.markets[ticker]?.category;
-    if (!cat) continue;
-    counts[cat] = (counts[cat] ?? 0) + 1;
-  }
-  return counts;
-}

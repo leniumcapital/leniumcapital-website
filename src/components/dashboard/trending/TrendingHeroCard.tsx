@@ -20,7 +20,6 @@ import {
   formatVolShort,
   isEventLive,
 } from "@/lib/trendingLayout";
-import { compactUsd } from "@/lib/data";
 import {
   normalizeOutcomeProbabilities,
   shouldShowOutcomeBar,
@@ -306,42 +305,6 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
             height={180}
           />
         </div>
-      </div>
-
-      <div
-        style={{
-          borderTop: T.hairline(),
-          marginTop: 20,
-          paddingTop: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <span
-          style={{
-            color: T.green,
-            fontSize: 11,
-            fontWeight: 600,
-            minWidth: 48,
-            flexShrink: 0,
-          }}
-        >
-          News
-        </span>
-        <span
-          style={{
-            flex: 1,
-            color: T.textSecondary,
-            fontSize: 13,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          Markets pricing {compactUsd(event.totalVolume)} in volume on {event.title}
-        </span>
-        <span style={{ color: T.textMuted, fontSize: 13, flexShrink: 0 }}>Read more</span>
       </div>
     </div>
   );

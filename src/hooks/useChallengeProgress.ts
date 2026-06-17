@@ -8,7 +8,7 @@ import {
   subscribeChallengeToPositions,
   syncChallengeRuleLimits,
 } from "@/stores/challengeStore";
-import { reconcileCashBalance } from "@/hooks/usePositions";
+import { reconcileCashBalance } from "@/lib/accountBalance";
 import { useMarketStore } from "@/stores/marketStore";
 import {
   effectiveAccountSize,

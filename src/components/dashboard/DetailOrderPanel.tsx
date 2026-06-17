@@ -12,6 +12,7 @@ import { useAccountStore } from "@/stores/accountStore";
 import { usePlaceOrder } from "@/hooks/usePositions";
 import { usd } from "@/lib/data";
 import { T, tradeSidePanelStyle } from "@/lib/tokens";
+import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 
 type Direction = "yes" | "no";
 
@@ -60,6 +61,9 @@ export function DetailOrderPanel({
   // back to the detail query data (refetched on an interval).
   const liveYes = useMarketStore((s) =>
     outcome ? s.markets[outcome.ticker]?.yesPrice : undefined,
+  );
+  const hasStorePrice = useMarketStore((s) =>
+    outcome ? outcome.ticker in s.markets : false,
   );
   const yesPrice = liveYes ?? outcome?.yesPrice ?? detail.yesPrice;
   const noPrice = 100 - yesPrice;
@@ -349,6 +353,14 @@ export function DetailOrderPanel({
                 selected={selectedDirection === "no"}
                 tone="no"
                 onClick={() => onSelectDirection("no")}
+              />
+            </div>
+
+            <div style={{ marginTop: 10, width: "100%" }}>
+              <ProbabilityBar
+                probability={yesPrice}
+                height={4}
+                loading={!hasStorePrice && yesPrice <= 0}
               />
             </div>
 

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { KalshiEventCard } from "@/components/dashboard/KalshiEventCard";
 import { seriesIconDirectUrl } from "@/lib/seriesIcon";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
@@ -18,15 +19,20 @@ const PILL_MIN_WIDTH = 52;
 function usePillFlash(price: number): string | null {
   const [prevPrice, setPrevPrice] = useState(price);
   const [flash, setFlash] = useState<string | null>(null);
-  if (prevPrice !== price) {
-    setPrevPrice(price);
-    setFlash(price > prevPrice ? T.green : T.red);
-  }
+
+  useEffect(() => {
+    if (prevPrice !== price) {
+      setFlash(price > prevPrice ? T.green : T.red);
+      setPrevPrice(price);
+    }
+  }, [price, prevPrice]);
+
   useEffect(() => {
     if (flash == null) return;
     const timeout = setTimeout(() => setFlash(null), 600);
     return () => clearTimeout(timeout);
-  }, [flash, price]);
+  }, [flash]);
+
   return flash;
 }
 
@@ -39,6 +45,7 @@ function MarketCardWithPrices({
   eventTicker,
   variant = "card",
 }: MarketCardProps) {
+  const minuteNow = useMinuteNow();
   const priceKey = useMarketStore(
     useShallow((s) => {
       const ev = s.events[eventTicker];
@@ -53,7 +60,7 @@ function MarketCardWithPrices({
     <MarketCardMemo
       eventTicker={eventTicker}
       variant={variant}
-      priceKey={priceKey}
+      priceKey={`${priceKey}:${minuteNow}`}
     />
   );
 }

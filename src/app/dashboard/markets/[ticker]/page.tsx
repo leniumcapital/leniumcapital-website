@@ -32,6 +32,7 @@ import {
   normalizeOutcomeProbabilities,
   shouldShowOutcomeBar,
 } from "@/lib/utils";
+import { isMarketTickerActive } from "@/lib/activeMarkets";
 
 type Direction = "yes" | "no";
 
@@ -605,7 +606,8 @@ function RelatedMarkets({
             m.category === category &&
             !exclude.has(t) &&
             m.yesPrice > 0 &&
-            m.volume > 0
+            m.volume > 0 &&
+            isMarketTickerActive(t, s.events, s.eventOrder)
           );
         })
         .sort((a, b) => s.markets[b].volume - s.markets[a].volume)

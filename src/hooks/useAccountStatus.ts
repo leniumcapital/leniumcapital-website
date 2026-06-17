@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccountStore } from "@/stores/accountStore";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
+import { reconcileCashBalance } from "@/lib/accountBalance";
 import type { AccountStatusPayload } from "@/lib/account-status";
 
 /** Fetch /api/account/status once on dashboard mount and hydrate the store. */
@@ -20,9 +21,11 @@ export function useAccountStatusSync(): boolean {
         if (cancelled) return;
         useAccountStore.getState().applyAccountStatus(data);
         syncChallengeRuleLimits();
+        reconcileCashBalance();
       } catch {
         // Session layout already seeded basics; status is best-effort.
         syncChallengeRuleLimits();
+        reconcileCashBalance();
       } finally {
         if (!cancelled) setLoaded(true);
       }

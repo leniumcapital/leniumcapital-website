@@ -161,11 +161,6 @@ function marketVolume(m: KalshiMarketRaw): number {
   return num(m.volume_fp) || num(m.volume);
 }
 
-/** @deprecated Use normalizePrimaryCategory from marketCategories. */
-export function normalizeCategory(raw: string | undefined): string {
-  return normalizePrimaryCategory(raw);
-}
-
 /** Series directories (ticker → title/tags) for subcategory detection. Cached 6h. */
 let seriesDirCache: { at: number; map: Map<string, SeriesInfo> } | null = null;
 const SERIES_DIR_TTL_MS = 6 * 3600_000;
@@ -899,7 +894,7 @@ export async function fetchMarketDetail(
     prevPrice: Math.round(num(market.previous_price_dollars) * 100),
     volume: marketVolume(market),
     volume24h: num(market.volume_24h_fp),
-    expiry: market.close_time ?? "",
+    expiry: gameTime(market) || market.close_time || "",
     status: market.status ?? "active",
     rulesPrimary: market.rules_primary ?? "",
     rulesSecondary: market.rules_secondary ?? "",

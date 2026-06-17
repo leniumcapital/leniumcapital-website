@@ -54,15 +54,3 @@ export function compareTrendingEvents(a: DashboardEvent, b: DashboardEvent): num
   if (vol24 !== 0) return vol24;
   return b.totalVolume - a.totalVolume;
 }
-
-export function sortEventTickersByTrending(
-  tickers: string[],
-  events: Record<string, DashboardEvent>,
-): string[] {
-  return [...tickers].sort((a, b) => {
-    const ea = events[a];
-    const eb = events[b];
-    if (!ea || !eb) return 0;
-    return compareTrendingEvents(ea, eb);
-  });
-}

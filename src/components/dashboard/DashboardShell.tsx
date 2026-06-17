@@ -8,13 +8,13 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
-import { TradingDrawer } from "@/components/dashboard/TradingDrawer";
 import { ChallengeStartModal } from "@/components/dashboard/ChallengeStartModal";
 import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { DashboardOnboardingModal, isOnboardingDone } from "@/components/dashboard/DashboardOnboardingModal";
 import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useAccountStatusSync } from "@/hooks/useAccountStatus";
+import { reconcileCashBalance } from "@/lib/accountBalance";
 import { syncChallengeRuleLimits } from "@/stores/challengeStore";
 import {
   useAccountStore,
@@ -44,7 +44,6 @@ import {
   T,
   TOP_BAR_HEIGHT,
   SIDEBAR_WIDTH,
-  DRAWER_WIDTH,
   MIN_VIEWPORT_WIDTH,
 } from "@/lib/tokens";
 
@@ -86,6 +85,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
       fundedTier: user.accountType === "funded" ? user.tier : 0,
     });
     syncChallengeRuleLimits();
+    reconcileCashBalance();
   }, [user]);
 
   // Apply tier + add-ons from checkout URL (?tier=25000&addons=split90,doubletime).
@@ -121,9 +121,7 @@ function ShellInner({ user, children }: DashboardShellProps) {
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
-      if (e.key === "Escape" && useUiStore.getState().drawerOpen) {
-        useUiStore.getState().closeDrawer();
-      } else if (e.key === "/") {
+      if (e.key === "/") {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -140,8 +138,6 @@ function ShellInner({ user, children }: DashboardShellProps) {
     observer.observe(document.documentElement);
     return () => observer.disconnect();
   }, []);
-
-  const drawerOpen = useUiStore((s) => s.drawerOpen);
 
   if (tooNarrow) {
     return (
@@ -202,18 +198,12 @@ function ShellInner({ user, children }: DashboardShellProps) {
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            paddingRight: drawerOpen ? DRAWER_WIDTH : 0,
-            transition: "padding-right 300ms cubic-bezier(0.32, 0.72, 0, 1)",
           }}
         >
           <RuleBanners />
           {children}
         </main>
       </div>
-
-      <ErrorBoundary name="Trading drawer">
-        <TradingDrawer />
-      </ErrorBoundary>
 
       <DashboardOnboardingModal />
       <ChallengeStartModal />

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { persist } from "zustand/middleware";
+import { reconcileCashBalance } from "@/lib/accountBalance";
 import { useMarketStore } from "@/stores/marketStore";
 
 export type Direction = "yes" | "no";
@@ -75,7 +76,13 @@ export const usePositionStore = create<PositionState>()(
 
       reset: () => set(() => ({ positions: {}, closedTrades: [] })),
     })),
-    { name: "lenium-positions" },
+    {
+      name: "lenium-positions",
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        queueMicrotask(() => reconcileCashBalance());
+      },
+    },
   ),
 );
 

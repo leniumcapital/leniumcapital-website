@@ -6,8 +6,6 @@ export type SortOrder = "volume" | "expiry" | "movement" | "newest";
 interface UIState {
   activeCategory: string;
   searchQuery: string;
-  drawerOpen: boolean;
-  selectedMarketTicker: string | null;
   viewMode: ViewMode;
   sortOrder: SortOrder;
   /** Saved scroll offset of the markets grid for back-navigation restore. */
@@ -32,8 +30,6 @@ interface UIState {
   setSearchQuery: (query: string) => void;
   setEventSearch: (query: string) => void;
   setSubCategoryFilter: (subCategory: string) => void;
-  openDrawer: (marketTicker: string) => void;
-  closeDrawer: () => void;
   setViewMode: (mode: ViewMode) => void;
   setSortOrder: (order: SortOrder) => void;
   setMarketsScrollTop: (top: number) => void;
@@ -52,8 +48,6 @@ interface UIState {
 const initial = {
   activeCategory: "Trending",
   searchQuery: "",
-  drawerOpen: false,
-  selectedMarketTicker: null as string | null,
   viewMode: "grid" as ViewMode,
   sortOrder: "volume" as SortOrder,
   marketsScrollTop: 0,
@@ -80,9 +74,6 @@ export const useUiStore = create<UIState>()((set) => ({
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setEventSearch: (eventSearch) => set({ eventSearch }),
   setSubCategoryFilter: (subCategoryFilter) => set({ subCategoryFilter }),
-  openDrawer: (selectedMarketTicker) =>
-    set({ drawerOpen: true, selectedMarketTicker, searchQuery: "" }),
-  closeDrawer: () => set({ drawerOpen: false }),
   setViewMode: (viewMode) => set({ viewMode }),
   setSortOrder: (sortOrder) => set({ sortOrder }),
   setMarketsScrollTop: (marketsScrollTop) => set({ marketsScrollTop }),
