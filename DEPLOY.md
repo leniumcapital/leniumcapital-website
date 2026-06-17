@@ -15,8 +15,8 @@ not work until they are configured.
 | `AUTH_URL` | Canonical site URL, e.g. `https://lenium.capital` |
 | `POSTGRES_PRISMA_URL` | Supabase pooler URL (port 6543) |
 | `POSTGRES_URL_NON_POOLING` | Supabase direct URL (port 5432) for migrations |
-| `GOOGLE_CLIENT_ID` | Google OAuth (optional but recommended) |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth (optional but recommended) |
+| `GOOGLE_CLIENT_ID` | **Required for Google sign-in** — without it, OAuth sends `client_id=undefined` and Google returns Error 401 |
+| `GOOGLE_CLIENT_SECRET` | **Required for Google sign-in** (pair with `GOOGLE_CLIENT_ID`) |
 
 **Optional:** `KALSHI_API_BASE`, `KALSHI_WS_TOKEN`, `TMDB_API_KEY`, `ADMIN_EMAILS`
 
@@ -35,7 +35,7 @@ In Google Cloud Console, authorize:
 
 ```bash
 curl https://lenium.capital/api/health/db
-# Expect: { "ok": true, "authSecretSet": true, "hasDbUrl": true }
+# Expect: { "ok": true, "authSecretSet": true, "googleOAuthConfigured": true, "hasDbUrl": true }
 ```
 
 Then manually verify:

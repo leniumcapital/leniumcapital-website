@@ -1,23 +1,28 @@
 import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
 import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { isGoogleOAuthConfigured } from "@/lib/auth-env";
 import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 import type { TradingMode } from "@/lib/account-status";
 
 const POST_AUTH_COOKIE = "lenium_post_auth";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt" },
-  pages: { signIn: "/signup?mode=login" },
-  providers: [
+const providers: Provider[] = [];
+
+if (isGoogleOAuthConfigured()) {
+  providers.push(
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    Credentials({
+  );
+}
+
+providers.push(
+  Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -41,7 +46,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
-  ],
+);
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
+  session: { strategy: "jwt" },
+  pages: { signIn: "/signup?mode=login" },
+  providers,
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider !== "google") return true;

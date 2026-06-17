@@ -13,6 +13,8 @@ export type AuthMode = "signup" | "login";
 type AuthPanelProps = {
   initialMode?: AuthMode;
   callbackUrl?: string;
+  /** When false, the Google button is hidden (OAuth env vars not configured). */
+  googleSignInEnabled?: boolean;
 };
 
 const inputClass =
@@ -21,6 +23,7 @@ const inputClass =
 export function AuthPanel({
   initialMode = "signup",
   callbackUrl: callbackUrlProp = "/dashboard",
+  googleSignInEnabled = false,
 }: AuthPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -125,6 +128,12 @@ export function AuthPanel({
   }
 
   async function handleGoogleSignIn() {
+    if (!googleSignInEnabled) {
+      setError(
+        "Google sign-in is not configured on this server. Use email and password, or contact support.",
+      );
+      return;
+    }
     setError("");
     setGoogleLoading(true);
     try {
@@ -184,11 +193,13 @@ export function AuthPanel({
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
-          <GoogleSignInSection
-            disabled={loading || googleLoading}
-            loading={googleLoading}
-            onSignIn={() => void handleGoogleSignIn()}
-          />
+          {googleSignInEnabled && (
+            <GoogleSignInSection
+              disabled={loading || googleLoading}
+              loading={googleLoading}
+              onSignIn={() => void handleGoogleSignIn()}
+            />
+          )}
 
           <p className="text-center text-sm text-muted">
             No account yet?{" "}
@@ -271,11 +282,13 @@ export function AuthPanel({
           {loading ? "Creating account…" : "Create account"}
         </button>
 
-        <GoogleSignInSection
-          disabled={loading || googleLoading}
-          loading={googleLoading}
-          onSignIn={() => void handleGoogleSignIn()}
-        />
+        {googleSignInEnabled && (
+          <GoogleSignInSection
+            disabled={loading || googleLoading}
+            loading={googleLoading}
+            onSignIn={() => void handleGoogleSignIn()}
+          />
+        )}
 
         <p className="text-center text-xs text-muted">
           By creating an account you agree to our Terms and Privacy Policy.
