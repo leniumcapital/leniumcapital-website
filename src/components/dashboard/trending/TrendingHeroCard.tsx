@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
@@ -10,7 +10,6 @@ import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useHeroCarouselEvents } from "@/hooks/useTrendingLayout";
-import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { HeroPriceChartLazy } from "@/components/dashboard/trending/HeroPriceChartLazy";
 import {
   fetchMarketHistoryClient,
@@ -22,7 +21,12 @@ import {
   isEventLive,
 } from "@/lib/trendingLayout";
 import { compactUsd } from "@/lib/data";
+import {
+  normalizeOutcomeProbabilities,
+  shouldShowOutcomeBar,
+} from "@/lib/utils";
 import { T } from "@/lib/tokens";
+import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 
 const AUTO_MS = 8000;
 
@@ -192,10 +196,21 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
     histories[ticker] = historyQueries[i]?.data ?? [];
   });
 
+  const livePrices = useMarketStore(
+    useShallow((s) =>
+      (s.events[eventTicker]?.outcomes ?? []).map(
+        (o) => s.markets[o.ticker]?.yesPrice ?? o.yesPrice,
+      ),
+    ),
+  );
+  const normalizedProbabilities = useMemo(
+    () => normalizeOutcomeProbabilities(livePrices),
+    [livePrices],
+  );
+
   if (!event) return null;
 
   const live = isEventLive(event.closeTime, now);
-  const maxProb = Math.max(...event.outcomes.map((o) => o.yesPrice), 1);
 
   return (
     <div
@@ -246,15 +261,28 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
       <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
         <div style={{ flex: "0 0 55%", minWidth: 0 }}>
           {event.outcomes.map((outcome, i) => (
-            <HeroOutcomeRow
+            <div
               key={outcome.ticker}
-              outcome={outcome}
-              category={event.category}
-              seriesTicker={event.seriesTicker}
-              eventTitle={event.title}
-              isLeader={outcome.yesPrice >= maxProb - 0.5}
-              showBar={i < 6}
-            />
+              style={{
+                borderBottom: T.hairline(),
+                paddingBottom: 8,
+                marginBottom: 8,
+              }}
+            >
+              <KalshiOutcomeRow
+                name={outcome.name}
+                category={event.category}
+                ticker={outcome.ticker}
+                yesPrice={outcome.yesPrice}
+                imageUrl={outcome.imageUrl}
+                seriesTicker={event.seriesTicker}
+                eventTitle={event.title}
+                index={i}
+                showBar={shouldShowOutcomeBar(event.outcomes, i)}
+                normalizedProbability={normalizedProbabilities[i]}
+                barHeight={4}
+              />
+            </div>
           ))}
           <div
             style={{
@@ -315,96 +343,6 @@ function HeroSlide({ eventTicker }: { eventTicker: string }) {
         </span>
         <span style={{ color: T.textMuted, fontSize: 13, flexShrink: 0 }}>Read more</span>
       </div>
-    </div>
-  );
-}
-
-function HeroOutcomeRow({
-  outcome,
-  category,
-  seriesTicker,
-  eventTitle,
-  isLeader,
-}: {
-  outcome: { ticker: string; name: string; yesPrice: number; imageUrl?: string };
-  category: string;
-  seriesTicker?: string;
-  eventTitle?: string;
-  isLeader: boolean;
-  showBar: boolean;
-}) {
-  const livePrice = useMarketStore(
-    (s) => s.markets[outcome.ticker]?.yesPrice ?? outcome.yesPrice,
-  );
-  const [flash, setFlash] = useState<string | null>(null);
-  const prev = useRef(livePrice);
-
-  useEffect(() => {
-    if (prev.current !== livePrice) {
-      setFlash(livePrice > prev.current ? T.green : T.red);
-      prev.current = livePrice;
-      const t = setTimeout(() => setFlash(null), 600);
-      return () => clearTimeout(t);
-    }
-  }, [livePrice]);
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        height: 44,
-        borderBottom: T.hairline(),
-      }}
-    >
-      <MarketOutcomeAvatar
-        name={outcome.name}
-        category={category}
-        directUrl={outcome.imageUrl ?? null}
-        marketTicker={outcome.ticker}
-        seriesTicker={seriesTicker}
-        eventTitle={eventTitle}
-        size={28}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: T.textPrimary, fontSize: 14 }}>{outcome.name}</div>
-        <div
-          style={{
-            marginTop: 4,
-            width: 80,
-            height: 2,
-            background: T.border,
-            borderRadius: 1,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.min(100, livePrice)}%`,
-              height: "100%",
-              background: isLeader ? T.green : T.textMuted,
-            }}
-          />
-        </div>
-      </div>
-      <motion.span
-        animate={{ color: flash ?? T.textPrimary }}
-        transition={{ duration: flash ? 0.05 : 0.5 }}
-        style={{
-          background: T.bgTertiary,
-          border: T.hairline(T.borderHover),
-          borderRadius: 6,
-          padding: "4px 12px",
-          fontSize: 14,
-          fontWeight: 600,
-          minWidth: 52,
-          textAlign: "center",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {livePrice}%
-      </motion.span>
     </div>
   );
 }

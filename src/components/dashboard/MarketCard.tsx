@@ -35,7 +35,34 @@ export interface MarketCardProps {
   variant?: "card" | "row";
 }
 
-function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
+function MarketCardWithPrices({
+  eventTicker,
+  variant = "card",
+}: MarketCardProps) {
+  const priceKey = useMarketStore(
+    useShallow((s) => {
+      const ev = s.events[eventTicker];
+      if (!ev) return "";
+      return ev.outcomes
+        .map((o) => s.markets[o.ticker]?.yesPrice ?? o.yesPrice)
+        .join(":");
+    }),
+  );
+
+  return (
+    <MarketCardMemo
+      eventTicker={eventTicker}
+      variant={variant}
+      priceKey={priceKey}
+    />
+  );
+}
+
+function MarketCardInner({
+  eventTicker,
+  variant = "card",
+  priceKey: _priceKey,
+}: MarketCardProps & { priceKey: string }) {
   const event = useMarketStore(
     useShallow((s): DashboardEvent | null => s.events[eventTicker] ?? null),
   );
@@ -171,11 +198,17 @@ function LivePricePill({
   );
 }
 
-export const MarketCard = React.memo(
+const MarketCardMemo = React.memo(
   MarketCardInner,
   (prev, next) =>
-    prev.eventTicker === next.eventTicker && prev.variant === next.variant,
+    prev.eventTicker === next.eventTicker &&
+    prev.variant === next.variant &&
+    prev.priceKey === next.priceKey,
 );
+
+export function MarketCard(props: MarketCardProps) {
+  return <MarketCardWithPrices {...props} />;
+}
 
 export function SkeletonMarketCard() {
   return (

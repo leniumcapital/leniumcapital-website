@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +27,11 @@ import { DemoModePill } from "@/components/dashboard/ModeSwitcher";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { compactUsd } from "@/lib/data";
 import { T, tradeSidePillStyle } from "@/lib/tokens";
+import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
+import {
+  normalizeOutcomeProbabilities,
+  shouldShowOutcomeBar,
+} from "@/lib/utils";
 
 type Direction = "yes" | "no";
 
@@ -296,96 +301,128 @@ function OutcomesTable({
   selectedOutcome: string;
   onPick: (ticker: string, direction: Direction) => void;
 }) {
+  const livePrices = useMarketStore(
+    useShallow((s) =>
+      outcomes.map((o) => s.markets[o.ticker]?.yesPrice ?? o.yesPrice),
+    ),
+  );
+  const storeLoaded = useMarketStore(
+    useShallow((s) => outcomes.map((o) => o.ticker in s.markets)),
+  );
+  const normalizedProbabilities = useMemo(
+    () => normalizeOutcomeProbabilities(livePrices),
+    [livePrices],
+  );
+
   return (
     <div style={{ marginTop: 24 }}>
       {outcomes.map((o, i) => {
-        const change = o.prevPrice > 0 ? o.yesPrice - o.prevPrice : 0;
+        const change = o.prevPrice > 0 ? livePrices[i] - o.prevPrice : 0;
         const selected = o.ticker === selectedOutcome;
+        const loading = !storeLoaded[i] && o.yesPrice <= 0;
         return (
           <div
             key={o.ticker}
             style={{
-              height: 52,
-              padding: "0 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
+              padding: "10px 16px",
               borderTop: i === 0 ? "none" : T.hairline(),
               background: selected ? "rgba(255,255,255,0.02)" : "transparent",
               borderRadius: selected ? 8 : 0,
             }}
           >
-            <MarketOutcomeAvatar
-              name={o.name}
-              category={category}
-              directUrl={o.imageUrl ?? null}
-              marketTicker={o.ticker}
-              size={36}
-            />
-
-            <span
-              title={o.name}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                color: T.textPrimary,
-                fontSize: 14,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {o.name}
-            </span>
-            <span
-              style={{
-                color: T.textPrimary,
-                fontSize: 18,
-                fontWeight: 600,
-                minWidth: 64,
-                textAlign: "right",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {o.yesPrice}%
-            </span>
-            <span
+            <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
-                minWidth: 56,
-                justifyContent: "flex-end",
-                color: change > 0 ? T.green : change < 0 ? T.red : T.textMuted,
-                fontSize: 12,
-                fontVariantNumeric: "tabular-nums",
+                gap: 12,
+                minHeight: 40,
               }}
             >
-              {change !== 0 &&
-                (change > 0 ? (
-                  <IconArrowUpRight size={13} stroke={1.5} />
-                ) : (
-                  <IconArrowDownRight size={13} stroke={1.5} />
-                ))}
-              {change === 0 ? "—" : `${change > 0 ? "+" : ""}${change.toFixed(1)}`}
-            </span>
-            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => onPick(o.ticker, "yes")}
-                style={tradeSidePillStyle("yes")}
+              <MarketOutcomeAvatar
+                name={o.name}
+                category={category}
+                directUrl={o.imageUrl ?? null}
+                marketTicker={o.ticker}
+                size={36}
+              />
+
+              <span
+                title={o.name}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  color: T.textPrimary,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
               >
-                Yes {o.yesPrice}¢
-              </button>
-              <button
-                type="button"
-                onClick={() => onPick(o.ticker, "no")}
-                style={tradeSidePillStyle("no")}
+                {o.name}
+              </span>
+              <span
+                style={{
+                  color: T.textPrimary,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  minWidth: 64,
+                  textAlign: "right",
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
-                No {o.noPrice}¢
-              </button>
+                {livePrices[i]}%
+              </span>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  minWidth: 56,
+                  justifyContent: "flex-end",
+                  color: change > 0 ? T.green : change < 0 ? T.red : T.textMuted,
+                  fontSize: 12,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {change !== 0 &&
+                  (change > 0 ? (
+                    <IconArrowUpRight size={13} stroke={1.5} />
+                  ) : (
+                    <IconArrowDownRight size={13} stroke={1.5} />
+                  ))}
+                {change === 0 ? "—" : `${change > 0 ? "+" : ""}${change.toFixed(1)}`}
+              </span>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => onPick(o.ticker, "yes")}
+                  style={tradeSidePillStyle("yes")}
+                >
+                  Yes {livePrices[i]}¢
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPick(o.ticker, "no")}
+                  style={tradeSidePillStyle("no")}
+                >
+                  No {100 - livePrices[i]}¢
+                </button>
+              </div>
             </div>
+
+            {shouldShowOutcomeBar(
+              outcomes.map((row) => ({ name: row.name })),
+              i,
+            ) && (
+              <div style={{ marginTop: 8, width: "100%" }}>
+                <ProbabilityBar
+                  probability={normalizedProbabilities[i]}
+                  height={5}
+                  loading={loading}
+                />
+              </div>
+            )}
           </div>
         );
       })}
