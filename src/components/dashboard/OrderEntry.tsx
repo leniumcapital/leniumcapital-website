@@ -15,6 +15,7 @@ import { useAccountRules } from "@/hooks/useAccountRules";
 import { isEligibleMarket } from "@/lib/rules";
 import { OPENING_PRICE_MIN_CENTS, OPENING_PRICE_MAX_CENTS } from "@/lib/data";
 import { T } from "@/lib/tokens";
+import { ProbabilityBar } from "@/components/dashboard/ProbabilityBar";
 
 interface OrderEntryProps {
   ticker: string;
@@ -35,6 +36,7 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
         : null;
     }),
   );
+  const hasStorePrice = useMarketStore((s) => ticker in s.markets);
   const { rules, canTrade, tradingBlockedReason, remainingExposure, remainingPosition } =
     useAccountRules();
 
@@ -117,6 +119,14 @@ export function OrderEntry({ ticker }: OrderEntryProps) {
           active={direction === "no"}
           side="no"
           onClick={() => setDirection("no")}
+        />
+      </div>
+
+      <div style={{ marginTop: 10, width: "100%" }}>
+        <ProbabilityBar
+          probability={market.yesPrice}
+          height={4}
+          loading={!hasStorePrice && market.yesPrice <= 0}
         />
       </div>
 

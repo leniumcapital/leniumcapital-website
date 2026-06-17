@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
+import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
 import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
@@ -16,6 +18,10 @@ import {
   isEventLive,
   seriesDisplayName,
 } from "@/lib/trendingLayout";
+import {
+  normalizeOutcomeProbabilities,
+  shouldShowOutcomeBar,
+} from "@/lib/utils";
 import { T } from "@/lib/tokens";
 
 export type KalshiEventCardProps = {
@@ -43,6 +49,17 @@ export function KalshiEventCard({
   const outcomes = useMemo(
     () => selectCardOutcomes(event.title, event.outcomes, event.category, maxOutcomes),
     [event.title, event.outcomes, event.category, maxOutcomes],
+  );
+
+  const livePrices = useMarketStore(
+    useShallow((s) =>
+      outcomes.map((o) => s.markets[o.ticker]?.yesPrice ?? o.yesPrice),
+    ),
+  );
+
+  const normalizedProbabilities = useMemo(
+    () => normalizeOutcomeProbabilities(livePrices),
+    [livePrices],
   );
 
   const openDetail = () => {
@@ -200,6 +217,8 @@ export function KalshiEventCard({
             seriesTicker={event.seriesTicker}
             eventTitle={event.title}
             index={i}
+            showBar={shouldShowOutcomeBar(outcomes, i)}
+            normalizedProbability={normalizedProbabilities[i]}
           />
         ))}
       </div>
