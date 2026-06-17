@@ -40,11 +40,14 @@ function usePillFlash(price: number): string | null {
 export interface MarketCardProps {
   eventTicker: string;
   variant?: "card" | "row";
+  /** When false, rows are display-only (no navigation). */
+  interactive?: boolean;
 }
 
 function MarketCardWithPrices({
   eventTicker,
   variant = "card",
+  interactive = true,
 }: MarketCardProps) {
   const minuteNow = useMinuteNow();
   const priceKey = useMarketStore(
@@ -61,6 +64,7 @@ function MarketCardWithPrices({
     <MarketCardMemo
       eventTicker={eventTicker}
       variant={variant}
+      interactive={interactive}
       priceKey={`${priceKey}:${minuteNow}`}
     />
   );
@@ -69,6 +73,7 @@ function MarketCardWithPrices({
 function MarketCardInner({
   eventTicker,
   variant = "card",
+  interactive = true,
   priceKey: _priceKey,
 }: MarketCardProps & { priceKey: string }) {
   const event = useMarketStore(
@@ -91,7 +96,8 @@ function MarketCardInner({
         event={event}
         hovered={hovered}
         onHover={setHovered}
-        onOpen={openDetail}
+        onOpen={interactive ? openDetail : () => {}}
+        interactive={interactive}
       />
     );
   }
@@ -112,11 +118,13 @@ function MarketCardRow({
   hovered,
   onHover,
   onOpen,
+  interactive = true,
 }: {
   event: DashboardEvent;
   hovered: boolean;
   onHover: (v: boolean) => void;
   onOpen: () => void;
+  interactive?: boolean;
 }) {
   const top = event.outcomes[0];
   const livePrice = useMarketStore(
@@ -125,7 +133,7 @@ function MarketCardRow({
 
   return (
     <div
-      onClick={onOpen}
+      onClick={interactive ? onOpen : undefined}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       style={{
@@ -134,9 +142,9 @@ function MarketCardRow({
         gap: 6,
         padding: "10px 16px",
         background: T.bgSecondary,
-        border: T.hairline(hovered ? T.borderHover : T.border),
+        border: T.hairline(hovered && interactive ? T.borderHover : T.border),
         borderRadius: 10,
-        cursor: "pointer",
+        cursor: interactive ? "pointer" : "default",
         transition: `border-color ${T.transition}`,
         fontFamily: T.font,
       }}
@@ -216,6 +224,7 @@ const MarketCardMemo = React.memo(
   (prev, next) =>
     prev.eventTicker === next.eventTicker &&
     prev.variant === next.variant &&
+    prev.interactive === next.interactive &&
     prev.priceKey === next.priceKey,
 );
 

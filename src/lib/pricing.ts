@@ -639,43 +639,43 @@ export type FAQ = { q: string; a: string };
 export const FAQS: FAQ[] = [
   {
     q: "What is Lenium?",
-    a: "Lenium is a prediction market proprietary trading firm. We fund skilled traders to trade event contracts on Kalshi using our capital. Traders prove their skill through a paid evaluation challenge and receive a funded account when they pass.",
+    a: "Lenium is a prediction market prop firm that funds traders on Kalshi using our capital. Pass a paid evaluation challenge to receive a funded account.",
   },
   {
     q: "Is Lenium regulated?",
-    a: "Lenium operates as an evaluation services company. The underlying trading infrastructure is provided by Kalshi, a CFTC-licensed Designated Contract Market — the highest level of US regulatory approval for a prediction market platform. Lenium itself is not a broker-dealer or investment adviser and does not require those registrations.",
+    a: "Lenium is an evaluation services company. Trading runs on Kalshi, a CFTC-licensed Designated Contract Market.",
   },
   {
     q: "Is this available in all 50 states?",
-    a: "Yes. Lenium is built exclusively on Kalshi, which is available in all 50 US states and requires no cryptocurrency wallet or blockchain interaction.",
+    a: "Yes. Kalshi is available in all 50 US states with no crypto wallet required.",
   },
   {
     q: "How does the challenge work?",
-    a: "You purchase an evaluation account at your chosen tier and trade prediction market contracts on a simulated account that mirrors live Kalshi prices. Hit your 20% profit target within 30 days without breaching the 10% static drawdown floor, while respecting position size, exposure, price range, and consistency rules — and you receive a funded account.",
+    a: "Purchase an evaluation tier and trade a simulated account mirroring live Kalshi prices. Hit a 20% profit target within 30 days without breaching the 10% drawdown floor.",
   },
   {
     q: "What happens when I pass?",
-    a: "You sign a trader agreement and receive access to a funded Lenium sub-account on Kalshi with real capital equal to your challenge size. You trade live markets and earn a share of your profits on a 7-business-day payout cycle.",
+    a: "You sign a trader agreement and receive a funded Kalshi sub-account with real capital at your challenge size.",
   },
   {
     q: "What is the profit split?",
-    a: "The default split is 70% to you, 30% to Lenium. Add the 90% profit split add-on at purchase to lock in 90/10 permanently — the highest split available from any CFTC-regulated prediction market prop firm.",
+    a: "The default split is 70/30. Add the 90% profit split add-on at purchase to lock in 90/10 permanently.",
   },
   {
     q: "What if I fail the challenge?",
-    a: "Your account is closed after a drawdown breach or expiry. You may reset at the discounted reset fee for your tier and begin a new challenge immediately at the same account size.",
+    a: "Your account closes after a breach or expiry. Reset at the discounted reset fee for your tier and start again.",
   },
   {
     q: "Can I trade any Kalshi market?",
-    a: "You can trade any eligible Kalshi market that resolves within 60 days and has a YES price between 15¢ and 85¢. Position size (5%), total exposure (10%), drawdown, and consistency rules also apply.",
+    a: "Trade eligible markets resolving within 60 days with YES prices between 15¢ and 85¢, within position and exposure limits.",
   },
   {
     q: "What happens if I am inactive on a funded account?",
-    a: "A funded account with no trades opened for 30 consecutive calendar days is terminated. Lenium sends a warning at 20 consecutive days of inactivity, giving you 10 days to place at least one trade before termination.",
+    a: "No trades for 30 consecutive days terminates a funded account. A warning goes out at 20 days of inactivity.",
   },
   {
     q: "How are payouts processed?",
-    a: "Funded account payouts are processed via ACH bank transfer within 7 business days of each request. The minimum payout is 2% of your starting account balance. Add the 3-day fast payout add-on to reduce processing to 3 business days. A 1% commission applies to opening transactions on funded accounts only.",
+    a: "Request a payout anytime your balance exceeds the 2% minimum. Standard processing is 7 business days; the fast payout add-on cuts that to 3.",
   },
 ];
 

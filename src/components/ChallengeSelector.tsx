@@ -5,20 +5,21 @@ import {
   useEffect,
   useMemo,
   useState,
-  type KeyboardEvent,
 } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast, Toaster } from "sonner";
 import { Card, PillBadge } from "@/components/ui";
+import {
+  AddonRow,
+  TierPillGrid,
+} from "@/components/pricing/ChallengePickerParts";
 import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 import {
   TIERS,
   ADDONS,
   SPLIT_ADDON_IDS,
   computePrice,
-  addonPrice,
   formatUsd,
-  formatTierCompact,
   formatPct,
   getTierBySize,
   getDefaultTier,
@@ -28,7 +29,6 @@ import {
   profitNeededUsd,
   safetyLimitUsd,
   resetSavingsUsd,
-  PAYOUT_CYCLE_DAYS,
   formatChallengeTimeLimit,
   payoutCycleDays,
   type AddonId,
@@ -143,41 +143,11 @@ export function ChallengeSelector({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
               Account size
             </h2>
-            <div
-              className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3"
-              role="tablist"
-              aria-label="Account size tiers"
-            >
-              {TIERS.map((t) => {
-                const active = t.size === selectedSize;
-                return (
-                  <button
-                    key={t.size}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    aria-label={`${formatUsd(t.size)}, ${formatUsd(t.fee)}`}
-                    onClick={() => setSelectedSize(t.size)}
-                    className={`relative rounded-xl border px-3 py-3 text-center transition-colors ${
-                      active
-                        ? "border-brand bg-brand-soft"
-                        : "border-border bg-background hover:border-brand/40"
-                    }`}
-                  >
-                    {t.popular && (
-                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#04130b]">
-                        Popular
-                      </span>
-                    )}
-                    <div className="text-base font-semibold tracking-tight tabular-nums">
-                      {formatTierCompact(t.size)}
-                    </div>
-                    <div className="mt-0.5 text-xs tabular-nums text-muted">
-                      {formatUsd(t.fee)}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="mt-3">
+              <TierPillGrid
+                selectedSize={selectedSize}
+                onSelect={setSelectedSize}
+              />
             </div>
           </section>
 
@@ -288,79 +258,6 @@ function TierRulesCard({
         {formatUsd(savings)} vs buying fresh).
       </p>
     </Card>
-  );
-}
-
-function AddonRow({
-  addon,
-  baseFee,
-  selected,
-  onToggle,
-}: {
-  addon: (typeof ADDONS)[number];
-  baseFee: number;
-  selected: boolean;
-  onToggle: () => void;
-}) {
-  const linePrice = addonPrice(addon, baseFee);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      onToggle();
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={selected}
-      aria-label={`${addon.name}, +${formatUsd(linePrice)}`}
-      onClick={onToggle}
-      onKeyDown={onKeyDown}
-      className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
-        selected
-          ? "border-brand bg-brand-soft"
-          : "border-border bg-background hover:border-brand/40"
-      }`}
-    >
-      <span
-        className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border ${
-          selected
-            ? "border-brand bg-brand text-[#04130b]"
-            : "border-border bg-surface"
-        }`}
-        aria-hidden
-      >
-        {selected && (
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-2">
-          <span className="font-medium">
-            {addon.name}
-            {addon.badge && (
-              <span className="ml-1 text-brand-strong">{addon.badge}</span>
-            )}
-          </span>
-          <span className="shrink-0 font-semibold">+{formatUsd(linePrice)}</span>
-        </span>
-        <span className="mt-1 block text-sm text-muted">{addon.description}</span>
-      </span>
-    </button>
   );
 }
 
