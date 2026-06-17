@@ -48,6 +48,9 @@ export function AuthPanel({
   useEffect(() => {
     const authError = searchParams.get("error");
     if (!authError) return;
+    if (authError === "CredentialsSignin") {
+      setMode("login");
+    }
     setError(describeAuthError(authError));
   }, [searchParams]);
 
@@ -385,7 +388,7 @@ function describeAuthError(code: string): string {
     case "AccessDenied":
       return "Google sign-in was cancelled or denied. Try again or use email and password.";
     case "Configuration":
-      return "Sign-in is misconfigured on the server. Contact support if this continues.";
+      return "Sign-in failed due to a domain or cookie mismatch. Try again in a private window, or use email sign-up below.";
     case "OAuthAccountNotLinked":
       return "This email is already registered with a password. Log in with email and password instead.";
     case "OAuthSignin":

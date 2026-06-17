@@ -1,7 +1,11 @@
 import "server-only";
 
-/** Production canonical origin — used when AUTH_URL is missing or still set to localhost. */
-export const PRODUCTION_AUTH_URL = "https://lenium.capital";
+/**
+ * Canonical production origin — must match the domain users actually land on.
+ * Vercel redirects lenium.capital → www.lenium.capital, so auth cookies and
+ * Google OAuth redirect URIs must use www or state validation fails.
+ */
+export const PRODUCTION_AUTH_URL = "https://www.lenium.capital";
 
 /** True when Google OAuth credentials are present and non-empty. */
 export function isGoogleOAuthConfigured(): boolean {
@@ -18,10 +22,22 @@ function isLocalhostUrl(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
 
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/$/, "");
+}
+
 /** Raw value from env — may be wrong on Vercel if copied from .env.local. */
 export function getConfiguredAuthUrl(): string | undefined {
   const url = process.env.AUTH_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
   return url || undefined;
+}
+
+/** True when AUTH_URL uses apex but production canonical host is www. */
+export function isAuthUrlOnWrongProductionHost(): boolean {
+  const configured = getConfiguredAuthUrl();
+  if (!configured || !isProductionDeploy()) return false;
+  const normalized = stripTrailingSlash(configured);
+  return normalized === "https://lenium.capital";
 }
 
 /**
@@ -35,10 +51,13 @@ export function resolveAuthUrl(): string {
     if (!configured || isLocalhostUrl(configured)) {
       return PRODUCTION_AUTH_URL;
     }
-    return configured.replace(/\/$/, "");
+    if (isAuthUrlOnWrongProductionHost()) {
+      return PRODUCTION_AUTH_URL;
+    }
+    return stripTrailingSlash(configured);
   }
 
-  return configured?.replace(/\/$/, "") ?? "http://localhost:3000";
+  return configured ? stripTrailingSlash(configured) : "http://localhost:3000";
 }
 
 /** @deprecated Use resolveAuthUrl() — kept for callers expecting optional string. */
@@ -75,7 +94,12 @@ export function authConfigIssues(): string[] {
   }
   if (isProductionDeploy() && configured && isLocalhostUrl(configured)) {
     issues.push(
-      "AUTH_URL is set to localhost on production — update Vercel to https://lenium.capital",
+      "AUTH_URL is set to localhost on production — update Vercel to https://www.lenium.capital",
+    );
+  }
+  if (isAuthUrlOnWrongProductionHost()) {
+    issues.push(
+      "AUTH_URL uses https://lenium.capital but the site redirects to www — set AUTH_URL=https://www.lenium.capital",
     );
   }
   return issues;
@@ -83,5 +107,6 @@ export function authConfigIssues(): string[] {
 
 export function isAuthUrlMisconfiguredOnProduction(): boolean {
   const configured = getConfiguredAuthUrl();
-  return isProductionDeploy() && Boolean(configured && isLocalhostUrl(configured));
+  if (!isProductionDeploy() || !configured) return false;
+  return isLocalhostUrl(configured) || isAuthUrlOnWrongProductionHost();
 }

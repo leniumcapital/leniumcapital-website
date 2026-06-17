@@ -12,7 +12,7 @@ not work until they are configured.
 | Variable | Purpose |
 |----------|---------|
 | `AUTH_SECRET` | JWT session signing (`openssl rand -base64 32`) |
-| `AUTH_URL` | **Required in production** — must be `https://lenium.capital` (never `http://localhost:3000`). The app auto-corrects localhost on Vercel, but you should fix the env var. |
+| `AUTH_URL` | **Required in production** — must be `https://www.lenium.capital` (the site redirects apex → www; using `https://lenium.capital` breaks Google OAuth cookies). |
 | `POSTGRES_PRISMA_URL` | Supabase pooler URL (port 6543) |
 | `POSTGRES_URL_NON_POOLING` | Supabase direct URL (port 5432) for migrations |
 | `GOOGLE_CLIENT_ID` | **Required for Google sign-in** — without it, OAuth sends `client_id=undefined` and Google returns Error 401 |
@@ -24,10 +24,10 @@ Copy `.env.example` for the full list.
 
 ### Google OAuth redirect URIs
 
-In Google Cloud Console, authorize:
+In Google Cloud Console, authorize **both** apex and www (Vercel redirects to www):
 
-- **JavaScript origins:** `https://lenium.capital`, `http://localhost:3000`
-- **Redirect URIs:** `https://lenium.capital/api/auth/callback/google`
+- **JavaScript origins:** `https://www.lenium.capital`, `https://lenium.capital`, `http://localhost:3000`
+- **Redirect URIs:** `https://www.lenium.capital/api/auth/callback/google`, `https://lenium.capital/api/auth/callback/google`
 
 ---
 

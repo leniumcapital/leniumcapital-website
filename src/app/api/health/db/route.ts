@@ -6,6 +6,7 @@ import {
   isAuthFullyConfigured,
   isAuthSecretConfigured,
   isAuthUrlMisconfiguredOnProduction,
+  isAuthUrlOnWrongProductionHost,
   isGoogleOAuthConfigured,
   resolveAuthUrl,
 } from "@/lib/auth-env";
@@ -16,6 +17,7 @@ export async function GET() {
   const authUrlConfigured = getConfiguredAuthUrl();
   const authUrlEffective = resolveAuthUrl();
   const authUrlMisconfigured = isAuthUrlMisconfiguredOnProduction();
+  const authUrlWrongHost = isAuthUrlOnWrongProductionHost();
   const authFullyConfigured = isAuthFullyConfigured();
   const googleOAuthConfigured = isGoogleOAuthConfigured();
   const authIssues = authConfigIssues();
@@ -34,6 +36,7 @@ export async function GET() {
       authUrlConfigured: authUrlConfigured ?? null,
       authUrlEffective,
       authUrlMisconfigured,
+      authUrlWrongHost,
       authFullyConfigured,
       authIssues,
       googleOAuthConfigured,
@@ -56,6 +59,7 @@ export async function GET() {
         authUrlConfigured: authUrlConfigured ?? null,
         authUrlEffective,
         authUrlMisconfigured,
+        authUrlWrongHost,
         authFullyConfigured,
         authIssues,
         googleOAuthConfigured,

@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
-import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import {
@@ -15,8 +14,6 @@ import { safeCallbackUrl } from "@/lib/callback-url";
 
 // Auth.js reads AUTH_URL when building OAuth sign-in/callback URLs exposed to the client.
 syncAuthUrlEnv();
-
-const POST_AUTH_COOKIE = "lenium_post_auth";
 
 type GoogleProfile = {
   email?: string | null;
@@ -48,6 +45,7 @@ if (isGoogleOAuthConfigured()) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
@@ -87,7 +85,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...(authSecret ? { secret: authSecret } : {}),
   session: { strategy: "jwt" },
   pages: {
-    signIn: "/signup?mode=login",
+    // Do not embed query strings — Auth.js appends ?error= with a second "?" otherwise.
+    signIn: "/signup",
     error: "/signup",
   },
   providers,
@@ -127,7 +126,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return true;
     },
-    jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      if (user && account?.provider === "google") {
+        const googleProfile = profile as GoogleProfile | undefined;
+        const email = user.email ?? googleProfile?.email;
+        if (email) {
+          try {
+            const result = await upsertGoogleUser({
+              email,
+              name: user.name ?? googleProfile?.name,
+              image: user.image ?? googleProfile?.picture,
+            });
+            applySessionUserToToken(token, result.user, result.isNewUser);
+            return token;
+          } catch (error) {
+            console.error("Google jwt user load failed (using signIn payload):", error);
+          }
+        }
+      }
+
       if (user) {
         applySessionUserToToken(
           token,
@@ -201,49 +218,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      let safePostAuth: string | null = null;
+    redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        // Auth error/success pages must pass through (safeCallbackUrl blocks /signup).
+        if (url.startsWith("/signup")) return `${baseUrl}${url}`;
+        return `${baseUrl}${safeCallbackUrl(url, "/dashboard")}`;
+      }
+
       try {
-        const cookieStore = await cookies();
-        const postAuth = cookieStore.get(POST_AUTH_COOKIE)?.value;
-        safePostAuth = postAuth ? safeCallbackUrl(postAuth) : null;
-        if (postAuth) {
-          try {
-            cookieStore.delete(POST_AUTH_COOKIE);
-          } catch (error) {
-            console.warn("Could not clear post-auth cookie during redirect:", error);
-          }
+        const parsed = new URL(url);
+        if (parsed.origin === baseUrl) {
+          const path = `${parsed.pathname}${parsed.search}`;
+          if (path.startsWith("/signup")) return url;
+          return `${baseUrl}${safeCallbackUrl(path, "/dashboard")}`;
         }
-      } catch (error) {
-        console.warn("Post-auth cookie unavailable during redirect:", error);
+      } catch {
+        /* ignore */
       }
 
-      const pathFromUrl = (() => {
-        if (url.startsWith("/")) return url;
-        try {
-          const parsed = new URL(url);
-          if (parsed.origin === baseUrl) {
-            return `${parsed.pathname}${parsed.search}`;
-          }
-        } catch {
-          /* ignore */
-        }
-        return "/";
-      })();
-
-      const isGenericLanding =
-        pathFromUrl === "/" ||
-        pathFromUrl === "/dashboard" ||
-        pathFromUrl.startsWith("/signup");
-
-      // Fallback when OAuth loses the checkout callbackUrl (pricing → signup → Google).
-      if (safePostAuth && isGenericLanding) {
-        return `${baseUrl}${safePostAuth}`;
-      }
-
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
+      return `${baseUrl}/dashboard`;
     },
   },
 });
