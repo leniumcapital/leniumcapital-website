@@ -170,6 +170,19 @@ export type GoogleUpsertResult = {
   isNewUser: boolean;
 };
 
+/** Load trading accounts without failing Google/email sign-in on schema drift. */
+async function loadTradingAccountsForUser(userId: string) {
+  try {
+    return await prisma.tradingAccount.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch (error) {
+    console.error("Could not load trading accounts during sign-in:", error);
+    return [];
+  }
+}
+
 /** Create or update a user from a Google OAuth profile. */
 export async function upsertGoogleUser(profile: {
   email: string;
@@ -186,9 +199,6 @@ export async function upsertGoogleUser(profile: {
 
   const existing = await prisma.user.findUnique({
     where: { email: normalized },
-    include: {
-      accounts: { orderBy: { updatedAt: "desc" } },
-    },
   });
 
   if (existing) {
@@ -198,16 +208,13 @@ export async function upsertGoogleUser(profile: {
         name: displayName,
         avatarUrl: profile.image ?? existing.avatarUrl,
       },
-      include: {
-        accounts: { orderBy: { updatedAt: "desc" } },
-      },
     });
 
-    const primary =
-      updated.accounts.find((a) => a.isPrimary) ?? updated.accounts[0] ?? null;
+    const accounts = await loadTradingAccountsForUser(updated.id);
+    const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
     return {
-      user: toSessionPayload(updated, primary, updated.accounts),
+      user: toSessionPayload(updated, primary, accounts),
       isNewUser: false,
     };
   }
@@ -217,9 +224,6 @@ export async function upsertGoogleUser(profile: {
       email: normalized,
       name: displayName,
       avatarUrl: profile.image ?? null,
-    },
-    include: {
-      accounts: { orderBy: { updatedAt: "desc" } },
     },
   });
 

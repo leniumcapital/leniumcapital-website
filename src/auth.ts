@@ -58,32 +58,46 @@ providers.push(
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
-  pages: { signIn: "/signup?mode=login" },
+  pages: {
+    signIn: "/signup?mode=login",
+    error: "/signup",
+  },
   providers,
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
 
-      const email = user.email;
-      if (!email) return false;
+      const googleProfile = profile as
+        | { email?: string | null; email_verified?: boolean }
+        | undefined;
+      const email = user.email ?? googleProfile?.email ?? null;
+      if (!email) {
+        console.error("Google sign-in rejected: profile did not include an email.");
+        return "/signup?error=AccessDenied";
+      }
 
-      const result = await upsertGoogleUser({
-        email,
-        name: user.name,
-        image: user.image,
-      });
+      try {
+        const result = await upsertGoogleUser({
+          email,
+          name: user.name,
+          image: user.image,
+        });
 
-      user.id = result.user.id;
-      user.name = result.user.name;
-      user.email = result.user.email;
-      user.accountType = result.user.accountType;
-      user.tier = result.user.tier;
-      user.challengeStatus = result.user.challengeStatus;
-      user.balance = result.user.balance;
-      user.hasActiveChallenge = result.user.hasActiveChallenge;
-      user.hasFundedAccount = result.user.hasFundedAccount;
-      user.tradingMode = result.user.tradingMode;
-      user.isNewUser = result.isNewUser;
+        user.id = result.user.id;
+        user.name = result.user.name;
+        user.email = result.user.email;
+        user.accountType = result.user.accountType;
+        user.tier = result.user.tier;
+        user.challengeStatus = result.user.challengeStatus;
+        user.balance = result.user.balance;
+        user.hasActiveChallenge = result.user.hasActiveChallenge;
+        user.hasFundedAccount = result.user.hasFundedAccount;
+        user.tradingMode = result.user.tradingMode;
+        user.isNewUser = result.isNewUser;
+      } catch (error) {
+        console.error("Google sign-in database error:", error);
+        return "/signup?error=OAuthCallback";
+      }
 
       return true;
     },
