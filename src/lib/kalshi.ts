@@ -22,6 +22,7 @@ import {
   detectSubCategory,
   type SeriesInfo,
 } from "@/lib/marketCategories";
+import { selectCardOutcomes } from "@/lib/outcomeName";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -336,6 +337,34 @@ function validContracts(
   return out;
 }
 
+function contractLabel(c: ValidContract): string {
+  return c.raw.yes_sub_title || c.raw.title || c.ticker;
+}
+
+/** Map selectCardOutcomes tickers back to full contract rows. */
+function selectFavoredContracts(
+  contracts: ValidContract[],
+  title: string,
+  category: string,
+  max: number,
+): ValidContract[] {
+  const rows = selectCardOutcomes(
+    title,
+    contracts.map((c) => ({
+      ticker: c.ticker,
+      name: contractLabel(c),
+      yesPrice: c.yesPrice,
+      volume: c.volume,
+    })),
+    category,
+    max,
+  );
+  const byTicker = new Map(contracts.map((c) => [c.ticker, c]));
+  return rows
+    .map((r) => byTicker.get(r.ticker))
+    .filter((c): c is ValidContract => c != null);
+}
+
 /** Cached event metadata (title/category/series) — changes ~never. */
 const eventMetaCache = new Map<
   string,
@@ -637,13 +666,17 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const looksLikeLadder =
       contracts.length > 6 &&
       contracts.filter((c) => c.yesPrice >= 97).length >= 3;
-    const favored = [...contracts]
-      .sort(
-        looksLikeLadder
-          ? (a, b) => b.volume - a.volume || b.volume24h - a.volume24h
-          : (a, b) => b.yesPrice - a.yesPrice || b.volume - a.volume,
-      )
-      .slice(0, OUTCOMES_PER_EVENT_CARD);
+
+    const favored = looksLikeLadder
+      ? [...contracts]
+          .sort((a, b) => b.volume - a.volume || b.volume24h - a.volume24h)
+          .slice(0, OUTCOMES_PER_EVENT_CARD)
+      : selectFavoredContracts(
+          contracts,
+          ev.title ?? "",
+          category,
+          OUTCOMES_PER_EVENT_CARD,
+        );
 
     const totalVolume = contracts.reduce((sum, c) => sum + c.volume, 0);
     const volume24h = contracts.reduce((sum, c) => sum + c.volume24h, 0);

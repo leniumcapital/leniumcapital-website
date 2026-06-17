@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useUiStore } from "@/stores/uiStore";
@@ -7,6 +8,7 @@ import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { seriesIconDirectUrl } from "@/lib/seriesIcon";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import { selectCardOutcomes } from "@/lib/outcomeName";
 import {
   formatCloseLabelKalshi,
   formatMarketCountLabel,
@@ -38,7 +40,10 @@ export function KalshiEventCard({
   const live = isEventLive(event.closeTime, now);
   const seriesLabel = seriesDisplayName(event.seriesTicker, event);
   const seriesIcon = seriesIconDirectUrl(event.seriesTicker);
-  const outcomes = event.outcomes.slice(0, maxOutcomes);
+  const outcomes = useMemo(
+    () => selectCardOutcomes(event.title, event.outcomes, event.category, maxOutcomes),
+    [event.title, event.outcomes, event.category, maxOutcomes],
+  );
 
   const openDetail = () => {
     const main = document.getElementById("lenium-main");
