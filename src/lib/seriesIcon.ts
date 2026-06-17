@@ -10,6 +10,9 @@ const SERIES_OVERRIDES: Record<string, string> = {
   KXATPMATCH: `${KALSHI_CDN}/override_images/sports/Tennis-ATP.webp`,
   KXUCLGAME: `${KALSHI_CDN}/override_images/sports/Soccer-UEFA.webp`,
   KXEPLGAME: `${KALSHI_CDN}/override_images/sports/Soccer-EPL.webp`,
+  KXWCGAME: `${KALSHI_CDN}/override_images/sports/Soccer-FIFA.webp`,
+  KXUFCFIGHT: `${KALSHI_CDN}/override_images/sports/MMA-UFC.webp`,
+  KXSOCCER: `${KALSHI_CDN}/override_images/sports/Soccer-FIFA.webp`,
   KXPRESNOMD: `${KALSHI_CDN}/override_images/core/Democratic.webp`,
   KXPRESNOMR: `${KALSHI_CDN}/override_images/core/Republican.webp`,
 };

@@ -1,11 +1,12 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { IconBallFootball, IconChevronRight } from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
+import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { CompactMarketList } from "@/components/dashboard/trending/CompactMarketList";
 import {
   useSidebarHighestVolume,
@@ -21,14 +22,21 @@ import {
   shortcutMatchesEvent,
   type FeaturedEventShortcut,
 } from "@/lib/featuredEvents";
+import { resolveEventIcon, resolvePanelShortcutIcon } from "@/lib/eventIcon";
 import { T } from "@/lib/tokens";
 
 export const TrendingRightSidebar = memo(function TrendingRightSidebar() {
   const sections = useTrendingSeriesSections();
-  const shortcuts = useMemo(
-    () => [...HARDCODED_SHORTCUTS, ...buildDynamicShortcuts(sections)],
-    [sections],
-  );
+  const shortcuts = useMemo(() => {
+    const enriched = sections.map((sec) => {
+      const ev = useMarketStore.getState().events[sec.eventTickers[0]];
+      return {
+        ...sec,
+        category: ev?.category ?? "Sports",
+      };
+    });
+    return [...HARDCODED_SHORTCUTS, ...buildDynamicShortcuts(enriched)];
+  }, [sections]);
 
   return (
     <aside
@@ -142,24 +150,10 @@ function ShortcutCard({
             display: "grid",
             placeItems: "center",
             flexShrink: 0,
+            overflow: "hidden",
           }}
         >
-          {shortcut.iconType === "soccer" && (
-            <IconBallFootball size={22} color="#fff" stroke={1.5} />
-          )}
-          {shortcut.iconType === "flag-us" && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="https://flagcdn.com/w40/us.png"
-              alt=""
-              width={28}
-              height={20}
-              style={{ borderRadius: 2, objectFit: "cover" }}
-            />
-          )}
-          {shortcut.iconType === "category" && (
-            <span style={{ color: "#fff", fontSize: 18 }}>📊</span>
-          )}
+          <ShortcutIcon shortcut={shortcut} />
         </div>
         <div>
           <div style={{ color: T.textPrimary, fontSize: 14, fontWeight: 600 }}>
@@ -175,6 +169,59 @@ function ShortcutCard({
       <IconChevronRight size={18} color="rgba(255,255,255,0.4)" stroke={1.5} />
     </motion.button>
   );
+}
+
+function ShortcutIcon({ shortcut }: { shortcut: FeaturedEventShortcut }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const icon = resolvePanelShortcutIcon(
+    shortcut.seriesFilter,
+    shortcut.displayName,
+    shortcut.category,
+    imgFailed ? null : shortcut.iconUrl,
+  );
+
+  if (icon.kind === "url" && icon.url && !imgFailed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={icon.url}
+        alt=""
+        width={28}
+        height={28}
+        onError={() => setImgFailed(true)}
+        style={{ objectFit: "contain", borderRadius: 4 }}
+      />
+    );
+  }
+
+  if (icon.kind === "tabler" && icon.Icon) {
+    const Icon = icon.Icon;
+    return <Icon size={22} color={icon.iconColor ?? "#fff"} stroke={1.5} />;
+  }
+
+  if (icon.kind === "avatar" && icon.avatarName) {
+    return (
+      <MarketOutcomeAvatar
+        name={icon.avatarName}
+        category={icon.avatarCategory ?? shortcut.category}
+        seriesTicker={shortcut.seriesFilter}
+        size={28}
+      />
+    );
+  }
+
+  const fallback = resolveEventIcon(
+    shortcut.seriesFilter,
+    shortcut.displayName,
+    shortcut.category,
+    null,
+  );
+  if (fallback.Icon) {
+    const Icon = fallback.Icon;
+    return <Icon size={22} color={fallback.iconColor ?? "#fff"} stroke={1.5} />;
+  }
+
+  return null;
 }
 
 const SidebarTrendingList = memo(function SidebarTrendingList() {
