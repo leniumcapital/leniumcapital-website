@@ -3,7 +3,7 @@
 /**
  * Global Kalshi market data provider.
  *
- * Mirrors Kalshi's open catalog every ~12s: new polls appear in the right
+ * Mirrors Kalshi's open catalog every ~8s: new polls appear in the right
  * category, resolved events drop off, trending re-ranks by 24h volume.
  * Optional WebSocket supplements price ticks between catalog syncs.
  */
@@ -131,6 +131,9 @@ function KalshiFeed(): null {
         resubscribeWs();
       } catch {
         onFeedFailure();
+      } finally {
+        // Drop finished cards even when Kalshi is slow or the catalog fetch fails.
+        useMarketStore.getState().pruneFinishedEvents();
       }
     }
 

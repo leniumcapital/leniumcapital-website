@@ -223,6 +223,7 @@ export const useMarketStore = create<MarketState>()(
         const now = Date.now();
         const activeEvents = filterActiveEvents(events, now);
         applyCatalogSnapshot(s, activeEvents, markets);
+        pruneExpiredEventsFromState(s, now);
       }),
 
     pruneFinishedEvents: () =>

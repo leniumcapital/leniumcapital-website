@@ -27,6 +27,7 @@ import {
   FINISHED_EVENT_GRACE_MS,
   isSportsGameSeries,
   KALSHI_SERVER_CACHE_MS,
+  SPORTS_FINISHED_GRACE_MS,
 } from "@/lib/marketSync";
 
 const KALSHI_BASE =
@@ -232,7 +233,7 @@ const SPORTS_GAME_SERIES = [
 ];
 const SPORTS_GAME_HORIZON_H = 7 * 24;
 // Keep games whose expected end passed recently — overtime runs long.
-const SPORTS_GAME_GRACE_H = 6;
+const SPORTS_GAME_GRACE_H = 1.5;
 
 /** When the underlying game actually happens. close_time on sports markets
  * is the settlement deadline — often weeks after the final whistle. */
@@ -257,7 +258,7 @@ async function fetchSportsGameMarkets(): Promise<KalshiMarketRaw[]> {
         fetchJson<{ markets?: KalshiMarketRaw[] }>(
           `${KALSHI_BASE}/markets?limit=200&status=open&series_ticker=${series}`,
           8000,
-          { next: { revalidate: 60 } },
+          { next: { revalidate: 5 } },
         ),
       ),
     );
@@ -472,7 +473,7 @@ async function fetchNearTermMarketsByEvent(): Promise<
           `${KALSHI_BASE}/markets?limit=1000&status=open` +
             `&min_close_ts=${nowS + startH * 3600}&max_close_ts=${nowS + endH * 3600}`,
           8000,
-          { next: { revalidate: 30 } },
+          { next: { revalidate: 5 } },
         ),
       ),
     );
@@ -616,7 +617,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const data = await fetchJson<{
       events?: KalshiEventRaw[];
       cursor?: string;
-    }>(url, 8000, { next: { revalidate: 15 } });
+    }>(url, 8000, { next: { revalidate: 5 } });
     if (!data?.events?.length) break;
     rawEvents.push(...data.events);
     cursor = data.cursor;
@@ -698,10 +699,10 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
     // Skip finished events — past cards should not linger on the site.
     const closeMs = new Date(closeTime).getTime();
-    if (
-      Number.isFinite(closeMs) &&
-      Date.now() > closeMs + FINISHED_EVENT_GRACE_MS
-    ) {
+    const graceMs = isGame
+      ? SPORTS_FINISHED_GRACE_MS
+      : FINISHED_EVENT_GRACE_MS;
+    if (Number.isFinite(closeMs) && Date.now() > closeMs + graceMs) {
       continue;
     }
 

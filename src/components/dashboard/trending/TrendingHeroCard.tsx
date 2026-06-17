@@ -44,7 +44,7 @@ export function TrendingHeroCard() {
     if (heroEvents.length > 0 && index >= heroEvents.length) {
       setIndex(0);
     }
-  }, [heroEvents.length, index, setIndex]);
+  }, [heroEvents, index, setIndex]);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);

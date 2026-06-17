@@ -1,20 +1,28 @@
 import type { DashboardEvent } from "@/lib/marketDetail";
 
 /** How often the dashboard mirrors Kalshi's open catalog (events + markets). */
-export const KALSHI_CATALOG_SYNC_MS = 12_000;
+export const KALSHI_CATALOG_SYNC_MS = 8_000;
 
 /** Server-side cache — slightly shorter than client sync so each poll gets fresh data. */
-export const KALSHI_SERVER_CACHE_MS = 8_000;
+export const KALSHI_SERVER_CACHE_MS = 5_000;
 
-/** Grace after close/game time before hiding cards (overtime, settlement lag). */
-export const FINISHED_EVENT_GRACE_MS = 6 * 3_600_000;
+/** Grace after close time before hiding non-sports cards (settlement lag). */
+export const FINISHED_EVENT_GRACE_MS = 2 * 3_600_000;
+
+/** Shorter grace for games — swap cards soon after the final whistle. */
+export const SPORTS_FINISHED_GRACE_MS = 90 * 60_000;
 
 /** How often the client re-checks close times and drops finished cards locally. */
-export const FINISHED_EVENT_PRUNE_MS = 60_000;
+export const FINISHED_EVENT_PRUNE_MS = 15_000;
 
 /** Sports series where close_time is settlement — use game/expected time instead. */
 export function isSportsGameSeries(seriesTicker: string): boolean {
   return /GAME$|MATCH$|FIGHT$|RACE$/i.test(seriesTicker);
+}
+
+export function finishedEventGraceMs(ev: DashboardEvent): number {
+  if (isSportsGameSeries(ev.seriesTicker)) return SPORTS_FINISHED_GRACE_MS;
+  return FINISHED_EVENT_GRACE_MS;
 }
 
 /** True while an event should stay visible on the dashboard. */
@@ -28,7 +36,7 @@ export function isEventStillActive(
   const endMs = new Date(closeTime).getTime();
   if (Number.isNaN(endMs)) return true;
 
-  return now <= endMs + FINISHED_EVENT_GRACE_MS;
+  return now <= endMs + finishedEventGraceMs(ev);
 }
 
 export function filterActiveEvents(
