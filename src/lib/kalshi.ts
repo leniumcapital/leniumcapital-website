@@ -23,7 +23,11 @@ import {
   type SeriesInfo,
 } from "@/lib/marketCategories";
 import { selectCardOutcomes } from "@/lib/outcomeName";
-import { KALSHI_SERVER_CACHE_MS } from "@/lib/marketSync";
+import {
+  FINISHED_EVENT_GRACE_MS,
+  isSportsGameSeries,
+  KALSHI_SERVER_CACHE_MS,
+} from "@/lib/marketSync";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -690,15 +694,29 @@ export async function fetchDashboardData(): Promise<DashboardData> {
       ev.title,
       seriesInfo,
     );
+    const isGame =
+      ev.is_game ||
+      (category === "Sports" && isSportsGameSeries(seriesTicker));
+    const closeTime = isGame
+      ? gameTime(leader.raw)
+      : (leader.raw.close_time ?? "");
+
+    // Skip finished events — past cards should not linger on the site.
+    const closeMs = new Date(closeTime).getTime();
+    if (
+      Number.isFinite(closeMs) &&
+      Date.now() > closeMs + FINISHED_EVENT_GRACE_MS
+    ) {
+      continue;
+    }
+
     events.push({
       eventTicker: ev.event_ticker,
       seriesTicker,
       title: ev.title ?? ev.event_ticker,
       category,
       subCategory,
-      closeTime: ev.is_game
-        ? gameTime(leader.raw)
-        : (leader.raw.close_time ?? ""),
+      closeTime,
       totalVolume,
       volume24h,
       marketCount: contracts.length,
@@ -738,7 +756,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
         noPrice: 100 - c.yesPrice,
         volume: c.volume,
         volume24h: c.volume24h,
-        expiry: ev.is_game ? gameTime(c.raw) : (c.raw.close_time ?? ""),
+        expiry: isGame ? gameTime(c.raw) : (c.raw.close_time ?? ""),
         // Real history is loaded per-market from the candlesticks endpoint;
         // until then the sparkline only accumulates live ticks (never mocked).
         sparklineData: [c.yesPrice],

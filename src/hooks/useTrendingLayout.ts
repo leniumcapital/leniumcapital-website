@@ -14,6 +14,17 @@ import {
   type SeriesSection,
   COMPACT_LIST_SIZE,
 } from "@/lib/trendingLayout";
+import { isEventStillActive } from "@/lib/marketSync";
+
+function activeEventTickers(
+  eventOrder: string[],
+  events: Record<string, import("@/lib/marketDetail").DashboardEvent>,
+): string[] {
+  return eventOrder.filter((t) => {
+    const ev = events[t];
+    return ev && isEventStillActive(ev);
+  });
+}
 
 export function useTrendingSeriesSections(): SeriesSection[] {
   const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
@@ -30,7 +41,7 @@ export function useTrendingSeriesSections(): SeriesSection[] {
   return useMemo(() => {
     const { events, eventOrder } = useMarketStore.getState();
     const tickers = filterEventsBySidebar(
-      eventOrder.filter((t) => events[t]),
+      activeEventTickers(eventOrder, events),
       events,
       activeSidebarFilter,
     );
@@ -56,7 +67,7 @@ export function useHeroCarouselEvents(): string[] {
 
 function topEvents(count: number): CompactListItem[] {
   const { events, eventOrder, markets } = useMarketStore.getState();
-  const sorted = eventOrder.filter((t) => events[t]).slice(0, count);
+  const sorted = activeEventTickers(eventOrder, events).slice(0, count);
 
   return sorted.map((eventTicker, i) => {
     const ev = events[eventTicker];
@@ -87,7 +98,7 @@ export function useSidebarPrimaries(): CompactListItem[] {
   );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const filtered = eventOrder
+    const filtered = activeEventTickers(eventOrder, events)
       .filter((t) => {
         const ev = events[t];
         return ev && isPrimaryMarket(ev);
@@ -118,8 +129,7 @@ export function useSidebarMovers(): CompactListItem[] {
   );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const ranked = [...eventOrder]
-      .filter((t) => events[t])
+    const ranked = activeEventTickers(eventOrder, events)
       .map((eventTicker) => {
         const ev = events[eventTicker];
         const m = markets[ev.leaderTicker];
@@ -154,8 +164,7 @@ export function useSidebarNew(): CompactListItem[] {
   return useMemo(() => {
     const { events, eventOrder, markets, eventFirstSeenAt } =
       useMarketStore.getState();
-    const recent = [...eventOrder]
-      .filter((t) => events[t])
+    const recent = activeEventTickers(eventOrder, events)
       .sort(
         (a, b) =>
           (eventFirstSeenAt[b] ?? 0) - (eventFirstSeenAt[a] ?? 0),
@@ -182,8 +191,7 @@ export function useSidebarHighestVolume(): CompactListItem[] {
   );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
-    const sorted = [...eventOrder]
-      .filter((t) => events[t])
+    const sorted = activeEventTickers(eventOrder, events)
       .sort((a, b) => events[b].totalVolume - events[a].totalVolume)
       .slice(0, COMPACT_LIST_SIZE);
 

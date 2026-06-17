@@ -1,5 +1,6 @@
 import type { DashboardEvent } from "@/lib/marketDetail";
 import type { Market } from "@/stores/marketStore";
+import { isEventStillActive } from "@/lib/marketSync";
 
 export const TRENDING_SIDEBAR_WIDTH = 320;
 export const TRENDING_COLUMN_GAP = 24;
@@ -123,7 +124,7 @@ export function groupEventsBySeries(
 
   for (const ticker of eventTickers) {
     const ev = events[ticker];
-    if (!ev) continue;
+    if (!ev || !isEventStillActive(ev)) continue;
     const key = ev.seriesTicker || "OTHER";
     const list = bySeries.get(key) ?? [];
     list.push(ticker);
@@ -225,7 +226,10 @@ export function buildHeroEventTickers(
   filterSeries: string | null,
 ): string[] {
   const tickers = filterEventsBySidebar(
-    eventOrder.filter((t) => events[t]),
+    eventOrder.filter((t) => {
+      const ev = events[t];
+      return ev && isEventStillActive(ev);
+    }),
     events,
     filterSeries,
   );

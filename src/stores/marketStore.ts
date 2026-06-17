@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { DashboardEvent } from "@/lib/marketDetail";
-import { compareTrendingEvents } from "@/lib/marketSync";
+import {
+  compareTrendingEvents,
+  filterActiveEvents,
+  isEventStillActive,
+  marketTickersForEvents,
+} from "@/lib/marketSync";
 
 export type PricePoint = {
   /** Unix ms timestamp. */
@@ -63,6 +68,8 @@ interface MarketState {
     events: DashboardEvent[];
     markets: Market[];
   }) => void;
+  /** Drop events whose close/game time has passed — runs between catalog syncs. */
+  pruneFinishedEvents: () => void;
   /** Populate the store from the initial REST fetch (alias of setMarkets). */
   initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
@@ -77,6 +84,98 @@ interface MarketState {
 /** Merge a markets snapshot into draft state, preserving richer client-side
  *  data already accumulated: drawer history, candlestick-seeded sparklines,
  *  and the 24h open. */
+function applyCatalogSnapshot(
+  s: {
+    markets: Record<string, Market>;
+    order: string[];
+    events: Record<string, DashboardEvent>;
+    eventOrder: string[];
+    eventFirstSeenAt: Record<string, number>;
+    catalogSyncedAt: number;
+    lastBatchAt: number;
+  },
+  events: DashboardEvent[],
+  markets: Market[],
+): void {
+  const incomingEventTickers = new Set(events.map((ev) => ev.eventTicker));
+  const incomingMarketTickers = marketTickersForEvents(events);
+
+  // Drop events Kalshi no longer returns (resolved, closed, delisted).
+  for (const ticker of Object.keys(s.events)) {
+    if (!incomingEventTickers.has(ticker)) {
+      delete s.events[ticker];
+    }
+  }
+
+  for (const ev of events) {
+    s.events[ev.eventTicker] = ev;
+    if (!s.eventFirstSeenAt[ev.eventTicker]) {
+      s.eventFirstSeenAt[ev.eventTicker] = Date.now();
+    }
+  }
+
+  // Drop first-seen timestamps for removed events.
+  for (const ticker of Object.keys(s.eventFirstSeenAt)) {
+    if (!incomingEventTickers.has(ticker)) {
+      delete s.eventFirstSeenAt[ticker];
+    }
+  }
+
+  s.eventOrder = [...events]
+    .sort(compareTrendingEvents)
+    .map((ev) => ev.eventTicker);
+
+  // Drop markets no longer tied to an active event card.
+  for (const ticker of [...s.order]) {
+    if (!incomingMarketTickers.has(ticker)) {
+      delete s.markets[ticker];
+    }
+  }
+  s.order = s.order.filter((t) => incomingMarketTickers.has(t));
+
+  mergeMarkets(s, markets.filter((m) => incomingMarketTickers.has(m.ticker)));
+  s.catalogSyncedAt = Date.now();
+  s.lastBatchAt = Date.now();
+}
+
+function pruneExpiredEventsFromState(
+  s: {
+    markets: Record<string, Market>;
+    order: string[];
+    events: Record<string, DashboardEvent>;
+    eventOrder: string[];
+    eventFirstSeenAt: Record<string, number>;
+    catalogSyncedAt: number;
+  },
+  now: number,
+): boolean {
+  let removed = false;
+  const keepEventTickers = new Set<string>();
+
+  for (const [ticker, ev] of Object.entries(s.events)) {
+    if (isEventStillActive(ev, now)) {
+      keepEventTickers.add(ticker);
+    } else {
+      delete s.events[ticker];
+      delete s.eventFirstSeenAt[ticker];
+      removed = true;
+    }
+  }
+
+  if (!removed) return false;
+
+  s.eventOrder = s.eventOrder.filter((t) => keepEventTickers.has(t));
+  const keepMarketTickers = marketTickersForEvents(Object.values(s.events));
+  for (const ticker of [...s.order]) {
+    if (!keepMarketTickers.has(ticker)) {
+      delete s.markets[ticker];
+    }
+  }
+  s.order = s.order.filter((t) => keepMarketTickers.has(t));
+  s.catalogSyncedAt = now;
+  return true;
+}
+
 function mergeMarkets(
   s: { markets: Record<string, Market>; order: string[] },
   markets: Market[],
@@ -133,45 +232,14 @@ export const useMarketStore = create<MarketState>()(
 
     syncCatalogFromKalshi: ({ events, markets }) =>
       set((s) => {
-        const incomingEventTickers = new Set(events.map((ev) => ev.eventTicker));
-        const incomingMarketTickers = new Set(markets.map((m) => m.ticker));
+        const now = Date.now();
+        const activeEvents = filterActiveEvents(events, now);
+        applyCatalogSnapshot(s, activeEvents, markets);
+      }),
 
-        // Drop events Kalshi no longer returns (resolved, closed, delisted).
-        for (const ticker of Object.keys(s.events)) {
-          if (!incomingEventTickers.has(ticker)) {
-            delete s.events[ticker];
-          }
-        }
-
-        for (const ev of events) {
-          s.events[ev.eventTicker] = ev;
-          if (!s.eventFirstSeenAt[ev.eventTicker]) {
-            s.eventFirstSeenAt[ev.eventTicker] = Date.now();
-          }
-        }
-
-        // Drop first-seen timestamps for removed events.
-        for (const ticker of Object.keys(s.eventFirstSeenAt)) {
-          if (!incomingEventTickers.has(ticker)) {
-            delete s.eventFirstSeenAt[ticker];
-          }
-        }
-
-        s.eventOrder = [...events]
-          .sort(compareTrendingEvents)
-          .map((ev) => ev.eventTicker);
-
-        // Drop markets no longer in the open feed.
-        for (const ticker of [...s.order]) {
-          if (!incomingMarketTickers.has(ticker)) {
-            delete s.markets[ticker];
-          }
-        }
-        s.order = s.order.filter((t) => incomingMarketTickers.has(t));
-
-        mergeMarkets(s, markets);
-        s.catalogSyncedAt = Date.now();
-        s.lastBatchAt = Date.now();
+    pruneFinishedEvents: () =>
+      set((s) => {
+        pruneExpiredEventsFromState(s, Date.now());
       }),
 
     initializeMarkets: (markets) =>

@@ -6,7 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
-import { KALSHI_CATALOG_SYNC_MS } from "@/lib/marketSync";
+import { KALSHI_CATALOG_SYNC_MS, isEventStillActive } from "@/lib/marketSync";
 import {
   PRIMARY_TABS,
   SUBCATEGORY_ORDER,
@@ -48,7 +48,7 @@ export function useCategoryCounts(): Record<string, number> {
       const counts: Record<string, number> = {};
       for (const ticker of s.eventOrder) {
         const ev = s.events[ticker];
-        if (!ev) continue;
+        if (!ev || !isEventStillActive(ev)) continue;
         counts[ev.category] = (counts[ev.category] ?? 0) + 1;
       }
       return counts;
@@ -66,7 +66,9 @@ export function useSubcategoriesForCategory(category: string): string[] {
     useShallow((s) =>
       s.eventOrder.map((t) => {
         const ev = s.events[t];
-        if (!ev || ev.category !== category || !ev.subCategory) return "";
+        if (!ev || !isEventStillActive(ev) || ev.category !== category || !ev.subCategory) {
+          return "";
+        }
         return ev.subCategory;
       }),
     ),
@@ -175,7 +177,10 @@ export function useGroupedEvents(): GroupedEvents {
 
   return useMemo(() => {
     const { events, eventOrder } = useMarketStore.getState();
-    const all = eventOrder.filter((t) => events[t]);
+    const all = eventOrder.filter((t) => {
+      const ev = events[t];
+      return ev && isEventStillActive(ev);
+    });
     if (all.length === 0) return { featured: null, sections: [] };
 
     const q = eventSearch.trim().toLowerCase();

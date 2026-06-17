@@ -19,7 +19,10 @@ import {
 } from "@/stores/marketStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
 import { useConnectionStore } from "@/stores/connectionStore";
-import { KALSHI_CATALOG_SYNC_MS } from "@/lib/marketSync";
+import {
+  FINISHED_EVENT_PRUNE_MS,
+  KALSHI_CATALOG_SYNC_MS,
+} from "@/lib/marketSync";
 
 const FLUSH_INTERVAL_MS = 250;
 const BACKOFF_BASE_MS = 1000;
@@ -51,6 +54,7 @@ function KalshiFeed(): null {
   const failedOnceRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const catalogTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pruneTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -196,6 +200,9 @@ function KalshiFeed(): null {
         () => void syncCatalog(),
         KALSHI_CATALOG_SYNC_MS,
       );
+      pruneTimerRef.current = setInterval(() => {
+        useMarketStore.getState().pruneFinishedEvents();
+      }, FINISHED_EVENT_PRUNE_MS);
 
       try {
         const res = await fetch("/api/kalshi/ws-token", { cache: "no-store" });
@@ -217,6 +224,7 @@ function KalshiFeed(): null {
       startedRef.current = false;
       if (flushTimerRef.current) clearInterval(flushTimerRef.current);
       if (catalogTimerRef.current) clearInterval(catalogTimerRef.current);
+      if (pruneTimerRef.current) clearInterval(pruneTimerRef.current);
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       wsRef.current?.close();
     };
