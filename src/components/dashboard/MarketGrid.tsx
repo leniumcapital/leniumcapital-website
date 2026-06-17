@@ -268,7 +268,7 @@ function VirtualCategoryGrid({ tickers }: { tickers: string[] }) {
     return () => observer.disconnect();
   }, []);
 
-  const columnCount = width > 0 ? marketGridColumns(width) : 3;
+  const columnCount = width > 0 ? marketGridColumns(width) : 2;
   const columnWidth = width > 0 ? Math.floor(width / columnCount) : 0;
   const rowCount = Math.ceil(tickers.length / columnCount);
   const height = Math.min(rowCount, 4) * MARKET_GRID_ROW_HEIGHT;
@@ -402,7 +402,7 @@ function FeaturedMarketStrip({ ticker }: { ticker: string }) {
 function SkeletonGrid() {
   return (
     <div className="markets-grid" style={{ padding: "16px 24px" }}>
-      {Array.from({ length: 9 }, (_, i) => (
+      {Array.from({ length: 6 }, (_, i) => (
         <SkeletonMarketCard key={i} />
       ))}
     </div>
