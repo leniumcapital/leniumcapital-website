@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createUser } from "@/lib/auth-db";
+import { auth, signIn } from "@/auth";
+import { authConfigIssues } from "@/lib/auth-env";
+import { createUser, verifyCredentials } from "@/lib/auth-db";
 
 export async function POST(req: Request) {
   try {
@@ -9,17 +11,93 @@ export async function POST(req: Request) {
       password?: string;
     };
 
+    const email = String(body.email ?? "");
+    const password = String(body.password ?? "");
+    const normalized = email.trim().toLowerCase();
+
     const result = await createUser(
       String(body.name ?? ""),
-      String(body.email ?? ""),
-      String(body.password ?? ""),
+      email,
+      password,
     );
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
+    const configIssues = authConfigIssues();
+    if (configIssues.length > 0) {
+      return NextResponse.json(
+        {
+          ok: true,
+          signedIn: false,
+          error: `Account created, but session setup is incomplete: ${configIssues.join("; ")}.`,
+        },
+        { status: 201 },
+      );
+    }
+
+    const verified = await verifyCredentials(normalized, password);
+    if (!verified) {
+      return NextResponse.json(
+        {
+          ok: true,
+          signedIn: false,
+          error:
+            "Account was created but automatic sign-in failed. Try logging in with your email and password.",
+        },
+        { status: 201 },
+      );
+    }
+
+    try {
+      const redirectTo = await signIn("credentials", {
+        email: normalized,
+        password,
+        redirect: false,
+      });
+
+      if (
+        typeof redirectTo === "string" &&
+        (redirectTo.includes("error=") || redirectTo.includes("signin?"))
+      ) {
+        return NextResponse.json(
+          {
+            ok: true,
+            signedIn: false,
+            error:
+              "Account was created but automatic sign-in failed. Try logging in with your email and password.",
+          },
+          { status: 201 },
+        );
+      }
+    } catch (signInError) {
+      console.error("Post-signup signIn failed:", signInError);
+      return NextResponse.json(
+        {
+          ok: true,
+          signedIn: false,
+          error:
+            "Account was created but automatic sign-in failed. Try logging in with your email and password.",
+        },
+        { status: 201 },
+      );
+    }
+
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          ok: true,
+          signedIn: false,
+          error:
+            "Account was created but no session was started. Try logging in with your email and password.",
+        },
+        { status: 201 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, signedIn: true });
   } catch (e) {
     console.error("Signup failed:", e);
     const code =

@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { isGoogleOAuthConfigured } from "@/lib/auth-env";
+import {
+  authConfigIssues,
+  getAuthUrl,
+  isAuthFullyConfigured,
+  isAuthSecretConfigured,
+  isGoogleOAuthConfigured,
+} from "@/lib/auth-env";
 
 /** Quick check that the app can reach Supabase. Visit /api/health/db to test. */
 export async function GET() {
-  const authSecretSet = Boolean(process.env.AUTH_SECRET);
+  const authSecretSet = isAuthSecretConfigured();
+  const authUrlSet = Boolean(getAuthUrl());
+  const authFullyConfigured = isAuthFullyConfigured();
   const googleOAuthConfigured = isGoogleOAuthConfigured();
+  const authIssues = authConfigIssues();
   const hasDbUrl = Boolean(
     process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL,
   );
@@ -17,6 +26,9 @@ export async function GET() {
       ok: true,
       users,
       authSecretSet,
+      authUrlSet,
+      authFullyConfigured,
+      authIssues,
       googleOAuthConfigured,
       hasDbUrl,
     });
@@ -28,7 +40,17 @@ export async function GET() {
         : undefined;
     console.error("DB health check failed:", e);
     return NextResponse.json(
-      { ok: false, error: message, code, authSecretSet, googleOAuthConfigured, hasDbUrl },
+      {
+        ok: false,
+        error: message,
+        code,
+        authSecretSet,
+        authUrlSet,
+        authFullyConfigured,
+        authIssues,
+        googleOAuthConfigured,
+        hasDbUrl,
+      },
       { status: 500 },
     );
   }

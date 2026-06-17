@@ -70,7 +70,11 @@ export function AuthPanel({
       body: JSON.stringify({ name, email, password }),
     });
 
-    const data = (await res.json()) as { error?: string; code?: string };
+    const data = (await res.json()) as {
+      error?: string;
+      code?: string;
+      signedIn?: boolean;
+    };
 
     if (!res.ok) {
       setLoading(false);
@@ -81,8 +85,17 @@ export function AuthPanel({
       return;
     }
 
+    if (data.signedIn) {
+      setLoading(false);
+      clearPersistedTradingState();
+      startNavigationLoading();
+      router.push(callbackUrl);
+      router.refresh();
+      return;
+    }
+
     const login = await signIn("credentials", {
-      email,
+      email: email.trim().toLowerCase(),
       password,
       redirect: false,
     });
@@ -91,7 +104,8 @@ export function AuthPanel({
 
     if (!login || login.error) {
       setError(
-        "Account may have been created, but sign-in failed. Try logging in — if that fails, AUTH_SECRET may be missing on Vercel.",
+        data.error ??
+          "Account was created, but sign-in failed. Try logging in with your email and password.",
       );
       return;
     }
@@ -111,14 +125,18 @@ export function AuthPanel({
     }
     setLoading(true);
     const res = await signIn("credentials", {
-      email,
+      email: email.trim().toLowerCase(),
       password,
       redirect: false,
     });
     setLoading(false);
 
     if (!res || res.error) {
-      setError("Incorrect email or password. Please try again.");
+      const detail =
+        res?.error === "Configuration"
+          ? " Server auth is misconfigured — AUTH_SECRET and AUTH_URL must be set on Vercel."
+          : "";
+      setError(`Incorrect email or password. Please try again.${detail}`);
       return;
     }
     clearPersistedTradingState();
