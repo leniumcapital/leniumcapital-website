@@ -5,9 +5,14 @@
 import type { AddonId, Tier } from "@/lib/data";
 import {
   TIERS,
+  CHALLENGE_WINDOW_DAYS,
+  MAX_DRAWDOWN_PCT,
+  MAX_EXPOSURE_PCT,
+  MAX_POSITION_PCT,
   OPENING_PRICE_MIN_CENTS,
   OPENING_PRICE_MAX_CENTS,
   MARKET_RESOLUTION_WINDOW_DAYS,
+  PROFIT_TARGET_PCT,
   DEFAULT_TRADER_SPLIT_PCT,
   PAYOUT_CYCLE_DAYS,
   FAST_PAYOUT_CYCLE_DAYS,
@@ -132,6 +137,89 @@ export function resolveRules(params: {
 
 export function findTier(size: number): Tier | undefined {
   return TIERS.find((t) => t.size === size);
+}
+
+/**
+ * Resolve tier rules for any active account size — including retired tiers
+ * (e.g. $20K) that still use the current uniform framework limits.
+ */
+export function resolveTierForAccount(size: number): Tier | undefined {
+  if (size <= 0) return undefined;
+  const tier = findTier(size);
+  if (tier) return tier;
+  return {
+    size,
+    baseFee: 0,
+    resetFee: 0,
+    profitTargetPct: PROFIT_TARGET_PCT,
+    maxDrawdownPct: MAX_DRAWDOWN_PCT,
+    maxPositionPct: MAX_POSITION_PCT,
+    maxExposurePct: MAX_EXPOSURE_PCT,
+    windowDays: CHALLENGE_WINDOW_DAYS,
+    consistencyCapPct: 15,
+  };
+}
+
+/** Format a percentage for UI — avoids floating-point artifacts like 7.000000000000001. */
+export function formatRulePct(value: number, decimals = 1): string {
+  const factor = 10 ** decimals;
+  return (Math.round(value * factor) / factor).toFixed(decimals);
+}
+
+/** Static drawdown floor for an account size and max drawdown percent. */
+export function staticFloorForBalance(
+  balance: number,
+  maxDrawdownPct: number,
+): number {
+  return Math.round(balance * (1 - maxDrawdownPct / 100));
+}
+
+/** Pick the nominal account size used for rule limits across all account sources. */
+export function effectiveAccountSize(params: {
+  accountSize?: number;
+  tier?: number;
+  challengeTier?: number;
+  fundedTier?: number;
+  tradingMode?: "demo" | "live";
+}): number {
+  const {
+    accountSize = 0,
+    tier = 0,
+    challengeTier = 0,
+    fundedTier = 0,
+    tradingMode = "demo",
+  } = params;
+
+  if (accountSize > 0) return accountSize;
+  if (tradingMode === "live" && fundedTier > 0) return fundedTier;
+  if (challengeTier > 0) return challengeTier;
+  if (tier > 0) return tier;
+  return 0;
+}
+
+export type AccountRuleContext = {
+  accountSize: number;
+  accountType: "challenge" | "funded" | "none";
+  addons?: import("@/lib/data").AddonId[];
+};
+
+/** Resolve live trading rules for any account — never returns null when size > 0. */
+export function resolveRulesForAccount(ctx: AccountRuleContext) {
+  const size = effectiveAccountSize({
+    accountSize: ctx.accountSize,
+  });
+  if (size <= 0 || ctx.accountType === "none") return null;
+
+  const tier = resolveTierForAccount(size);
+  if (!tier) return null;
+
+  const phase = ctx.accountType === "funded" ? "funded" : "evaluation";
+  return resolveRules({
+    tier,
+    addons: ctx.addons ?? [],
+    phase,
+    currentBalance: size,
+  });
 }
 
 /** Portfolio equity = starting balance + realized + unrealized P&L. */
@@ -266,11 +354,16 @@ export function drawdownPctFromEquity(params: {
   const { rules, startingBalance, equity, highWaterMarkUsd } = params;
   if (rules.drawdownMode === "static") {
     return startingBalance > 0
-      ? Math.max(0, ((startingBalance - equity) / startingBalance) * 100)
+      ? Math.max(
+          0,
+          Math.round(((startingBalance - equity) / startingBalance) * 1000) / 10,
+        )
       : 0;
   }
   const hwm = Math.max(highWaterMarkUsd, startingBalance);
-  return hwm > 0 ? Math.max(0, ((hwm - equity) / hwm) * 100) : 0;
+  return hwm > 0
+    ? Math.max(0, Math.round(((hwm - equity) / hwm) * 1000) / 10)
+    : 0;
 }
 
 export function isDrawdownBreached(params: {

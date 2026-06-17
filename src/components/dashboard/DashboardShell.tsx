@@ -14,6 +14,7 @@ import { AccountGateModal } from "@/components/dashboard/AccountGateModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useChallengeSync, useChallengeProgress, useMinuteNow } from "@/hooks/useChallengeProgress";
 import { useAccountStatusSync } from "@/hooks/useAccountStatus";
+import { syncChallengeRuleLimits } from "@/stores/challengeStore";
 import {
   useAccountStore,
   type AccountType,
@@ -25,8 +26,10 @@ import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
 import { TIERS, usd } from "@/lib/data";
 import {
-  findTier,
+  resolveTierForAccount,
   resolveRules,
+  formatRulePct,
+  effectiveAccountSize,
   isDrawdownBreached,
   isChallengeExpired,
   equityUsd,
@@ -78,7 +81,10 @@ function ShellInner({ user, children }: DashboardShellProps) {
       tier: user.tier,
       balance: user.balance,
       accountSize: user.tier,
+      challengeTier: user.accountType === "challenge" ? user.tier : 0,
+      fundedTier: user.accountType === "funded" ? user.tier : 0,
     });
+    syncChallengeRuleLimits();
   }, [user]);
 
   // Apply tier + add-ons from checkout URL (?tier=25000&addons=split90,doubletime).
@@ -102,8 +108,8 @@ function ShellInner({ user, children }: DashboardShellProps) {
 
   // The live Kalshi feed runs in KalshiMarketProvider at the app root — it
   // survives every navigation. Only challenge bookkeeping lives here.
-  useChallengeSync();
   useAccountStatusSync();
+  useChallengeSync();
   useRuleEnforcement();
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -239,10 +245,17 @@ function useRuleEnforcement(): void {
     const check = () => {
       const account = useAccountStore.getState();
       const challenge = useChallengeStore.getState();
-      if (account.accountType === "none" || account.accountSize <= 0) return;
+      const size = effectiveAccountSize({
+        accountSize: account.accountSize,
+        tier: account.tier,
+        challengeTier: account.challengeTier,
+        fundedTier: account.fundedTier,
+        tradingMode: account.tradingMode,
+      });
+      if (account.accountType === "none" || size <= 0) return;
       if (account.challengeStatus !== "active") return;
 
-      const tier = findTier(account.accountSize);
+      const tier = resolveTierForAccount(size);
       if (!tier) return;
 
       const phase =
@@ -251,17 +264,17 @@ function useRuleEnforcement(): void {
         tier,
         addons: account.addons,
         phase,
-        currentBalance: equityUsd(account.accountSize, challenge.currentProfit),
+        currentBalance: equityUsd(size, challenge.currentProfit),
       });
 
-      const equity = equityUsd(account.accountSize, challenge.currentProfit);
+      const equity = equityUsd(size, challenge.currentProfit);
 
       // Drawdown breach
       if (
         !breachPostedRef.current &&
         isDrawdownBreached({
           rules,
-          startingBalance: account.accountSize,
+          startingBalance: size,
           equity,
           highWaterMarkUsd: challenge.highWaterMarkUsd,
           staticFloorUsd: challenge.staticFloorUsd,
@@ -361,7 +374,7 @@ function RuleBanners() {
       key: "drawdown-warning",
       color: T.amber,
       bg: T.amberMuted,
-      text: `Drawdown warning: ${progress.currentDrawdown.toFixed(1)}% of your ${progress.maxDrawdown}% ${ddLabel} limit used.`,
+      text: `Drawdown warning: ${formatRulePct(progress.currentDrawdown)}% of your ${formatRulePct(progress.maxDrawdown, 0)}% ${ddLabel} limit used.`,
     });
   }
 

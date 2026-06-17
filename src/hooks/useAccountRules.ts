@@ -10,15 +10,16 @@ import {
   totalOpenPnl,
 } from "@/stores/positionStore";
 import {
-  findTier,
+  resolveTierForAccount,
   resolveRules,
+  effectiveAccountSize,
   equityUsd,
   type ResolvedRules,
 } from "@/lib/rules";
 
 export type AccountRulesState = {
   rules: ResolvedRules | null;
-  tier: ReturnType<typeof findTier>;
+  tier: ReturnType<typeof resolveTierForAccount>;
   currentBalance: number;
   currentProfit: number;
   equity: number;
@@ -34,6 +35,10 @@ export function useAccountRules(): AccountRulesState {
     useShallow((s) => ({
       accountType: s.accountType,
       accountSize: s.accountSize,
+      tier: s.tier,
+      challengeTier: s.challengeTier,
+      fundedTier: s.fundedTier,
+      tradingMode: s.tradingMode,
       addons: s.addons,
       challengeStatus: s.challengeStatus,
     })),
@@ -49,7 +54,8 @@ export function useAccountRules(): AccountRulesState {
   );
 
   return useMemo(() => {
-    const tier = findTier(account.accountSize);
+    const size = effectiveAccountSize(account);
+    const tier = resolveTierForAccount(size);
     if (!tier || account.accountType === "none") {
       return {
         rules: null,
@@ -68,7 +74,7 @@ export function useAccountRules(): AccountRulesState {
     const realized = closedTrades.reduce((s, t) => s + t.pnl, 0);
     const unrealized = totalOpenPnl(positions);
     const currentProfit = realized + unrealized;
-    const equity = equityUsd(account.accountSize, currentProfit);
+    const equity = equityUsd(size, currentProfit);
 
     const phase =
       account.accountType === "funded" ? "funded" : "evaluation";
@@ -105,6 +111,10 @@ export function useAccountRules(): AccountRulesState {
   }, [
     account.accountType,
     account.accountSize,
+    account.tier,
+    account.challengeTier,
+    account.fundedTier,
+    account.tradingMode,
     account.addons,
     account.challengeStatus,
     closedTrades,

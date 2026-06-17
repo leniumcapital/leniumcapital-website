@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { TradingMode } from "@/lib/account-status";
 import type { AddonId } from "@/lib/data";
+import { effectiveAccountSize } from "@/lib/rules";
 
 export type AccountType = "challenge" | "funded" | "none";
 export type AccountChallengeStatus =
@@ -57,6 +58,8 @@ interface AccountState {
         | "tier"
         | "balance"
         | "accountSize"
+        | "challengeTier"
+        | "fundedTier"
         | "addons"
         | "lastTradeAt"
         | "commissionsPaid"
@@ -160,11 +163,38 @@ function applyModeFields(
 
 export const useAccountStore = create<AccountState>()((set, get) => ({
   ...initial,
-  setAccount: (account) => set(account),
+  setAccount: (account) =>
+    set((state) => {
+      const next = { ...state, ...account };
+      const size = effectiveAccountSize({
+        accountSize: next.accountSize,
+        tier: next.tier,
+        challengeTier: next.challengeTier,
+        fundedTier: next.fundedTier,
+        tradingMode: next.tradingMode,
+      });
+      if (size > 0) {
+        next.accountSize = size;
+        if (!next.tier) next.tier = size;
+      }
+      return next;
+    }),
   applyAccountStatus: (status) => {
     const next = { ...get(), ...status };
     const modeFields = applyModeFields(next, next.tradingMode);
-    set({ ...next, ...modeFields });
+    const merged = { ...next, ...modeFields };
+    const size = effectiveAccountSize({
+      accountSize: merged.accountSize,
+      tier: merged.tier,
+      challengeTier: merged.challengeTier,
+      fundedTier: merged.fundedTier,
+      tradingMode: merged.tradingMode,
+    });
+    if (size > 0) {
+      merged.accountSize = size;
+      if (!merged.tier) merged.tier = size;
+    }
+    set(merged);
   },
   setTradingMode: (mode) => {
     const state = get();

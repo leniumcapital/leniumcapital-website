@@ -8,14 +8,18 @@ import {
   type Position,
 } from "@/stores/positionStore";
 import { useAccountStore } from "@/stores/accountStore";
-import { findTier, resolveRules } from "@/lib/rules";
 import {
-  adjustedProfitTargetUsd,
+  resolveTierForAccount,
+  resolveRules,
+  staticFloorForBalance,
+  effectiveAccountSize,
   drawdownFloorUsd,
+  adjustedProfitTargetUsd,
   drawdownPctFromEquity,
   equityUsd,
   profitByTicker,
 } from "@/lib/rules";
+import { MAX_DRAWDOWN_PCT, PROFIT_TARGET_PCT } from "@/lib/data";
 
 interface ChallengeState {
   profitTarget: number;
@@ -91,9 +95,113 @@ export const useChallengeStore = create<ChallengeState>()(
 
       reset: () => set(initial),
     })),
-    { name: "lenium-challenge" },
+    {
+      name: "lenium-challenge",
+      version: 2,
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        normalizePersistedChallengeRules(state);
+        queueMicrotask(() => syncChallengeRuleLimits());
+      },
+    },
   ),
 );
+
+/**
+ * Recompute rule limits from the current account state and write them into the
+ * challenge store. Safe to call for every account type, on hydrate, and after
+ * account status loads.
+ */
+export function syncChallengeRuleLimits(): void {
+  const account = useAccountStore.getState();
+  const size = effectiveAccountSize({
+    accountSize: account.accountSize,
+    tier: account.tier,
+    challengeTier: account.challengeTier,
+    fundedTier: account.fundedTier,
+    tradingMode: account.tradingMode,
+  });
+  if (size <= 0 || account.accountType === "none") return;
+
+  const tier = resolveTierForAccount(size);
+  if (!tier) return;
+
+  const phase = account.accountType === "funded" ? "funded" : "evaluation";
+  const rules = resolveRules({
+    tier,
+    addons: account.addons,
+    phase,
+    currentBalance: size,
+  });
+
+  const challenge = useChallengeStore.getState();
+  const windowStart = challenge.windowStartDate || new Date().toISOString();
+  const end = new Date(windowStart);
+  end.setDate(end.getDate() + rules.windowDays);
+
+  const staticFloor = staticFloorForBalance(size, rules.maxDrawdownPct);
+  const hwm = Math.max(challenge.highWaterMarkUsd, size);
+  const floor = drawdownFloorUsd({
+    rules,
+    startingBalance: size,
+    highWaterMarkUsd: hwm,
+    staticFloorUsd: staticFloor,
+  });
+
+  const adjustedTarget = Math.max(
+    challenge.adjustedProfitTarget > rules.profitTargetUsd
+      ? challenge.adjustedProfitTarget
+      : rules.profitTargetUsd,
+    rules.profitTargetUsd,
+  );
+
+  challenge.updateProgress({
+    profitTarget: rules.profitTargetUsd,
+    adjustedProfitTarget: adjustedTarget,
+    maxDrawdown: rules.maxDrawdownPct,
+    staticFloorUsd: staticFloor,
+    drawdownFloorUsd: floor,
+    highWaterMarkUsd: hwm,
+    windowStartDate: windowStart,
+    windowEndDate: end.toISOString(),
+    peakBalance: Math.max(challenge.peakBalance, size),
+  });
+
+  // Keep accountSize aligned when only tier fields were populated.
+  if (account.accountSize !== size) {
+    const patch: { accountSize: number; tier?: number } = { accountSize: size };
+    if (!account.tier) patch.tier = size;
+    useAccountStore.getState().setAccount(patch);
+  }
+}
+
+/** Normalize stale persisted rule limits left from older frameworks. */
+export function normalizePersistedChallengeRules(state: ChallengeState): void {
+  if (state.maxDrawdown > 0 && state.maxDrawdown < MAX_DRAWDOWN_PCT - 0.5) {
+    state.maxDrawdown = MAX_DRAWDOWN_PCT;
+  }
+  if (state.maxDrawdown > MAX_DRAWDOWN_PCT + 0.5 && state.maxDrawdown < 14.5) {
+    state.maxDrawdown = MAX_DRAWDOWN_PCT;
+  }
+  const account = useAccountStore.getState();
+  const size = effectiveAccountSize({
+    accountSize: account.accountSize,
+    tier: account.tier,
+    challengeTier: account.challengeTier,
+    fundedTier: account.fundedTier,
+    tradingMode: account.tradingMode,
+  });
+  if (size > 0) {
+    const expectedTarget = Math.round((size * PROFIT_TARGET_PCT) / 100);
+    if (state.profitTarget > 0 && Math.abs(state.profitTarget - expectedTarget) > 1) {
+      state.profitTarget = expectedTarget;
+      if (state.adjustedProfitTarget < expectedTarget) {
+        state.adjustedProfitTarget = expectedTarget;
+      }
+    }
+    state.staticFloorUsd = staticFloorForBalance(size, MAX_DRAWDOWN_PCT);
+  }
+}
 
 /** Build open-position snapshots with live prices for rule calculations. */
 function openSnapshots(
@@ -122,9 +230,16 @@ export function subscribeChallengeToPositions(
 
   return usePositionStore.subscribe((positionState) => {
     const account = useAccountStore.getState();
-    if (account.accountSize <= 0) return;
+    const size = effectiveAccountSize({
+      accountSize: account.accountSize,
+      tier: account.tier,
+      challengeTier: account.challengeTier,
+      fundedTier: account.fundedTier,
+      tradingMode: account.tradingMode,
+    });
+    if (size <= 0 || account.accountType === "none") return;
 
-    const tier = findTier(account.accountSize);
+    const tier = resolveTierForAccount(size);
     if (!tier) return;
 
     const phase =
@@ -133,7 +248,7 @@ export function subscribeChallengeToPositions(
       tier,
       addons: account.addons,
       phase,
-      currentBalance: account.accountSize,
+      currentBalance: size,
     });
 
     const realized = positionState.closedTrades.reduce(
@@ -142,7 +257,7 @@ export function subscribeChallengeToPositions(
     );
     const unrealized = totalOpenPnl(positionState.positions);
     const currentProfit = realized + unrealized;
-    const equity = equityUsd(account.accountSize, currentProfit);
+    const equity = equityUsd(size, currentProfit);
 
     const snapshots = openSnapshots(positionState.positions, getPrice);
     const byTicker = profitByTicker(positionState.closedTrades, snapshots);
@@ -155,12 +270,12 @@ export function subscribeChallengeToPositions(
     );
 
     const challenge = useChallengeStore.getState();
-    const starting = account.accountSize;
+    const starting = size;
 
-    const staticFloor =
-      challenge.staticFloorUsd > 0
-        ? challenge.staticFloorUsd
-        : Math.round(starting * (1 - rules.maxDrawdownPct / 100));
+    const staticFloor = staticFloorForBalance(
+      starting,
+      rules.maxDrawdownPct,
+    );
 
     const hwm = Math.max(
       challenge.highWaterMarkUsd,
