@@ -38,50 +38,54 @@ export default function MarketsPage() {
 
   return (
     <div style={{ fontFamily: T.font }}>
-      <div style={{ position: "sticky", top: 0, zIndex: 31 }}>
-        <CategoryTabs />
-      </div>
-
-      <div style={{ minWidth: 0 }}>
-          <div
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 31,
+          background: T.bgPrimary,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            padding: "22px 24px 12px",
+          }}
+        >
+          <h1
             style={{
+              margin: 0,
+              color: T.textPrimary,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: 16,
-              padding: "22px 24px 6px",
             }}
           >
-            <h1
-              style={{
-                margin: 0,
-                color: T.textPrimary,
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: "-0.01em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {heading}
-              <DemoModePill />
-            </h1>
+            {heading}
+            <DemoModePill />
+          </h1>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <EventSearchInput />
-              <FilterMenu />
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <EventSearchInput />
+            <FilterMenu />
           </div>
+        </div>
 
-          <MarketsSubcategoryTabs />
-
-          <ErrorBoundary name="Market grid">
-            <MarketGrid />
-          </ErrorBoundary>
+        <CategoryTabs />
+        <MarketsSubcategoryTabs />
       </div>
+
+      <ErrorBoundary name="Market grid">
+        <MarketGrid />
+      </ErrorBoundary>
     </div>
   );
 }

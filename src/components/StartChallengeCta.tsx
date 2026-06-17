@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startNavigationLoading } from "@/components/NavigationLoader";
+import { loginWithCallback } from "@/lib/callback-url";
 
 const VARIANT_CLASS: Record<string, string> = {
   hero:
@@ -34,7 +35,7 @@ export function StartChallengeCta({
     onNavigate?.();
     startNavigationLoading();
     window.setTimeout(() => {
-      router.push("/pricing");
+      router.push(loginWithCallback());
     }, 900);
   }
 

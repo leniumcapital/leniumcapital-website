@@ -30,7 +30,7 @@ const SETTINGS_NAV = [
   { icon: IconUser, label: "Profile", href: "/dashboard/profile" },
   { icon: IconBriefcase, label: "Account", href: "/dashboard/account" },
   { icon: IconReceipt, label: "Billing", href: "/dashboard/billing" },
-  { icon: IconSettings, label: "Challenge Rules", href: "/dashboard/settings" },
+  { icon: IconSettings, label: "Challenge Rules", href: "/dashboard/challenge-rules" },
 ] as const;
 
 export function Sidebar() {

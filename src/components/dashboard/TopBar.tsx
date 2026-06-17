@@ -15,7 +15,7 @@ import {
 import { LeniumMark } from "@/components/ui/LeniumLogo";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { BalanceDisplay } from "@/components/dashboard/BalanceDisplay";
-import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher";
+import { AccountModeSwitch } from "@/components/dashboard/AccountModeSwitch";
 import { SearchModal } from "@/components/dashboard/SearchModal";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useAccountStore } from "@/stores/accountStore";
@@ -205,7 +205,7 @@ function RightSection() {
       style={{ display: "flex", alignItems: "center", gap: 20, position: "relative" }}
     >
       <ConnectionStatus />
-      <ModeSwitcher />
+      <AccountModeSwitch />
       <BalanceDisplay />
 
       <button

@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { startNavigationLoading } from "@/components/NavigationLoader";
 import { GoogleLogo } from "@/components/GoogleLogo";
+import { safeCallbackUrl } from "@/lib/callback-url";
 
 export type AuthMode = "signup" | "login";
 
@@ -18,11 +19,14 @@ const inputClass =
 
 export function AuthPanel({
   initialMode = "signup",
-  callbackUrl = "/dashboard",
+  callbackUrl: callbackUrlProp = "/dashboard",
 }: AuthPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(
+    searchParams.get("callbackUrl") ?? callbackUrlProp,
+  );
 
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [name, setName] = useState("");
