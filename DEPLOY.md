@@ -12,7 +12,7 @@ not work until they are configured.
 | Variable | Purpose |
 |----------|---------|
 | `AUTH_SECRET` | JWT session signing (`openssl rand -base64 32`) |
-| `AUTH_URL` | **Required** — canonical site URL, e.g. `https://lenium.capital` (without this, signup/login sessions often fail even when `AUTH_SECRET` is set) |
+| `AUTH_URL` | **Required in production** — must be `https://lenium.capital` (never `http://localhost:3000`). The app auto-corrects localhost on Vercel, but you should fix the env var. |
 | `POSTGRES_PRISMA_URL` | Supabase pooler URL (port 6543) |
 | `POSTGRES_URL_NON_POOLING` | Supabase direct URL (port 5432) for migrations |
 | `GOOGLE_CLIENT_ID` | **Required for Google sign-in** — without it, OAuth sends `client_id=undefined` and Google returns Error 401 |
@@ -35,7 +35,7 @@ In Google Cloud Console, authorize:
 
 ```bash
 curl https://lenium.capital/api/health/db
-# Expect: { "ok": true, "authSecretSet": true, "authUrlSet": true, "authFullyConfigured": true, "googleOAuthConfigured": true, "hasDbUrl": true }
+# Expect: { "ok": true, "authUrlEffective": "https://lenium.capital", "authUrlMisconfigured": false, "googleOAuthConfigured": true, ... }
 ```
 
 Then manually verify:

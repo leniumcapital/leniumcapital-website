@@ -45,6 +45,12 @@ export function AuthPanel({
     setMode(searchParams.get("mode") === "login" ? "login" : "signup");
   }, [searchParams]);
 
+  useEffect(() => {
+    const authError = searchParams.get("error");
+    if (!authError) return;
+    setError(describeAuthError(authError));
+  }, [searchParams]);
+
   function switchMode(next: AuthMode) {
     setError("");
     setMode(next);
@@ -155,6 +161,12 @@ export function AuthPanel({
     setError("");
     setGoogleLoading(true);
     try {
+      clearPersistedTradingState();
+      await fetch("/api/auth/prepare-oauth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callbackUrl }),
+      });
       await signIn("google", { callbackUrl });
     } catch {
       setGoogleLoading(false);
@@ -366,4 +378,20 @@ function AuthError({ message }: { message: string }) {
       {message}
     </div>
   );
+}
+
+function describeAuthError(code: string): string {
+  switch (code) {
+    case "AccessDenied":
+      return "Google sign-in was cancelled or denied. Try again or use email and password.";
+    case "Configuration":
+      return "Sign-in is misconfigured on the server. Contact support if this continues.";
+    case "OAuthAccountNotLinked":
+      return "This email is already registered with a password. Log in with email and password instead.";
+    case "OAuthSignin":
+    case "OAuthCallback":
+      return "Google sign-in failed during the redirect. Try again in a moment.";
+    default:
+      return "Could not sign in with Google. Try again or use email and password.";
+  }
 }

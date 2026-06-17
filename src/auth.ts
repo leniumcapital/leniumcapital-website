@@ -3,10 +3,17 @@ import type { Provider } from "next-auth/providers";
 import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { isGoogleOAuthConfigured } from "@/lib/auth-env";
+import {
+  isGoogleOAuthConfigured,
+  syncAuthUrlEnv,
+} from "@/lib/auth-env";
 import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 import type { TradingMode } from "@/lib/account-status";
+import { safeCallbackUrl } from "@/lib/callback-url";
+
+// Auth.js reads AUTH_URL when building OAuth sign-in/callback URLs exposed to the client.
+syncAuthUrlEnv();
 
 const POST_AUTH_COOKIE = "lenium_post_auth";
 
@@ -77,10 +84,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       user.hasFundedAccount = result.user.hasFundedAccount;
       user.tradingMode = result.user.tradingMode;
       user.isNewUser = result.isNewUser;
-
-      const cookieStore = await cookies();
-      // Honor callbackUrl from the OAuth flow — do not override with a fixed path.
-      cookieStore.delete(POST_AUTH_COOKIE);
 
       return true;
     },
@@ -153,9 +156,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async redirect({ url, baseUrl }) {
       const cookieStore = await cookies();
       const postAuth = cookieStore.get(POST_AUTH_COOKIE)?.value;
-      if (postAuth?.startsWith("/")) {
-        cookieStore.delete(POST_AUTH_COOKIE);
-        return `${baseUrl}${postAuth}`;
+      const safePostAuth = postAuth ? safeCallbackUrl(postAuth) : null;
+      if (postAuth) cookieStore.delete(POST_AUTH_COOKIE);
+
+      const pathFromUrl = (() => {
+        if (url.startsWith("/")) return url;
+        try {
+          const parsed = new URL(url);
+          if (parsed.origin === baseUrl) {
+            return `${parsed.pathname}${parsed.search}`;
+          }
+        } catch {
+          /* ignore */
+        }
+        return "/";
+      })();
+
+      const isGenericLanding =
+        pathFromUrl === "/" ||
+        pathFromUrl === "/dashboard" ||
+        pathFromUrl.startsWith("/signup");
+
+      // Fallback when OAuth loses the checkout callbackUrl (pricing → signup → Google).
+      if (safePostAuth && isGenericLanding) {
+        return `${baseUrl}${safePostAuth}`;
       }
 
       if (url.startsWith("/")) return `${baseUrl}${url}`;
