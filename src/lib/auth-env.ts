@@ -1,5 +1,8 @@
 import "server-only";
 
+/** Production canonical origin — used when AUTH_URL is missing or still set to localhost. */
+export const PRODUCTION_AUTH_URL = "https://lenium.capital";
+
 /** True when Google OAuth credentials are present and non-empty. */
 export function isGoogleOAuthConfigured(): boolean {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
@@ -7,10 +10,48 @@ export function isGoogleOAuthConfigured(): boolean {
   return Boolean(clientId && clientSecret);
 }
 
-/** Canonical public URL used by Auth.js for cookies and callbacks. */
-export function getAuthUrl(): string | undefined {
+function isProductionDeploy(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+}
+
+function isLocalhostUrl(url: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
+/** Raw value from env — may be wrong on Vercel if copied from .env.local. */
+export function getConfiguredAuthUrl(): string | undefined {
   const url = process.env.AUTH_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
   return url || undefined;
+}
+
+/**
+ * Canonical public URL for Auth.js OAuth callbacks and session cookies.
+ * On production, never use localhost even if AUTH_URL was pasted incorrectly.
+ */
+export function resolveAuthUrl(): string {
+  const configured = getConfiguredAuthUrl();
+
+  if (isProductionDeploy()) {
+    if (!configured || isLocalhostUrl(configured)) {
+      return PRODUCTION_AUTH_URL;
+    }
+    return configured.replace(/\/$/, "");
+  }
+
+  return configured?.replace(/\/$/, "") ?? "http://localhost:3000";
+}
+
+/** @deprecated Use resolveAuthUrl() — kept for callers expecting optional string. */
+export function getAuthUrl(): string | undefined {
+  return resolveAuthUrl();
+}
+
+/** Apply resolved URL so Auth.js provider metadata uses the correct host. */
+export function syncAuthUrlEnv(): string {
+  const resolved = resolveAuthUrl();
+  process.env.AUTH_URL = resolved;
+  process.env.NEXTAUTH_URL = resolved;
+  return resolved;
 }
 
 export function isAuthSecretConfigured(): boolean {
@@ -19,9 +60,8 @@ export function isAuthSecretConfigured(): boolean {
   return Boolean(secret);
 }
 
-/** Both secret and public URL must be set for reliable sessions in production. */
 export function isAuthFullyConfigured(): boolean {
-  return isAuthSecretConfigured() && Boolean(getAuthUrl());
+  return isAuthSecretConfigured() && Boolean(getConfiguredAuthUrl() || isProductionDeploy());
 }
 
 export function authConfigIssues(): string[] {
@@ -29,8 +69,19 @@ export function authConfigIssues(): string[] {
   if (!isAuthSecretConfigured()) {
     issues.push("AUTH_SECRET is missing");
   }
-  if (!getAuthUrl()) {
-    issues.push("AUTH_URL is missing (set to https://lenium.capital in production)");
+  const configured = getConfiguredAuthUrl();
+  if (!configured && !isProductionDeploy()) {
+    issues.push("AUTH_URL is missing (set to http://localhost:3000 locally)");
+  }
+  if (isProductionDeploy() && configured && isLocalhostUrl(configured)) {
+    issues.push(
+      "AUTH_URL is set to localhost on production — update Vercel to https://lenium.capital",
+    );
   }
   return issues;
+}
+
+export function isAuthUrlMisconfiguredOnProduction(): boolean {
+  const configured = getConfiguredAuthUrl();
+  return isProductionDeploy() && Boolean(configured && isLocalhostUrl(configured));
 }

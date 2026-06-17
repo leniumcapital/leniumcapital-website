@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
   authConfigIssues,
-  getAuthUrl,
+  getConfiguredAuthUrl,
   isAuthFullyConfigured,
   isAuthSecretConfigured,
+  isAuthUrlMisconfiguredOnProduction,
   isGoogleOAuthConfigured,
+  resolveAuthUrl,
 } from "@/lib/auth-env";
 
 /** Quick check that the app can reach Supabase. Visit /api/health/db to test. */
 export async function GET() {
   const authSecretSet = isAuthSecretConfigured();
-  const authUrlSet = Boolean(getAuthUrl());
+  const authUrlConfigured = getConfiguredAuthUrl();
+  const authUrlEffective = resolveAuthUrl();
+  const authUrlMisconfigured = isAuthUrlMisconfiguredOnProduction();
   const authFullyConfigured = isAuthFullyConfigured();
   const googleOAuthConfigured = isGoogleOAuthConfigured();
   const authIssues = authConfigIssues();
@@ -26,7 +30,9 @@ export async function GET() {
       ok: true,
       users,
       authSecretSet,
-      authUrlSet,
+      authUrlConfigured: authUrlConfigured ?? null,
+      authUrlEffective,
+      authUrlMisconfigured,
       authFullyConfigured,
       authIssues,
       googleOAuthConfigured,
@@ -45,7 +51,9 @@ export async function GET() {
         error: message,
         code,
         authSecretSet,
-        authUrlSet,
+        authUrlConfigured: authUrlConfigured ?? null,
+        authUrlEffective,
+        authUrlMisconfigured,
         authFullyConfigured,
         authIssues,
         googleOAuthConfigured,
