@@ -6,34 +6,14 @@ import { motion } from "framer-motion";
 import { useShallow } from "zustand/react/shallow";
 import { useMarketStore } from "@/stores/marketStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useMinuteNow } from "@/hooks/useChallengeProgress";
+import { KalshiEventCard } from "@/components/dashboard/KalshiEventCard";
 import { seriesIconDirectUrl } from "@/lib/seriesIcon";
-import { KalshiOutcomeRow } from "@/components/dashboard/KalshiOutcomeRow";
 import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
-import type { DashboardEvent, EventOutcome } from "@/lib/marketDetail";
-import { compactUsd } from "@/lib/data";
+import type { DashboardEvent } from "@/lib/marketDetail";
 import { MARKET_CARD_MIN_HEIGHT } from "@/lib/marketGrid";
 import { T } from "@/lib/tokens";
 
 const PILL_MIN_WIDTH = 52;
-
-function formatCloseTime(iso: string, now: number): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const time = d
-    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-    .replace(" ", "");
-  if (now > 0) {
-    const today = new Date(now);
-    const tomorrow = new Date(now + 86_400_000);
-    if (d.toDateString() === today.toDateString()) return `Today @ ${time}`;
-    if (d.toDateString() === tomorrow.toDateString())
-      return `Tomorrow @ ${time}`;
-  }
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return `${date} @ ${time}`;
-}
 
 function usePillFlash(price: number): string | null {
   const [prevPrice, setPrevPrice] = useState(price);
@@ -61,7 +41,6 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
   );
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const now = useMinuteNow();
 
   if (!event || event.outcomes.length === 0) return null;
 
@@ -70,13 +49,6 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
     if (main) useUiStore.getState().setMarketsScrollTop(main.scrollTop);
     router.push(`/dashboard/markets/${encodeURIComponent(event.leaderTicker)}`);
   };
-
-  const closeMs = event.closeTime ? new Date(event.closeTime).getTime() : 0;
-  const isLive =
-    now > 0 &&
-    closeMs > 0 &&
-    closeMs - now < 4 * 3_600_000 &&
-    now - closeMs < 3 * 3_600_000;
 
   if (variant === "row") {
     const top = event.outcomes[0];
@@ -104,6 +76,8 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
           category={event.category}
           directUrl={seriesIconDirectUrl(event.seriesTicker)}
           marketTicker={event.leaderTicker}
+          seriesTicker={event.seriesTicker}
+          eventTitle={event.title}
           size={24}
         />
         <span
@@ -149,175 +123,12 @@ function MarketCardInner({ eventTicker, variant = "card" }: MarketCardProps) {
   }
 
   return (
-    <div
-      onClick={openDetail}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-        height: "100%",
-        minHeight: MARKET_CARD_MIN_HEIGHT,
-        background: T.bgSecondary,
-        border: T.hairline(hovered ? T.borderHover : T.border),
-        borderRadius: 12,
-        padding: 16,
-        cursor: "pointer",
-        boxShadow: hovered ? "0 4px 24px rgba(0,0,0,0.45)" : "none",
-        transition: `border-color ${T.transition}, box-shadow ${T.transition}`,
-        fontFamily: T.font,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minWidth: 0,
-        }}
-      >
-        <MarketOutcomeAvatar
-          name={event.title}
-          category={event.category}
-          directUrl={seriesIconDirectUrl(event.seriesTicker)}
-          marketTicker={event.leaderTicker}
-          size={24}
-        />
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            color: T.textMuted,
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {event.category}
-        </span>
-      </div>
-
-      <div
-        title={event.title}
-        style={{
-          marginTop: 10,
-          color: T.textPrimary,
-          fontSize: 15,
-          fontWeight: 600,
-          lineHeight: 1.35,
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {event.title}
-      </div>
-
-      <div
-        style={{
-          marginTop: 6,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 11,
-          color: T.textMuted,
-          minHeight: 16,
-        }}
-      >
-        {isLive && (
-          <>
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: T.red,
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{ color: T.red, fontWeight: 600, letterSpacing: "0.04em" }}
-            >
-              LIVE
-            </span>
-          </>
-        )}
-        <span>{formatCloseTime(event.closeTime, now)}</span>
-      </div>
-
-      <div
-        style={{
-          marginTop: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
-        {event.outcomes.map((outcome) => (
-          <OutcomeRow
-            key={outcome.ticker}
-            outcome={outcome}
-            category={event.category}
-            seriesTicker={event.seriesTicker}
-            eventTitle={event.title}
-          />
-        ))}
-      </div>
-
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: 12,
-          borderTop: T.hairline(),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          color: T.textMuted,
-          fontSize: 11,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        <span style={{ whiteSpace: "nowrap" }}>
-          {compactUsd(event.totalVolume)} vol
-        </span>
-        <span style={{ whiteSpace: "nowrap" }}>
-          {event.marketCount} market{event.marketCount === 1 ? "" : "s"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function OutcomeRow({
-  outcome,
-  category,
-  seriesTicker,
-  eventTitle,
-}: {
-  outcome: EventOutcome;
-  category: string;
-  seriesTicker?: string;
-  eventTitle?: string;
-}) {
-  return (
-    <KalshiOutcomeRow
-      name={outcome.name}
-      category={category}
-      ticker={outcome.ticker}
-      yesPrice={outcome.yesPrice}
-      imageUrl={outcome.imageUrl}
-      seriesTicker={seriesTicker}
-      eventTitle={eventTitle}
+    <KalshiEventCard
+      event={event}
+      hovered={hovered}
+      onHover={setHovered}
+      maxOutcomes={2}
+      fillHeight
     />
   );
 }
@@ -336,12 +147,11 @@ function LivePricePill({
     <motion.span
       animate={{
         color: flash ?? T.textPrimary,
-        borderColor: flash ?? "#2E4F3C",
+        borderColor: flash ?? T.greenMutedBorder,
       }}
       transition={{ duration: flash ? 0.05 : 0.6, ease: "easeOut" }}
       style={{
-        justifySelf: "end",
-        border: "1px solid #2E4F3C",
+        border: `1px solid ${T.greenMutedBorder}`,
         borderRadius: 999,
         padding: "4px 10px",
         color: T.textPrimary,
@@ -353,6 +163,7 @@ function LivePricePill({
         minWidth: PILL_MIN_WIDTH,
         textAlign: "center",
         whiteSpace: "nowrap",
+        background: "transparent",
       }}
     >
       {price}%
@@ -382,16 +193,14 @@ export function SkeletonMarketCard() {
         gap: 12,
       }}
     >
-      <div className="lenium-skeleton" style={{ width: 90, height: 14 }} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <div className="lenium-skeleton" style={{ width: 28, height: 28, borderRadius: 8 }} />
+        <div className="lenium-skeleton" style={{ width: 72, height: 14 }} />
+      </div>
       <div className="lenium-skeleton" style={{ width: "85%", height: 18 }} />
-      <div
-        className="lenium-skeleton"
-        style={{ width: "70%", height: 26, borderRadius: 999 }}
-      />
-      <div
-        className="lenium-skeleton"
-        style={{ width: "70%", height: 26, borderRadius: 999 }}
-      />
+      <div className="lenium-skeleton" style={{ width: "45%", height: 12 }} />
+      <div className="lenium-skeleton" style={{ width: "100%", height: 36, borderRadius: 8 }} />
+      <div className="lenium-skeleton" style={{ width: "100%", height: 36, borderRadius: 8 }} />
       <div style={{ flex: 1 }} />
       <div className="lenium-skeleton" style={{ width: "50%", height: 12 }} />
     </div>

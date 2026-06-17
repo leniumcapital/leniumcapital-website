@@ -7,6 +7,9 @@ import MarketOutcomeAvatar from "@/components/dashboard/MarketOutcomeAvatar";
 import { formatMultiplier } from "@/lib/trendingLayout";
 import { T } from "@/lib/tokens";
 
+/** Team/outcome accent underlines — Kalshi blue vs red for head-to-head. */
+const OUTCOME_ACCENTS = ["#3B82F6", "#EF4444", "#00E87A", "#A855F7", "#F59E0B"];
+
 export type KalshiOutcomeRowProps = {
   name: string;
   category: string;
@@ -15,11 +18,12 @@ export type KalshiOutcomeRowProps = {
   imageUrl?: string | null;
   seriesTicker?: string | null;
   eventTitle?: string | null;
-  isLeader?: boolean;
-  compact?: boolean;
+  /** Row index for blue/red underline rotation. */
+  index?: number;
+  accentColor?: string;
 };
 
-/** Kalshi-style outcome row — probability fill bar + avatar + multiplier + pill. */
+/** Flat Kalshi outcome row: avatar, name + colored underline, multiplier, green-border pill. */
 export function KalshiOutcomeRow({
   name,
   category,
@@ -28,15 +32,13 @@ export function KalshiOutcomeRow({
   imageUrl,
   seriesTicker,
   eventTitle,
-  isLeader = false,
-  compact = false,
+  index = 0,
+  accentColor,
 }: KalshiOutcomeRowProps) {
   const livePrice = useMarketStore(
     (s) => s.markets[ticker]?.yesPrice ?? yesPrice,
   );
-  const high = livePrice >= 70;
-  const leader = isLeader || livePrice >= 70;
-  const height = compact ? 34 : 38;
+  const underline = accentColor ?? OUTCOME_ACCENTS[index % OUTCOME_ACCENTS.length];
 
   const [flash, setFlash] = useState<string | null>(null);
   const prev = useRef(livePrice);
@@ -53,99 +55,85 @@ export function KalshiOutcomeRow({
   return (
     <div
       style={{
-        position: "relative",
-        height,
-        borderRadius: 8,
-        overflow: "hidden",
-        border: T.hairline(leader ? "rgba(0,232,122,0.25)" : T.border),
-        background: T.bgTertiary,
-        flexShrink: 0,
+        display: "grid",
+        gridTemplateColumns: "28px minmax(0, 1fr) auto auto",
+        columnGap: 10,
+        alignItems: "center",
+        width: "100%",
+        minWidth: 0,
+        padding: "4px 0",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: `${Math.min(100, Math.max(0, livePrice))}%`,
-          background: leader
-            ? "rgba(0, 232, 122, 0.12)"
-            : "rgba(255, 255, 255, 0.04)",
-          transition: "width 300ms ease",
-          pointerEvents: "none",
-        }}
+      <MarketOutcomeAvatar
+        name={name}
+        category={category}
+        directUrl={imageUrl ?? null}
+        marketTicker={ticker}
+        seriesTicker={seriesTicker}
+        eventTitle={eventTitle}
+        size={28}
       />
 
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          height: "100%",
-          padding: "0 10px",
-          minWidth: 0,
-        }}
-      >
-        <MarketOutcomeAvatar
-          name={name}
-          category={category}
-          directUrl={imageUrl ?? null}
-          marketTicker={ticker}
-          seriesTicker={seriesTicker}
-          eventTitle={eventTitle}
-          size={compact ? 22 : 24}
-        />
-
-        <span
+      <div style={{ minWidth: 0 }}>
+        <div
           title={name}
           style={{
-            flex: 1,
-            minWidth: 0,
             color: T.textPrimary,
-            fontSize: compact ? 12 : 13,
+            fontSize: 14,
             fontWeight: 500,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            lineHeight: 1.2,
           }}
         >
           {name}
-        </span>
-
-        <span
+        </div>
+        <div
           style={{
-            color: T.textMuted,
-            fontSize: 11,
-            fontVariantNumeric: "tabular-nums",
-            flexShrink: 0,
+            marginTop: 5,
+            width: 56,
+            height: 2,
+            borderRadius: 1,
+            background: underline,
           }}
-        >
-          {formatMultiplier(livePrice)}
-        </span>
-
-        <motion.span
-          animate={{ color: flash ?? (high ? T.green : T.textPrimary) }}
-          transition={{ duration: flash ? 0.05 : 0.4 }}
-          style={{
-            background: high ? T.greenMutedBg : "#1A1A1A",
-            border: high
-              ? `0.5px solid ${T.greenMutedBorder}`
-              : T.hairline("#2C2C2C"),
-            borderRadius: 6,
-            padding: compact ? "2px 8px" : "3px 10px",
-            fontSize: compact ? 12 : 13,
-            fontWeight: 600,
-            minWidth: compact ? 38 : 44,
-            textAlign: "center",
-            fontVariantNumeric: "tabular-nums",
-            flexShrink: 0,
-          }}
-        >
-          {livePrice}%
-        </motion.span>
+        />
       </div>
+
+      <span
+        style={{
+          color: T.textSecondary,
+          fontSize: 13,
+          fontVariantNumeric: "tabular-nums",
+          flexShrink: 0,
+          paddingRight: 4,
+        }}
+      >
+        {formatMultiplier(livePrice)}
+      </span>
+
+      <motion.span
+        animate={{
+          color: flash ?? T.textPrimary,
+          borderColor: flash ?? T.greenMutedBorder,
+        }}
+        transition={{ duration: flash ? 0.05 : 0.4 }}
+        style={{
+          border: `1px solid ${T.greenMutedBorder}`,
+          borderRadius: 999,
+          padding: "5px 12px",
+          background: "transparent",
+          fontSize: 14,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+          minWidth: 52,
+          textAlign: "center",
+          flexShrink: 0,
+          lineHeight: 1.2,
+        }}
+      >
+        {livePrice}%
+      </motion.span>
     </div>
   );
 }
