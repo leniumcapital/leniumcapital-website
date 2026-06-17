@@ -1,6 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient;
+  authPrisma: PrismaClient;
+};
 
 /**
  * Supabase pooler URLs from the Vercel integration often omit ?pgbouncer=true,
@@ -36,4 +39,25 @@ export const prisma =
 
 if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = prisma;
+}
+
+/** Direct Postgres URL for auth writes — avoids PgBouncer issues during OAuth upserts. */
+function directDatabaseUrl(): string | undefined {
+  return (
+    process.env.POSTGRES_URL_NON_POOLING?.trim() ||
+    process.env.DATABASE_URL?.trim() ||
+    undefined
+  );
+}
+
+export function getAuthPrisma(): PrismaClient {
+  if (globalForPrisma.authPrisma) return globalForPrisma.authPrisma;
+
+  const url = directDatabaseUrl();
+  const client = new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    ...(url ? { datasources: { db: { url } } } : {}),
+  });
+  globalForPrisma.authPrisma = client;
+  return client;
 }

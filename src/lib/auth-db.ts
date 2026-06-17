@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { getAuthPrisma, prisma } from "@/lib/db";
 import type { TradingMode } from "@/lib/account-status";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 
@@ -186,9 +186,12 @@ function sanitizeDisplayName(
 }
 
 /** Load trading accounts without failing Google/email sign-in on schema drift. */
-async function loadTradingAccountsForUser(userId: string) {
+async function loadTradingAccountsForUser(
+  userId: string,
+  db: typeof prisma = prisma,
+) {
   try {
-    return await prisma.tradingAccount.findMany({
+    return await db.tradingAccount.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
     });
@@ -218,15 +221,16 @@ export async function upsertGoogleUser(profile: {
 
   const displayName = sanitizeDisplayName(profile.name, normalized);
   const avatarUrl = sanitizeAvatarUrl(profile.image);
+  const authDb = getAuthPrisma();
 
-  const existing = await prisma.user.findUnique({
+  const existing = await authDb.user.findUnique({
     where: { email: normalized },
     select: { id: true },
   });
 
   let user;
   try {
-    user = await prisma.user.upsert({
+    user = await authDb.user.upsert({
       where: { email: normalized },
       create: {
         email: normalized,
@@ -242,7 +246,7 @@ export async function upsertGoogleUser(profile: {
     const code = prismaErrorCode(error);
     console.error("Google upsert failed:", { code, email: normalized, error });
     if (code === "P2002") {
-      user = await prisma.user.findUniqueOrThrow({
+      user = await authDb.user.findUniqueOrThrow({
         where: { email: normalized },
       });
     } else {
@@ -250,7 +254,7 @@ export async function upsertGoogleUser(profile: {
     }
   }
 
-  const accounts = await loadTradingAccountsForUser(user.id);
+  const accounts = await loadTradingAccountsForUser(user.id, authDb);
   const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
   return {

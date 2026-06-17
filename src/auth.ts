@@ -79,8 +79,12 @@ providers.push(
     }),
 );
 
+const authSecret =
+  process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  ...(authSecret ? { secret: authSecret } : {}),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/signup?mode=login",
@@ -98,39 +102,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return "/signup?error=AccessDenied";
       }
 
-      // Allow OAuth to complete; database upsert runs in the jwt callback.
+      try {
+        const result = await upsertGoogleUser({
+          email,
+          name: user.name ?? googleProfile?.name,
+          image: user.image ?? googleProfile?.picture,
+        });
+
+        user.id = result.user.id;
+        user.name = result.user.name;
+        user.email = result.user.email;
+        user.accountType = result.user.accountType;
+        user.tier = result.user.tier;
+        user.challengeStatus = result.user.challengeStatus;
+        user.balance = result.user.balance;
+        user.hasActiveChallenge = result.user.hasActiveChallenge;
+        user.hasFundedAccount = result.user.hasFundedAccount;
+        user.tradingMode = result.user.tradingMode;
+        user.isNewUser = result.isNewUser;
+      } catch (error) {
+        console.error("Google sign-in database error:", error);
+        return "/signup?error=OAuthCallback";
+      }
+
       return true;
     },
-    async jwt({ token, user, account, profile, trigger, session }) {
-      if (user && account?.provider === "google") {
-        const googleProfile = profile as GoogleProfile | undefined;
-        const email = user.email ?? googleProfile?.email;
-        if (!email) return token;
-
-        try {
-          const result = await upsertGoogleUser({
-            email,
-            name: user.name ?? googleProfile?.name,
-            image: user.image ?? googleProfile?.picture,
-          });
-          applySessionUserToToken(token, result.user, result.isNewUser);
-        } catch (error) {
-          console.error("Google sign-in database error:", error);
-          throw error;
-        }
-      } else if (user) {
-        applySessionUserToToken(token, {
-          id: user.id as string,
-          email: user.email ?? "",
-          name: user.name ?? "",
-          accountType: (user.accountType as AccountType) ?? "challenge",
-          tier: user.tier ?? 0,
-          challengeStatus: (user.challengeStatus as ChallengeStatus) ?? "pending",
-          balance: user.balance ?? 0,
-          hasActiveChallenge: user.hasActiveChallenge ?? false,
-          hasFundedAccount: user.hasFundedAccount ?? false,
-          tradingMode: (user.tradingMode as TradingMode) ?? "demo",
-        });
+    jwt({ token, user, trigger, session }) {
+      if (user) {
+        applySessionUserToToken(
+          token,
+          {
+            id: user.id as string,
+            email: user.email ?? "",
+            name: user.name ?? "",
+            accountType: (user.accountType as AccountType) ?? "challenge",
+            tier: user.tier ?? 0,
+            challengeStatus: (user.challengeStatus as ChallengeStatus) ?? "pending",
+            balance: user.balance ?? 0,
+            hasActiveChallenge: user.hasActiveChallenge ?? false,
+            hasFundedAccount: user.hasFundedAccount ?? false,
+            tradingMode: (user.tradingMode as TradingMode) ?? "demo",
+          },
+          user.isNewUser,
+        );
       }
 
       if (trigger === "update" && session) {
