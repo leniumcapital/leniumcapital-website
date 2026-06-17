@@ -13,6 +13,8 @@ export type AuthMode = "signup" | "login";
 type AuthPanelProps = {
   initialMode?: AuthMode;
   callbackUrl?: string;
+  /** When false, the Google button is hidden (OAuth env vars not configured). */
+  googleSignInEnabled?: boolean;
 };
 
 const inputClass =
@@ -21,6 +23,7 @@ const inputClass =
 export function AuthPanel({
   initialMode = "signup",
   callbackUrl: callbackUrlProp = "/dashboard",
+  googleSignInEnabled = false,
 }: AuthPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,7 +70,11 @@ export function AuthPanel({
       body: JSON.stringify({ name, email, password }),
     });
 
-    const data = (await res.json()) as { error?: string; code?: string };
+    const data = (await res.json()) as {
+      error?: string;
+      code?: string;
+      signedIn?: boolean;
+    };
 
     if (!res.ok) {
       setLoading(false);
@@ -78,8 +85,17 @@ export function AuthPanel({
       return;
     }
 
+    if (data.signedIn) {
+      setLoading(false);
+      clearPersistedTradingState();
+      startNavigationLoading();
+      router.push(callbackUrl);
+      router.refresh();
+      return;
+    }
+
     const login = await signIn("credentials", {
-      email,
+      email: email.trim().toLowerCase(),
       password,
       redirect: false,
     });
@@ -88,7 +104,8 @@ export function AuthPanel({
 
     if (!login || login.error) {
       setError(
-        "Account may have been created, but sign-in failed. Try logging in — if that fails, AUTH_SECRET may be missing on Vercel.",
+        data.error ??
+          "Account was created, but sign-in failed. Try logging in with your email and password.",
       );
       return;
     }
@@ -108,14 +125,18 @@ export function AuthPanel({
     }
     setLoading(true);
     const res = await signIn("credentials", {
-      email,
+      email: email.trim().toLowerCase(),
       password,
       redirect: false,
     });
     setLoading(false);
 
     if (!res || res.error) {
-      setError("Incorrect email or password. Please try again.");
+      const detail =
+        res?.error === "Configuration"
+          ? " Server auth is misconfigured — AUTH_SECRET and AUTH_URL must be set on Vercel."
+          : "";
+      setError(`Incorrect email or password. Please try again.${detail}`);
       return;
     }
     clearPersistedTradingState();
@@ -125,6 +146,12 @@ export function AuthPanel({
   }
 
   async function handleGoogleSignIn() {
+    if (!googleSignInEnabled) {
+      setError(
+        "Google sign-in is not configured on this server. Use email and password, or contact support.",
+      );
+      return;
+    }
     setError("");
     setGoogleLoading(true);
     try {
@@ -184,11 +211,13 @@ export function AuthPanel({
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
-          <GoogleSignInSection
-            disabled={loading || googleLoading}
-            loading={googleLoading}
-            onSignIn={() => void handleGoogleSignIn()}
-          />
+          {googleSignInEnabled && (
+            <GoogleSignInSection
+              disabled={loading || googleLoading}
+              loading={googleLoading}
+              onSignIn={() => void handleGoogleSignIn()}
+            />
+          )}
 
           <p className="text-center text-sm text-muted">
             No account yet?{" "}
@@ -271,11 +300,13 @@ export function AuthPanel({
           {loading ? "Creating account…" : "Create account"}
         </button>
 
-        <GoogleSignInSection
-          disabled={loading || googleLoading}
-          loading={googleLoading}
-          onSignIn={() => void handleGoogleSignIn()}
-        />
+        {googleSignInEnabled && (
+          <GoogleSignInSection
+            disabled={loading || googleLoading}
+            loading={googleLoading}
+            onSignIn={() => void handleGoogleSignIn()}
+          />
+        )}
 
         <p className="text-center text-xs text-muted">
           By creating an account you agree to our Terms and Privacy Policy.

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { Logo } from "@/components/Logo";
 import { AuthPanel } from "@/components/AuthPanel";
 import { safeCallbackUrl } from "@/lib/callback-url";
+import { isGoogleOAuthConfigured } from "@/lib/auth-env";
 
 export const metadata: Metadata = {
   title: "Create account",
@@ -44,6 +45,8 @@ export default async function SignupPage({ searchParams }: PageProps) {
   if (session?.user) {
     redirect(callbackUrl);
   }
+
+  const googleSignInEnabled = isGoogleOAuthConfigured();
 
   return (
     <section className="relative grid min-h-screen lg:grid-cols-2">
@@ -124,7 +127,11 @@ export default async function SignupPage({ searchParams }: PageProps) {
           </div>
 
           <Suspense fallback={<AuthPanelSkeleton />}>
-            <AuthPanel initialMode={initialMode} callbackUrl={callbackUrl} />
+            <AuthPanel
+              initialMode={initialMode}
+              callbackUrl={callbackUrl}
+              googleSignInEnabled={googleSignInEnabled}
+            />
           </Suspense>
         </div>
       </div>
