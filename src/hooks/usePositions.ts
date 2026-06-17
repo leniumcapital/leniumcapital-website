@@ -15,6 +15,30 @@ import { useChallengeStore } from "@/stores/challengeStore";
 import { useMarketStore } from "@/stores/marketStore";
 import { resolveTierForAccount, resolveRules, validateOrder, effectiveAccountSize } from "@/lib/rules";
 
+/** Cash balance = starting size + realized P&L − open position cost − commissions. */
+export function reconcileCashBalance(): void {
+  const account = useAccountStore.getState();
+  const size = effectiveAccountSize({
+    accountSize: account.accountSize,
+    tier: account.tier,
+    challengeTier: account.challengeTier,
+    fundedTier: account.fundedTier,
+    tradingMode: account.tradingMode,
+  });
+  if (size <= 0 || account.accountType === "none") return;
+
+  const { positions, closedTrades } = usePositionStore.getState();
+  const realized = closedTrades.reduce((sum, t) => sum + t.pnl, 0);
+  const deployed = Object.values(positions).reduce((sum, p) => sum + p.size, 0);
+  const cash =
+    size + realized - deployed - account.commissionsPaid;
+  const rounded = Math.max(0, Math.round(cash * 100) / 100);
+
+  if (Math.abs(rounded - account.balance) > 0.009) {
+    account.updateBalance(rounded);
+  }
+}
+
 type PlaceOrderInput = {
   marketTicker: string;
   direction: Direction;
@@ -117,6 +141,13 @@ export function usePlaceOrder() {
 
       if (!clientCheck.ok) throw new Error(clientCheck.error);
 
+      const totalCost = input.size + clientCheck.commission;
+      if (totalCost > account.balance) {
+        throw new Error(
+          `Insufficient balance — $${Math.round(account.balance).toLocaleString()} available.`,
+        );
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,9 +186,12 @@ export function usePlaceOrder() {
         openedAt: fill.openedAt,
       });
       useChallengeStore.getState().addTradedDate(todayUtcIso());
-      useAccountStore.getState().recordTrade();
+      const account = useAccountStore.getState();
+      account.recordTrade();
+      const totalCost = fill.size + commission;
+      account.updateBalance(Math.max(0, account.balance - totalCost));
       if (commission > 0) {
-        useAccountStore.getState().addCommission(commission);
+        account.addCommission(commission);
       }
       toast.success(
         `Order placed — buying ${fill.direction.toUpperCase()} $${fill.size.toLocaleString()} on ${fill.question}`,
@@ -196,7 +230,7 @@ export function useClosePosition() {
         .closePosition(position.id, exitPrice);
       if (closed) {
         const account = useAccountStore.getState();
-        account.updateBalance(account.balance + closed.pnl);
+        account.updateBalance(account.balance + position.size + closed.pnl);
         const sign = closed.pnl >= 0 ? "+" : "−";
         toast.success(
           `Position closed — ${sign}$${Math.abs(closed.pnl).toFixed(2)} on ${position.question}`,
