@@ -22,6 +22,7 @@ export async function GET() {
   const hasDbUrl = Boolean(
     process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL,
   );
+  const hasDirectDbUrl = Boolean(process.env.POSTGRES_URL_NON_POOLING?.trim());
 
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -37,6 +38,7 @@ export async function GET() {
       authIssues,
       googleOAuthConfigured,
       hasDbUrl,
+      hasDirectDbUrl,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown database error";
@@ -58,6 +60,7 @@ export async function GET() {
         authIssues,
         googleOAuthConfigured,
         hasDbUrl,
+        hasDirectDbUrl,
       },
       { status: 500 },
     );

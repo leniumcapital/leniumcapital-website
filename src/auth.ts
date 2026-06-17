@@ -202,10 +202,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const cookieStore = await cookies();
-      const postAuth = cookieStore.get(POST_AUTH_COOKIE)?.value;
-      const safePostAuth = postAuth ? safeCallbackUrl(postAuth) : null;
-      if (postAuth) cookieStore.delete(POST_AUTH_COOKIE);
+      let safePostAuth: string | null = null;
+      try {
+        const cookieStore = await cookies();
+        const postAuth = cookieStore.get(POST_AUTH_COOKIE)?.value;
+        safePostAuth = postAuth ? safeCallbackUrl(postAuth) : null;
+        if (postAuth) {
+          try {
+            cookieStore.delete(POST_AUTH_COOKIE);
+          } catch (error) {
+            console.warn("Could not clear post-auth cookie during redirect:", error);
+          }
+        }
+      } catch (error) {
+        console.warn("Post-auth cookie unavailable during redirect:", error);
+      }
 
       const pathFromUrl = (() => {
         if (url.startsWith("/")) return url;
