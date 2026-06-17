@@ -16,18 +16,6 @@ export default function HowItWorksPage() {
     <>
       <section className="border-b border-border py-16">
         <Container>
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-            From challenge to funded account
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg text-muted">
-            You never risk your own capital. Prove your edge once, then trade
-            ours.
-          </p>
-        </Container>
-      </section>
-
-      <section className="py-16">
-        <Container>
           <HowItWorksSteps />
         </Container>
       </section>
