@@ -20,10 +20,12 @@ export function useTrendingSeriesSections(): SeriesSection[] {
   const eventKey = useMarketStore(
     useShallow((s) =>
       s.eventOrder.map(
-        (t) => `${t}:${s.events[t]?.seriesTicker}:${s.events[t]?.totalVolume}`,
+        (t) =>
+          `${t}:${s.events[t]?.seriesTicker}:${s.events[t]?.volume24h}:${s.events[t]?.totalVolume}`,
       ),
     ),
   );
+  const catalogKey = useMarketStore((s) => s.catalogSyncedAt);
 
   return useMemo(() => {
     const { events, eventOrder } = useMarketStore.getState();
@@ -35,11 +37,12 @@ export function useTrendingSeriesSections(): SeriesSection[] {
 
     return groupEventsBySeries(tickers, events);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventKey, activeSidebarFilter]);
+  }, [eventKey, activeSidebarFilter, catalogKey]);
 }
 
 export function useHeroCarouselEvents(): string[] {
   const activeSidebarFilter = useUiStore((s) => s.activeSidebarFilter);
+  const catalogKey = useMarketStore((s) => s.catalogSyncedAt);
   const eventKey = useMarketStore(
     useShallow((s) => s.eventOrder.length),
   );
@@ -48,15 +51,12 @@ export function useHeroCarouselEvents(): string[] {
     const { events, eventOrder } = useMarketStore.getState();
     return buildHeroEventTickers(events, eventOrder, activeSidebarFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventKey, activeSidebarFilter]);
+  }, [eventKey, activeSidebarFilter, catalogKey]);
 }
 
 function topEvents(count: number): CompactListItem[] {
   const { events, eventOrder, markets } = useMarketStore.getState();
-  const sorted = [...eventOrder]
-    .filter((t) => events[t])
-    .sort((a, b) => events[b].totalVolume - events[a].totalVolume)
-    .slice(0, count);
+  const sorted = eventOrder.filter((t) => events[t]).slice(0, count);
 
   return sorted.map((eventTicker, i) => {
     const ev = events[eventTicker];
@@ -75,12 +75,16 @@ function topEvents(count: number): CompactListItem[] {
 }
 
 export function useSidebarTrending(): CompactListItem[] {
-  const key = useMarketStore(useShallow((s) => s.lastBatchAt));
+  const key = useMarketStore(
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+  );
   return useMemo(() => topEvents(COMPACT_LIST_SIZE), [key]);
 }
 
 export function useSidebarPrimaries(): CompactListItem[] {
-  const key = useMarketStore(useShallow((s) => s.lastBatchAt));
+  const key = useMarketStore(
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+  );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
     const filtered = eventOrder
@@ -109,7 +113,9 @@ export function useSidebarPrimaries(): CompactListItem[] {
 }
 
 export function useSidebarMovers(): CompactListItem[] {
-  const key = useMarketStore(useShallow((s) => s.lastBatchAt));
+  const key = useMarketStore(
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+  );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
     const ranked = [...eventOrder]
@@ -142,10 +148,19 @@ export function useSidebarMovers(): CompactListItem[] {
 }
 
 export function useSidebarNew(): CompactListItem[] {
-  const key = useMarketStore(useShallow((s) => s.eventOrder.length));
+  const key = useMarketStore(
+    useShallow((s) => `${s.catalogSyncedAt}:${Object.keys(s.eventFirstSeenAt).length}`),
+  );
   return useMemo(() => {
-    const { events, eventOrder, markets } = useMarketStore.getState();
-    const recent = [...eventOrder].reverse().slice(0, COMPACT_LIST_SIZE);
+    const { events, eventOrder, markets, eventFirstSeenAt } =
+      useMarketStore.getState();
+    const recent = [...eventOrder]
+      .filter((t) => events[t])
+      .sort(
+        (a, b) =>
+          (eventFirstSeenAt[b] ?? 0) - (eventFirstSeenAt[a] ?? 0),
+      )
+      .slice(0, COMPACT_LIST_SIZE);
     return recent.map((eventTicker, i) => {
       const ev = events[eventTicker];
       if (!ev) return null;
@@ -162,7 +177,9 @@ export function useSidebarNew(): CompactListItem[] {
 }
 
 export function useSidebarHighestVolume(): CompactListItem[] {
-  const key = useMarketStore(useShallow((s) => s.lastBatchAt));
+  const key = useMarketStore(
+    useShallow((s) => `${s.catalogSyncedAt}:${s.lastBatchAt}`),
+  );
   return useMemo(() => {
     const { events, eventOrder, markets } = useMarketStore.getState();
     const sorted = [...eventOrder]

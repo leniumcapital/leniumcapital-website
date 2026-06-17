@@ -49,11 +49,11 @@ export function MarketGrid() {
   // soon as data exists, independent of the polling feed's timing.
   useEffect(() => {
     if (!data) return;
-    if (data.markets.length > 0) {
-      useMarketStore.getState().setMarkets(data.markets);
-    }
-    if (data.events.length > 0) {
-      useMarketStore.getState().setEvents(data.events);
+    if (data.markets.length > 0 || data.events.length > 0) {
+      useMarketStore.getState().syncCatalogFromKalshi({
+        markets: data.markets,
+        events: data.events,
+      });
     }
   }, [data]);
 

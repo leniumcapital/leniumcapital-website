@@ -26,8 +26,12 @@ export function TrendingPageLayout() {
 
   useEffect(() => {
     if (!data) return;
-    if (data.markets.length > 0) useMarketStore.getState().setMarkets(data.markets);
-    if (data.events.length > 0) useMarketStore.getState().setEvents(data.events);
+    if (data.markets.length > 0 || data.events.length > 0) {
+      useMarketStore.getState().syncCatalogFromKalshi({
+        markets: data.markets,
+        events: data.events,
+      });
+    }
   }, [data]);
 
   // Seed 24h open for movers + prefetch hero histories

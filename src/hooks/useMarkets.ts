@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useMarketStore, type Market } from "@/stores/marketStore";
 import { useUiStore, type SortOrder } from "@/stores/uiStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import { KALSHI_CATALOG_SYNC_MS } from "@/lib/marketSync";
 import {
   PRIMARY_TABS,
   SUBCATEGORY_ORDER,
@@ -28,8 +29,9 @@ export function useMarketsQuery() {
       const data = (await res.json()) as Partial<MarketsPayload>;
       return { markets: data.markets ?? [], events: data.events ?? [] };
     },
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: KALSHI_CATALOG_SYNC_MS,
+    refetchInterval: KALSHI_CATALOG_SYNC_MS * 2,
+    refetchOnWindowFocus: true,
   });
 }
 

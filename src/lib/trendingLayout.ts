@@ -153,7 +153,12 @@ export function groupEventsBySeries(
     }
   }
 
-  multi.sort((a, b) => b.totalVolume - a.totalVolume);
+  multi.sort(
+    (a, b) =>
+      b.totalVolume - a.totalVolume ||
+      (events[b.eventTickers[0]]?.volume24h ?? 0) -
+        (events[a.eventTickers[0]]?.volume24h ?? 0),
+  );
 
   if (singles.length > 0) {
     multi.push({
@@ -225,7 +230,11 @@ export function buildHeroEventTickers(
     filterSeries,
   );
   return [...tickers]
-    .sort((a, b) => events[b].totalVolume - events[a].totalVolume)
+    .sort(
+      (a, b) =>
+        (events[b].volume24h || events[b].totalVolume) -
+        (events[a].volume24h || events[a].totalVolume),
+    )
     .slice(0, HERO_CAROUSEL_SIZE);
 }
 

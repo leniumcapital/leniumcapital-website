@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { DashboardEvent } from "@/lib/marketDetail";
+import { compareTrendingEvents } from "@/lib/marketSync";
 
 export type PricePoint = {
   /** Unix ms timestamp. */
@@ -46,11 +47,22 @@ interface MarketState {
   order: string[];
   /** Kalshi events aggregated for the grid — one card per event. */
   events: Record<string, DashboardEvent>;
+  /** Event tickers in Kalshi trending order (24h volume). */
   eventOrder: string[];
   lastBatchAt: number;
+  /** Last full catalog mirror from Kalshi — drives trending resort. */
+  catalogSyncedAt: number;
+  /** When each event first appeared in our feed (for "New" lists). */
+  eventFirstSeenAt: Record<string, number>;
   setMarket: (market: Market) => void;
   setMarkets: (markets: Market[]) => void;
+  /** @deprecated Prefer syncCatalogFromKalshi for live feed updates. */
   setEvents: (events: DashboardEvent[]) => void;
+  /** Replace catalog from Kalshi: add new events, remove closed ones, resort trending. */
+  syncCatalogFromKalshi: (payload: {
+    events: DashboardEvent[];
+    markets: Market[];
+  }) => void;
   /** Populate the store from the initial REST fetch (alias of setMarkets). */
   initializeMarkets: (markets: Market[]) => void;
   updatePrice: (update: PriceUpdate) => void;
@@ -97,6 +109,8 @@ export const useMarketStore = create<MarketState>()(
     events: {},
     eventOrder: [],
     lastBatchAt: 0,
+    catalogSyncedAt: 0,
+    eventFirstSeenAt: {},
 
     setMarket: (market) =>
       set((s) => {
@@ -115,6 +129,49 @@ export const useMarketStore = create<MarketState>()(
           if (!s.events[ev.eventTicker]) s.eventOrder.push(ev.eventTicker);
           s.events[ev.eventTicker] = ev;
         }
+      }),
+
+    syncCatalogFromKalshi: ({ events, markets }) =>
+      set((s) => {
+        const incomingEventTickers = new Set(events.map((ev) => ev.eventTicker));
+        const incomingMarketTickers = new Set(markets.map((m) => m.ticker));
+
+        // Drop events Kalshi no longer returns (resolved, closed, delisted).
+        for (const ticker of Object.keys(s.events)) {
+          if (!incomingEventTickers.has(ticker)) {
+            delete s.events[ticker];
+          }
+        }
+
+        for (const ev of events) {
+          s.events[ev.eventTicker] = ev;
+          if (!s.eventFirstSeenAt[ev.eventTicker]) {
+            s.eventFirstSeenAt[ev.eventTicker] = Date.now();
+          }
+        }
+
+        // Drop first-seen timestamps for removed events.
+        for (const ticker of Object.keys(s.eventFirstSeenAt)) {
+          if (!incomingEventTickers.has(ticker)) {
+            delete s.eventFirstSeenAt[ticker];
+          }
+        }
+
+        s.eventOrder = [...events]
+          .sort(compareTrendingEvents)
+          .map((ev) => ev.eventTicker);
+
+        // Drop markets no longer in the open feed.
+        for (const ticker of [...s.order]) {
+          if (!incomingMarketTickers.has(ticker)) {
+            delete s.markets[ticker];
+          }
+        }
+        s.order = s.order.filter((t) => incomingMarketTickers.has(t));
+
+        mergeMarkets(s, markets);
+        s.catalogSyncedAt = Date.now();
+        s.lastBatchAt = Date.now();
       }),
 
     initializeMarkets: (markets) =>
@@ -180,6 +237,8 @@ export const useMarketStore = create<MarketState>()(
         events: {},
         eventOrder: [],
         lastBatchAt: 0,
+        catalogSyncedAt: 0,
+        eventFirstSeenAt: {},
       })),
   })),
 );

@@ -3,23 +3,9 @@
 /**
  * Global Kalshi market data provider.
  *
- * Mounted ONCE at the root layout, outside every other provider, so the live
- * feed survives all page navigations for the entire session. Exactly one
- * connection exists app-wide; nothing here ever re-renders the tree (the
- * connection, accumulator, and timers all live in refs).
- *
- * Transport: on start the provider asks /api/kalshi/ws-token whether native
- * WebSocket credentials are configured. Kalshi's WS endpoint
- * (wss://api.elections.kalshi.com/trade-api/ws/v2) requires signed headers on
- * the HTTP upgrade, which a browser cannot send — so when credentials are
- * absent (or a token route is not available) the provider drives the exact
- * same pipeline from the server-side REST feed:
- *
- *   incoming updates -> 250ms accumulator ref -> ONE batchUpdatePrices flush
- *
- * Reconnection uses exponential backoff (1s doubling to 30s max) and drives
- * connectionStore through reconnecting/connected, resubscribing to all
- * markets in the store after every recovery.
+ * Mirrors Kalshi's open catalog every ~12s: new polls appear in the right
+ * category, resolved events drop off, trending re-ranks by 24h volume.
+ * Optional WebSocket supplements price ticks between catalog syncs.
  */
 
 import { useEffect, useRef, type ReactNode } from "react";
@@ -33,16 +19,15 @@ import {
 } from "@/stores/marketStore";
 import type { DashboardEvent } from "@/lib/marketDetail";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { KALSHI_CATALOG_SYNC_MS } from "@/lib/marketSync";
 
 const FLUSH_INTERVAL_MS = 250;
-const POLL_INTERVAL_MS = 5000;
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30000;
 
 type MarketsResponse = { markets?: Market[]; events?: DashboardEvent[] };
 type WsTokenResponse = { wsEnabled?: boolean; token?: string };
 
-/** Single QueryClient for the whole app — grid prefetches feed detail pages. */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { refetchOnWindowFocus: false, retry: 2 },
@@ -58,21 +43,17 @@ export function KalshiMarketProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Headless component owning the singleton feed. Renders nothing. */
 function KalshiFeed(): null {
   const pathname = usePathname();
   const startedRef = useRef(false);
   const stoppedRef = useRef(false);
   const accumulatorRef = useRef<Record<string, PriceUpdate>>({});
-  const seededRef = useRef(false);
   const failedOnceRef = useRef(false);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const catalogTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // The feed needs an authenticated session; it starts the first time the
-  // user reaches the dashboard and then stays alive for the whole session,
-  // including while they browse marketing pages.
   const onDashboard = pathname?.startsWith("/dashboard") ?? false;
 
   useEffect(() => {
@@ -80,7 +61,6 @@ function KalshiFeed(): null {
     startedRef.current = true;
     stoppedRef.current = false;
 
-    // ── Flush loop: one batched store write per 250ms tick ───────────────────
     flushTimerRef.current = setInterval(() => {
       const updates = accumulatorRef.current;
       if (Object.keys(updates).length === 0) return;
@@ -90,11 +70,6 @@ function KalshiFeed(): null {
 
     function backoffMs(attempt: number): number {
       return Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** Math.max(0, attempt - 1));
-    }
-
-    function schedule(ms: number): void {
-      if (stoppedRef.current) return;
-      pollTimerRef.current = setTimeout(() => void tick(), ms);
     }
 
     function onFeedRecovered(): void {
@@ -107,7 +82,7 @@ function KalshiFeed(): null {
           failedOnceRef.current = false;
         }
       } else {
-        conn.setConnected(); // refresh lastUpdateTimestamp
+        conn.setConnected();
       }
     }
 
@@ -119,43 +94,60 @@ function KalshiFeed(): null {
       }
       conn.setReconnecting();
       conn.incrementReconnectAttempts();
-      schedule(backoffMs(useConnectionStore.getState().reconnectAttempts));
+      scheduleWsReconnect();
     }
 
-    // ── REST transport: same accumulator contract as the native socket ──────
-    async function tick(): Promise<void> {
+    function resubscribeWs(): void {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const tickers = useMarketStore.getState().order;
+      ws.send(
+        JSON.stringify({
+          id: Date.now(),
+          cmd: "subscribe",
+          params: { channels: ["ticker"], market_tickers: tickers },
+        }),
+      );
+    }
+
+    async function syncCatalog(): Promise<void> {
       if (stoppedRef.current) return;
       try {
         const res = await fetch("/api/kalshi/markets", { cache: "no-store" });
         if (!res.ok) throw new Error(`feed ${res.status}`);
         const data = (await res.json()) as MarketsResponse;
         const markets = data.markets ?? [];
-        if (markets.length === 0) throw new Error("empty feed");
+        const events = data.events ?? [];
+        if (markets.length === 0 || events.length === 0) {
+          throw new Error("empty feed");
+        }
 
-        if (data.events?.length) {
-          useMarketStore.getState().setEvents(data.events);
-        }
-        if (!seededRef.current) {
-          useMarketStore.getState().initializeMarkets(markets);
-          seededRef.current = true;
-        } else {
-          for (const m of markets) {
-            accumulatorRef.current[m.ticker] = {
-              ticker: m.ticker,
-              yesPrice: m.yesPrice,
-              noPrice: m.noPrice,
-              volume: m.volume,
-            };
-          }
-        }
+        useMarketStore.getState().syncCatalogFromKalshi({ events, markets });
         onFeedRecovered();
-        schedule(POLL_INTERVAL_MS);
+        resubscribeWs();
       } catch {
         onFeedFailure();
       }
     }
 
-    // ── Native WS transport, used when server-side credentials exist ────────
+    function scheduleWsReconnect(): void {
+      if (stoppedRef.current || wsRef.current) return;
+      retryTimerRef.current = setTimeout(() => {
+        void (async () => {
+          try {
+            const res = await fetch("/api/kalshi/ws-token", { cache: "no-store" });
+            if (!res.ok) return;
+            const data = (await res.json()) as WsTokenResponse;
+            if (data.wsEnabled && data.token) {
+              openNativeSocket(data.token);
+            }
+          } catch {
+            /* catalog sync continues on REST */
+          }
+        })();
+      }, backoffMs(useConnectionStore.getState().reconnectAttempts));
+    }
+
     function openNativeSocket(token: string): void {
       const ws = new WebSocket(
         `wss://api.elections.kalshi.com/trade-api/ws/v2?token=${encodeURIComponent(token)}`,
@@ -164,14 +156,7 @@ function KalshiFeed(): null {
 
       ws.onopen = () => {
         onFeedRecovered();
-        const tickers = useMarketStore.getState().order;
-        ws.send(
-          JSON.stringify({
-            id: 1,
-            cmd: "subscribe",
-            params: { channels: ["ticker"], market_tickers: tickers },
-          }),
-        );
+        resubscribeWs();
       };
 
       ws.onmessage = (event) => {
@@ -192,44 +177,47 @@ function KalshiFeed(): null {
             noPrice: 100 - yes,
           };
         } catch {
-          /* malformed frame — ignore */
+          /* malformed frame */
         }
       };
 
       ws.onclose = () => {
         wsRef.current = null;
         if (stoppedRef.current) return;
-        onFeedFailure(); // backoff then retry via tick(), which re-checks token
+        onFeedFailure();
       };
       ws.onerror = () => ws.close();
     }
 
-    // ── Start: pick the transport, then run forever ──────────────────────────
     async function start(): Promise<void> {
       useConnectionStore.getState().setReconnecting();
+      void syncCatalog();
+      catalogTimerRef.current = setInterval(
+        () => void syncCatalog(),
+        KALSHI_CATALOG_SYNC_MS,
+      );
+
       try {
         const res = await fetch("/api/kalshi/ws-token", { cache: "no-store" });
         if (res.ok) {
           const data = (await res.json()) as WsTokenResponse;
           if (data.wsEnabled && data.token) {
             openNativeSocket(data.token);
-            return;
           }
         }
       } catch {
-        /* fall through to REST transport */
+        /* REST catalog sync is sufficient */
       }
-      void tick();
     }
 
     void start();
 
     return () => {
-      // Root provider never unmounts in practice; this guards dev/StrictMode.
       stoppedRef.current = true;
       startedRef.current = false;
       if (flushTimerRef.current) clearInterval(flushTimerRef.current);
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      if (catalogTimerRef.current) clearInterval(catalogTimerRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       wsRef.current?.close();
     };
   }, [onDashboard]);

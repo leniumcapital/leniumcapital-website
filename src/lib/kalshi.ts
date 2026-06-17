@@ -23,6 +23,7 @@ import {
   type SeriesInfo,
 } from "@/lib/marketCategories";
 import { selectCardOutcomes } from "@/lib/outcomeName";
+import { KALSHI_SERVER_CACHE_MS } from "@/lib/marketSync";
 
 const KALSHI_BASE =
   process.env.KALSHI_API_BASE ??
@@ -303,7 +304,7 @@ export type DashboardData = {
 };
 
 let marketsCache: { at: number; data: DashboardData } | null = null;
-const MARKETS_CACHE_TTL_MS = 10_000;
+const MARKETS_CACHE_TTL_MS = KALSHI_SERVER_CACHE_MS;
 
 type ValidContract = {
   raw: KalshiMarketRaw;

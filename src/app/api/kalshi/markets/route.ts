@@ -27,6 +27,6 @@ export async function GET() {
 
   return NextResponse.json(
     { markets, events },
-    { headers: { "Cache-Control": "private, max-age=30" } },
+    { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } },
   );
 }
