@@ -6,7 +6,7 @@ import {
   isGoogleOAuthConfigured,
   syncAuthUrlEnv,
 } from "@/lib/auth-env";
-import { upsertGoogleUser, verifyCredentials } from "@/lib/auth-db";
+import { upsertGoogleUser, verifyCredentials, backfillJwtUserId } from "@/lib/auth-db";
 import type { SessionUserPayload } from "@/lib/auth-db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 import type { TradingMode } from "@/lib/account-status";
@@ -205,6 +205,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         if (patch.tradingMode !== undefined) token.tradingMode = patch.tradingMode;
       }
+
+      await backfillJwtUserId(token);
       return token;
     },
     session({ session, token }) {

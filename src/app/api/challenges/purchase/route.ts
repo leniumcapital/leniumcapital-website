@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { resolveSessionUserId } from "@/lib/auth-db";
 import { upsertTradingAccount } from "@/lib/accounts-db";
 import { prisma } from "@/lib/db";
 import {
@@ -20,14 +21,25 @@ const DEPRECATED_TIER_MESSAGE =
 
 const ACTIVE_CHALLENGE_STATUSES = new Set(["in_progress", "passed", "funded"]);
 
+function prismaCode(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+  return undefined;
+}
+
 /** Mock checkout — creates a trading account after tier selection. */
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    const userId = session?.user?.id?.trim();
+    const userId = await resolveSessionUserId(session);
     if (!userId) {
       return NextResponse.json(
-        { error: "Your session expired. Log out and sign in again." },
+        {
+          error:
+            "We could not verify your account. Log out, sign in again, then retry.",
+          code: "NO_USER_ID",
+        },
         { status: 401 },
       );
     }
@@ -35,9 +47,11 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       tierSize?: number;
       addons?: AddonId[];
+      demo?: boolean;
     };
 
     const tierSize = Number(body.tierSize);
+    const isDemo = body.demo === true;
 
     if (isDeprecatedTierSize(tierSize)) {
       return NextResponse.json({ error: DEPRECATED_TIER_MESSAGE }, { status: 400 });
@@ -80,45 +94,61 @@ export async function POST(req: Request) {
       makePrimary: true,
     });
 
-    try {
-      await recordPaidBillingOrder(userId, {
-        tierSize: tier.size,
-        addons,
-        price: price.total,
-        accountId: account.id,
-        planType: "challenge",
-      });
-    } catch (e) {
-      const code = prismaBillingErrorCode(e);
-      if (!(e instanceof BillingError) && code !== "P2021") {
-        console.error("[purchase] billing record failed", e);
+    if (!isDemo) {
+      try {
+        await recordPaidBillingOrder(userId, {
+          tierSize: tier.size,
+          addons,
+          price: price.total,
+          accountId: account.id,
+          planType: "challenge",
+        });
+      } catch (e) {
+        const code = prismaBillingErrorCode(e);
+        if (!(e instanceof BillingError) && code !== "P2021") {
+          console.error("[purchase] billing record failed", e);
+        }
       }
     }
 
     return NextResponse.json({
       ok: true,
+      accountId: account.id,
       tier: tier.size,
       balance: tier.size,
       accountType: "challenge" as const,
       challengeStatus: "in_progress" as const,
-      totalPaid: price.total,
+      totalPaid: isDemo ? 0 : price.total,
     });
   } catch (e) {
     console.error("[purchase] demo account setup failed", e);
-    const code =
-      e && typeof e === "object" && "code" in e
-        ? String((e as { code: unknown }).code)
-        : undefined;
+    const code = prismaCode(e);
+    const message = e instanceof Error ? e.message : "Unknown error";
 
     if (code === "P2002") {
       return NextResponse.json(
-        { error: "You already have an active challenge." },
+        { error: "You already have an active challenge.", code },
+        { status: 400 },
+      );
+    }
+
+    if (code === "P2003") {
+      return NextResponse.json(
+        {
+          error:
+            "Your account record is missing. Log out, sign in again, then retry.",
+          code,
+        },
         { status: 400 },
       );
     }
 
     return NextResponse.json(
-      { error: "Could not start demo account. Please try again." },
+      {
+        error: "Could not start demo account. Please try again.",
+        code: code ?? "UNKNOWN",
+        detail: process.env.NODE_ENV === "development" ? message : undefined,
+      },
       { status: 500 },
     );
   }

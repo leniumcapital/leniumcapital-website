@@ -11,6 +11,12 @@ import {
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
+import {
+  applyDemoAccountLocally,
+  finishDemoAccountStart,
+  refreshSessionAfterDemoStart,
+  startDemoAccount,
+} from "@/lib/startDemoAccount";
 import { useUiStore, type OnboardingStep } from "@/stores/uiStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
@@ -325,10 +331,6 @@ function ModeCard({
 
 function DemoStep({ onComplete }: { onComplete: () => void }) {
   const { update } = useSession();
-  const setAccount = useAccountStore((s) => s.setAccount);
-  const applyAccountStatus = useAccountStore((s) => s.applyAccountStatus);
-  const resetChallenge = useChallengeStore((s) => s.reset);
-
   const defaultIdx = TIERS.findIndex((t) => t.size === 25_000);
   const [tierIdx, setTierIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0);
   const [loading, setLoading] = useState(false);
@@ -339,68 +341,18 @@ function DemoStep({ onComplete }: { onComplete: () => void }) {
   async function handleStart() {
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch("/api/challenges/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tierSize: tier.size, addons: [] }),
-      });
 
-      let data: { error?: string; tier?: number; balance?: number } = {};
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        setError("Could not start demo account. Please try again.");
-        return;
-      }
-
-      if (!res.ok) {
-        setError(data.error ?? "Could not start demo account.");
-        return;
-      }
-
-      if (data.tier == null || data.balance == null) {
-        setError("Could not start demo account. Please try again.");
-        return;
-      }
-
-      setAccount({
-        accountType: "challenge",
-        challengeStatus: "active",
-        tier: data.tier,
-        balance: data.balance,
-        accountSize: data.tier,
-      });
-      applyAccountStatus({
-        hasActiveChallenge: true,
-        challengeTier: data.tier,
-        challengeBalance: data.balance,
-        tradingMode: "demo",
-      });
-
-      resetChallenge();
-
-      try {
-        await update({
-          tier: data.tier,
-          balance: data.balance,
-          accountType: "challenge",
-          challengeStatus: "in_progress",
-          hasActiveChallenge: true,
-        });
-      } catch (sessionError) {
-        console.warn("Session refresh after demo start failed:", sessionError);
-      }
-
-      toast.success(`${usd(data.tier)} demo account ready — start trading!`);
-      markOnboardingDone();
-      onComplete();
-    } catch (e) {
-      console.error("Demo account start failed:", e);
-      setError("Something went wrong. Please try again.");
-    } finally {
+    const result = await startDemoAccount(tier.size);
+    if (!result.ok) {
+      setError(result.error);
       setLoading(false);
+      return;
     }
+
+    applyDemoAccountLocally(result);
+    finishDemoAccountStart(result.tier, onComplete);
+    void refreshSessionAfterDemoStart(update, result);
+    setLoading(false);
   }
 
   return (

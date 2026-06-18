@@ -262,6 +262,40 @@ export async function upsertGoogleUser(profile: {
   };
 }
 
+/** Resolve DB user id from session — backfills when JWT predates uid. */
+export async function resolveSessionUserId(session: {
+  user?: { id?: string; email?: string | null };
+} | null): Promise<string | null> {
+  const id = session?.user?.id?.trim();
+  if (id) return id;
+
+  const email = session?.user?.email?.trim().toLowerCase();
+  if (!email) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
+/** Repair legacy JWTs that have email but no uid. */
+export async function backfillJwtUserId(
+  token: Record<string, unknown>,
+): Promise<void> {
+  if (token.uid) return;
+
+  const email =
+    typeof token.email === "string" ? token.email.trim().toLowerCase() : "";
+  if (!email) return;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (user) token.uid = user.id;
+}
+
 /** Attach a trading account to an existing user (used after challenge purchase). */
 export async function createTradingAccount(
   userId: string,
