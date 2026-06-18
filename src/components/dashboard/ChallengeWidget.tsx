@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { IconClock } from "@tabler/icons-react";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeProgress } from "@/hooks/useChallengeProgress";
+import { openOnboardingFlow } from "@/components/dashboard/DashboardOnboardingModal";
 import { formatRulePct } from "@/lib/rules";
 import { T } from "@/lib/tokens";
 
@@ -33,32 +33,54 @@ function EmptyState() {
       style={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        gap: 10,
+        alignItems: "stretch",
+        gap: 8,
         padding: "6px 0",
       }}
     >
-      <span style={{ color: T.textSecondary, fontSize: 13 }}>
+      <span style={{ color: T.textSecondary, fontSize: 13, textAlign: "center" }}>
         No active challenge
       </span>
-      <Link
-        href="/dashboard/challenge/select"
+      <button
+        type="button"
+        onClick={() => openOnboardingFlow("demo")}
         style={{
-          display: "block",
           width: "100%",
           boxSizing: "border-box",
           textAlign: "center",
-          background: T.green,
+          background: T.amber,
           color: T.bgPrimary,
+          border: "none",
           borderRadius: 6,
           padding: "8px 14px",
           fontSize: 12,
-          fontWeight: 500,
-          textDecoration: "none",
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: T.font,
         }}
       >
-        Start a challenge →
-      </Link>
+        Start demo account
+      </button>
+      <button
+        type="button"
+        onClick={() => openOnboardingFlow("live")}
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          textAlign: "center",
+          background: "transparent",
+          color: T.green,
+          border: T.hairline(),
+          borderRadius: 6,
+          padding: "7px 14px",
+          fontSize: 11,
+          fontWeight: 500,
+          cursor: "pointer",
+          fontFamily: T.font,
+        }}
+      >
+        Start live challenge
+      </button>
     </div>
   );
 }

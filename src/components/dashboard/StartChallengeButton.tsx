@@ -1,6 +1,9 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { openOnboardingFlow } from "@/components/dashboard/DashboardOnboardingModal";
+import { needsAccountSetup } from "@/lib/accountSetup";
+import { useAccountStore } from "@/stores/accountStore";
 import { useUiStore } from "@/stores/uiStore";
 import { T } from "@/lib/tokens";
 
@@ -8,20 +11,37 @@ interface StartChallengeButtonProps {
   children?: ReactNode;
   fullWidth?: boolean;
   style?: CSSProperties;
+  /** Open demo tier picker directly when the user has no account yet. */
+  preferDemo?: boolean;
 }
 
-/** Opens the in-dashboard challenge modal — never leaves the dashboard. */
+/** Opens onboarding or the live challenge modal — stays on the dashboard. */
 export function StartChallengeButton({
   children,
   fullWidth = false,
   style,
+  preferDemo = false,
 }: StartChallengeButtonProps) {
-  const open = useUiStore((s) => s.openChallengeModal);
+  const account = useAccountStore((s) => ({
+    accountType: s.accountType,
+    challengeStatus: s.challengeStatus,
+    hasActiveChallenge: s.hasActiveChallenge,
+    tier: s.tier,
+  }));
+  const openChallengeModal = useUiStore((s) => s.openChallengeModal);
+
+  function handleClick() {
+    if (needsAccountSetup(account)) {
+      openOnboardingFlow(preferDemo ? "demo" : "mode");
+      return;
+    }
+    openChallengeModal();
+  }
 
   return (
     <button
       type="button"
-      onClick={open}
+      onClick={handleClick}
       style={{
         display: fullWidth ? "block" : "inline-flex",
         width: fullWidth ? "100%" : undefined,

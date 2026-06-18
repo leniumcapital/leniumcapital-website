@@ -11,7 +11,7 @@ import {
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { LeniumMark } from "@/components/ui/LeniumLogo";
-import { useUiStore } from "@/stores/uiStore";
+import { useUiStore, type OnboardingStep } from "@/stores/uiStore";
 import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore } from "@/stores/challengeStore";
 import {
@@ -28,7 +28,11 @@ import { T } from "@/lib/tokens";
 
 const ONBOARDING_DONE_KEY = "lenium_onboarding_done";
 
-type Step = "mode" | "demo" | "live";
+type Step = OnboardingStep;
+
+export function openOnboardingFlow(step: Step = "mode"): void {
+  useUiStore.getState().openOnboarding(step);
+}
 
 export function markOnboardingDone(): void {
   try {
@@ -48,20 +52,21 @@ export function isOnboardingDone(): boolean {
 
 export function DashboardOnboardingModal() {
   const open = useUiStore((s) => s.onboardingOpen);
+  const initialStep = useUiStore((s) => s.onboardingInitialStep);
   const close = useUiStore((s) => s.closeOnboarding);
 
   return (
     <AnimatePresence>
-      {open && <Panel onClose={close} />}
+      {open && <Panel key={initialStep} onClose={close} />}
     </AnimatePresence>
   );
 }
 
 function Panel({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<Step>("mode");
+  const initialStep = useUiStore((s) => s.onboardingInitialStep);
+  const [step, setStep] = useState<Step>(initialStep);
 
   function handleClose() {
-    markOnboardingDone();
     onClose();
   }
 

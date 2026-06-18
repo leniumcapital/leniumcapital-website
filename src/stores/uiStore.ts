@@ -3,6 +3,8 @@ import { create } from "zustand";
 export type ViewMode = "grid" | "list";
 export type SortOrder = "volume" | "expiry" | "movement" | "newest";
 
+export type OnboardingStep = "mode" | "demo" | "live";
+
 interface UIState {
   activeCategory: string;
   searchQuery: string;
@@ -18,6 +20,7 @@ interface UIState {
   challengeModalOpen: boolean;
   /** First-login flow: choose demo vs live, then account or plan. */
   onboardingOpen: boolean;
+  onboardingInitialStep: OnboardingStep;
   /** Shown when a non-funded user tries to switch to live mode. */
   accountGateOpen: boolean;
   /** Hero carousel index on the Trending tab. */
@@ -38,7 +41,7 @@ interface UIState {
   setActiveSidebarFilter: (filter: string | null) => void;
   openChallengeModal: () => void;
   closeChallengeModal: () => void;
-  openOnboarding: () => void;
+  openOnboarding: (step?: OnboardingStep) => void;
   closeOnboarding: () => void;
   openAccountGate: () => void;
   closeAccountGate: () => void;
@@ -55,6 +58,7 @@ const initial = {
   subCategoryFilter: "All Markets",
   challengeModalOpen: false,
   onboardingOpen: false,
+  onboardingInitialStep: "mode" as OnboardingStep,
   accountGateOpen: false,
   heroCarouselIndex: 0,
   heroCarouselMarkets: [] as string[],
@@ -83,8 +87,10 @@ export const useUiStore = create<UIState>()((set) => ({
     set({ activeSidebarFilter, heroCarouselIndex: 0 }),
   openChallengeModal: () => set({ challengeModalOpen: true }),
   closeChallengeModal: () => set({ challengeModalOpen: false }),
-  openOnboarding: () => set({ onboardingOpen: true }),
-  closeOnboarding: () => set({ onboardingOpen: false }),
+  openOnboarding: (step = "mode") =>
+    set({ onboardingOpen: true, onboardingInitialStep: step }),
+  closeOnboarding: () =>
+    set({ onboardingOpen: false, onboardingInitialStep: "mode" }),
   openAccountGate: () => set({ accountGateOpen: true }),
   closeAccountGate: () => set({ accountGateOpen: false }),
   reset: () => set(initial),

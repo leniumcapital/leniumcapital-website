@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -10,6 +9,7 @@ import { useAccountStore } from "@/stores/accountStore";
 import { useChallengeStore, syncChallengeRuleLimits } from "@/stores/challengeStore";
 import { usePositionStore } from "@/stores/positionStore";
 import { useUiStore } from "@/stores/uiStore";
+import { openOnboardingFlow } from "@/components/dashboard/DashboardOnboardingModal";
 import type { AccountChallengeStatus } from "@/stores/accountStore";
 import type { ChallengeStatus } from "@/lib/users";
 import { T } from "@/lib/tokens";
@@ -50,8 +50,8 @@ export function AccountModeSwitch() {
     if (mode === "demo" && !hasDemo) {
       toast.info("Start a demo challenge first.", {
         action: {
-          label: "Select challenge",
-          onClick: () => router.push("/dashboard/challenge/select"),
+          label: "Start demo",
+          onClick: () => openOnboardingFlow("demo"),
         },
       });
       return;
@@ -178,17 +178,22 @@ export function AccountModeSwitch() {
       </div>
 
       {accountType === "none" && (
-        <Link
-          href="/dashboard/challenge/select"
+        <button
+          type="button"
+          onClick={() => openOnboardingFlow("mode")}
           style={{
             fontSize: 11,
             color: T.green,
-            textDecoration: "none",
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
             whiteSpace: "nowrap",
+            fontFamily: T.font,
           }}
         >
-          Start challenge →
-        </Link>
+          Get started →
+        </button>
       )}
     </div>
   );

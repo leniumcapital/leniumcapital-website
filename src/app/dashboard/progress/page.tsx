@@ -45,9 +45,14 @@ export default function ProgressPage() {
           No active challenge
         </span>
         <span style={{ color: T.textMuted, fontSize: 13 }}>
-          Start a challenge to track your progress here
+          Start a demo account to track your progress here
         </span>
-        <StartChallengeButton style={{ fontSize: 13, padding: "10px 20px", marginTop: 8 }} />
+        <StartChallengeButton
+          preferDemo
+          style={{ fontSize: 13, padding: "10px 20px", marginTop: 8 }}
+        >
+          Start demo account →
+        </StartChallengeButton>
       </div>
     );
   }
