@@ -340,44 +340,58 @@ function DemoStep({ onComplete }: { onComplete: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tierSize: tier.size, addons: [] }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        tier?: number;
-        balance?: number;
-      };
+
+      let data: { error?: string; tier?: number; balance?: number } = {};
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        setError("Could not start demo account. Please try again.");
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error ?? "Could not start demo account.");
         return;
       }
 
+      if (data.tier == null || data.balance == null) {
+        setError("Could not start demo account. Please try again.");
+        return;
+      }
+
       setAccount({
         accountType: "challenge",
         challengeStatus: "active",
-        tier: data.tier!,
-        balance: data.balance!,
-        accountSize: data.tier!,
+        tier: data.tier,
+        balance: data.balance,
+        accountSize: data.tier,
       });
       applyAccountStatus({
         hasActiveChallenge: true,
-        challengeTier: data.tier!,
-        challengeBalance: data.balance!,
+        challengeTier: data.tier,
+        challengeBalance: data.balance,
         tradingMode: "demo",
       });
 
       resetChallenge();
 
-      await update({
-        tier: data.tier,
-        balance: data.balance,
-        accountType: "challenge",
-        challengeStatus: "in_progress",
-      });
+      try {
+        await update({
+          tier: data.tier,
+          balance: data.balance,
+          accountType: "challenge",
+          challengeStatus: "in_progress",
+          hasActiveChallenge: true,
+        });
+      } catch (sessionError) {
+        console.warn("Session refresh after demo start failed:", sessionError);
+      }
 
-      toast.success(`${usd(data.tier!)} demo account ready — start trading!`);
+      toast.success(`${usd(data.tier)} demo account ready — start trading!`);
       markOnboardingDone();
       onComplete();
-    } catch {
+    } catch (e) {
+      console.error("Demo account start failed:", e);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
