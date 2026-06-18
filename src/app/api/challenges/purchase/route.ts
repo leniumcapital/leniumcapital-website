@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { resolveSessionUserId } from "@/lib/auth-db";
-import { upsertTradingAccount } from "@/lib/accounts-db";
+import { upsertTradingAccount, ensureTradingAccountSchema } from "@/lib/accounts-db";
 import { prisma } from "@/lib/db";
 import {
   TIERS,
@@ -69,10 +69,10 @@ export async function POST(req: Request) {
     const addons = Array.isArray(body.addons) ? body.addons : [];
     const price = computePrice(tier, addons);
 
-    const challengeAccount = await prisma.tradingAccount.findUnique({
-      where: {
-        userId_accountType: { userId, accountType: "challenge" },
-      },
+    await ensureTradingAccountSchema();
+
+    const challengeAccount = await prisma.tradingAccount.findFirst({
+      where: { userId, accountType: "challenge" },
     });
 
     if (
@@ -143,11 +143,29 @@ export async function POST(req: Request) {
       );
     }
 
+    if (
+      code === "P2021" ||
+      code === "P2022" ||
+      message.toLowerCase().includes("does not exist")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database setup is incomplete. Please try again in one minute or contact support.",
+          code: code ?? "SCHEMA",
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Could not start demo account. Please try again.",
         code: code ?? "UNKNOWN",
-        detail: process.env.NODE_ENV === "development" ? message : undefined,
+        hint:
+          code === "P1001" || code === "P1017"
+            ? "Database connection failed."
+            : undefined,
       },
       { status: 500 },
     );

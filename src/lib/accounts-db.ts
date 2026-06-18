@@ -1,6 +1,51 @@
 import { prisma } from "@/lib/db";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 
+let tradingAccountSchemaReady: Promise<void> | null = null;
+
+/** Ensures TradingAccount exists — for deploys where db push was skipped. */
+export async function ensureTradingAccountSchema(): Promise<void> {
+  if (!tradingAccountSchemaReady) {
+    tradingAccountSchemaReady = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "TradingAccount" (
+          "id" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "accountType" TEXT NOT NULL,
+          "tier" INTEGER NOT NULL,
+          "balance" INTEGER NOT NULL,
+          "challengeStatus" TEXT NOT NULL,
+          "isPrimary" BOOLEAN NOT NULL DEFAULT true,
+          "purchasedAddons" TEXT[] DEFAULT ARRAY[]::TEXT[],
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "TradingAccount_pkey" PRIMARY KEY ("id")
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "TradingAccount_userId_accountType_key"
+        ON "TradingAccount"("userId", "accountType")
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "TradingAccount_userId_idx"
+        ON "TradingAccount"("userId")
+      `);
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "TradingAccount"
+        ADD COLUMN IF NOT EXISTS "purchasedAddons" TEXT[] DEFAULT ARRAY[]::TEXT[]
+      `);
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "TradingAccount"
+        ADD COLUMN IF NOT EXISTS "isPrimary" BOOLEAN DEFAULT true
+      `);
+    })().catch((e) => {
+      tradingAccountSchemaReady = null;
+      throw e;
+    });
+  }
+  return tradingAccountSchemaReady;
+}
+
 export type TradingAccountSummary = {
   id: string;
   accountType: AccountType;
@@ -42,8 +87,8 @@ export async function switchActiveAccount(
   userId: string,
   targetType: AccountType,
 ): Promise<SwitchAccountResult> {
-  const target = await prisma.tradingAccount.findUnique({
-    where: { userId_accountType: { userId, accountType: targetType } },
+  const target = await prisma.tradingAccount.findFirst({
+    where: { userId, accountType: targetType },
   });
 
   if (!target) {
@@ -103,10 +148,10 @@ export async function upsertTradingAccount(
     makePrimary?: boolean;
   },
 ) {
-  const existing = await prisma.tradingAccount.findUnique({
-    where: {
-      userId_accountType: { userId, accountType: data.accountType },
-    },
+  await ensureTradingAccountSchema();
+
+  const existing = await prisma.tradingAccount.findFirst({
+    where: { userId, accountType: data.accountType },
   });
 
   if (existing) {

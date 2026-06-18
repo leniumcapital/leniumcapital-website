@@ -30,6 +30,8 @@ export async function startDemoAccount(tierSize: number): Promise<StartDemoAccou
 
   let data: {
     error?: string;
+    code?: string;
+    hint?: string;
     tier?: number;
     balance?: number;
     accountId?: string;
@@ -45,9 +47,11 @@ export async function startDemoAccount(tierSize: number): Promise<StartDemoAccou
   }
 
   if (!res.ok) {
+    const suffix = data.code ? ` (${data.code})` : "";
+    const hint = data.hint ? ` ${data.hint}` : "";
     return {
       ok: false,
-      error: data.error ?? `Could not start demo account (${res.status}).`,
+      error: (data.error ?? `Could not start demo account (${res.status}).`) + suffix + hint,
     };
   }
 
