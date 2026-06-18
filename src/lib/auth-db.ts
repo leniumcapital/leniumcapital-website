@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { getAuthPrisma, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import type { TradingMode } from "@/lib/account-status";
 import type { AccountType, ChallengeStatus } from "@/lib/users";
 
@@ -221,16 +221,15 @@ export async function upsertGoogleUser(profile: {
 
   const displayName = sanitizeDisplayName(profile.name, normalized);
   const avatarUrl = sanitizeAvatarUrl(profile.image);
-  const authDb = getAuthPrisma();
 
-  const existing = await authDb.user.findUnique({
+  const existing = await prisma.user.findUnique({
     where: { email: normalized },
     select: { id: true },
   });
 
   let user;
   try {
-    user = await authDb.user.upsert({
+    user = await prisma.user.upsert({
       where: { email: normalized },
       create: {
         email: normalized,
@@ -246,7 +245,7 @@ export async function upsertGoogleUser(profile: {
     const code = prismaErrorCode(error);
     console.error("Google upsert failed:", { code, email: normalized, error });
     if (code === "P2002") {
-      user = await authDb.user.findUniqueOrThrow({
+      user = await prisma.user.findUniqueOrThrow({
         where: { email: normalized },
       });
     } else {
@@ -254,7 +253,7 @@ export async function upsertGoogleUser(profile: {
     }
   }
 
-  const accounts = await loadTradingAccountsForUser(user.id, authDb);
+  const accounts = await loadTradingAccountsForUser(user.id);
   const primary = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
   return {

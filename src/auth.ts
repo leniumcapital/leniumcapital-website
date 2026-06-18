@@ -120,29 +120,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         user.tradingMode = result.user.tradingMode;
         user.isNewUser = result.isNewUser;
       } catch (error) {
-        console.error("Google sign-in database error:", error);
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code: unknown }).code)
+            : undefined;
+        console.error("Google sign-in database error:", { code, email, error });
         return "/signup?error=OAuthCallback";
       }
 
       return true;
     },
-    async jwt({ token, user, account, profile, trigger, session }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user && account?.provider === "google") {
-        const googleProfile = profile as GoogleProfile | undefined;
-        const email = user.email ?? googleProfile?.email;
-        if (email) {
-          try {
-            const result = await upsertGoogleUser({
-              email,
-              name: user.name ?? googleProfile?.name,
-              image: user.image ?? googleProfile?.picture,
-            });
-            applySessionUserToToken(token, result.user, result.isNewUser);
-            return token;
-          } catch (error) {
-            console.error("Google jwt user load failed (using signIn payload):", error);
-          }
-        }
+        applySessionUserToToken(
+          token,
+          {
+            id: user.id as string,
+            email: user.email ?? "",
+            name: user.name ?? "",
+            accountType: (user.accountType as AccountType) ?? "challenge",
+            tier: user.tier ?? 0,
+            challengeStatus:
+              (user.challengeStatus as ChallengeStatus) ?? "pending",
+            balance: user.balance ?? 0,
+            hasActiveChallenge: user.hasActiveChallenge ?? false,
+            hasFundedAccount: user.hasFundedAccount ?? false,
+            tradingMode: (user.tradingMode as TradingMode) ?? "demo",
+          },
+          user.isNewUser,
+        );
+        return token;
       }
 
       if (user) {

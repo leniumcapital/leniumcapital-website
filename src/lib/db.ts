@@ -41,13 +41,23 @@ if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = prisma;
 }
 
-/** Direct Postgres URL for auth writes — avoids PgBouncer issues during OAuth upserts. */
+/** Direct Postgres URL — used for health checks and migrations. */
 function directDatabaseUrl(): string | undefined {
-  return (
+  const url =
     process.env.POSTGRES_URL_NON_POOLING?.trim() ||
-    process.env.DATABASE_URL?.trim() ||
-    undefined
-  );
+    process.env.DATABASE_URL?.trim();
+  if (!url) return undefined;
+
+  if (url.includes("supabase.com") || url.includes("supabase.co")) {
+    const params = new URLSearchParams(
+      url.includes("?") ? url.split("?")[1] : "",
+    );
+    if (!params.has("sslmode")) params.set("sslmode", "require");
+    const base = url.split("?")[0];
+    return `${base}?${params.toString()}`;
+  }
+
+  return url;
 }
 
 export function getAuthPrisma(): PrismaClient {
