@@ -30,6 +30,7 @@ export default async function PricingPage({ searchParams }: PageProps) {
   return (
     <section className="border-b border-border py-12">
       <Container>
+        <h1 className="sr-only">Pricing</h1>
         <Suspense fallback={null}>
           <ChallengeSelector isAuthenticated={Boolean(session?.user)} />
         </Suspense>

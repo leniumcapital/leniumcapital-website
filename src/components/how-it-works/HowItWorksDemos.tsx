@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { animate, motion, useInView, useMotionValue, useTransform } from "framer-motion";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { animate, useInView, useMotionValue, useTransform } from "framer-motion";
 import {
   AddonRow,
   PricingTotalBar,
@@ -217,13 +217,14 @@ export function TradingDashboardDemo() {
   const [pnlPct, setPnlPct] = useState(7.4);
   const [drawdownPct, setDrawdownPct] = useState(2.1);
 
-  useEffect(() => {
-    const markets = demoMarketsFromEvents(DEMO_EVENTS);
+  useLayoutEffect(() => {
     useMarketStore.getState().syncCatalogFromKalshi({
       events: DEMO_EVENTS,
-      markets,
+      markets: demoMarketsFromEvents(DEMO_EVENTS),
     });
+  }, []);
 
+  useEffect(() => {
     const interval = setInterval(() => {
       const store = useMarketStore.getState();
       let delta = 0;

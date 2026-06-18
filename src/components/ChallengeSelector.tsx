@@ -15,7 +15,6 @@ import {
 } from "@/components/pricing/ChallengePickerParts";
 import { CHALLENGE_SELECT_PATH } from "@/lib/callback-url";
 import {
-  TIERS,
   ADDONS,
   SPLIT_ADDON_IDS,
   computePrice,

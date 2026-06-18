@@ -8,7 +8,6 @@ import {
   formatTierCompact,
   formatUsd,
   addonPrice,
-  type AddonId,
 } from "@/lib/pricing";
 
 const TIER_HIGHLIGHT_ID = "pricing-tier-highlight";
@@ -78,7 +77,7 @@ export function TierPillGrid({
             onClick={() => onSelect(t.size)}
             className={`relative rounded-xl border px-3 py-3 text-center transition-colors ${
               active
-                ? "border-brand bg-brand-soft"
+                ? "border-transparent bg-transparent"
                 : "border-border bg-background hover:border-brand/40"
             }`}
           >

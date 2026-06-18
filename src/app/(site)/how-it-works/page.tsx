@@ -16,6 +16,7 @@ export default function HowItWorksPage() {
     <>
       <section className="border-b border-border py-16">
         <Container>
+          <h1 className="sr-only">How it works</h1>
           <HowItWorksSteps />
         </Container>
       </section>
